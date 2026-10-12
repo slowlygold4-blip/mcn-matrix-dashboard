@@ -799,13 +799,16 @@ async function executeAuthorResolveJob(job) {
   try {
     if (job.request?.masterRosterSupplement) assertMasterRosterSupplementJob(database.db, job);
     const existingTargets = database.listTargets();
+    // Stream every saved proof: an arbitrary global cutoff used to turn *all*
+    // reuse off as soon as the 10,001st receipt was written. Validation below
+    // still binds only an intact proof to its current canonical target.
     const successProofs = database.db.prepare(`SELECT proof.*,target.metadata_json AS current_metadata_json FROM author_resolution_success_receipts proof
-      JOIN targets target ON target.id=proof.target_id WHERE proof.platform='douyin' ORDER BY proof.id DESC LIMIT 10001`).all();
+      JOIN targets target ON target.id=proof.target_id WHERE proof.platform='douyin' ORDER BY proof.id DESC`).iterate();
     // An explicit ID correction must obtain fresh evidence for this exact job.
     // A past successful proof may aid ordinary imports, but cannot approve a
     // new correction or silently skip its natural-detail verification queue.
     const hydratedRows = job.request?.masterRosterSupplement?.version === 2
-      ? body.rows : hydratePreviouslyVerifiedAuthors(body.rows, existingTargets, successProofs.length <= 10000 ? successProofs : []);
+      ? body.rows : hydratePreviouslyVerifiedAuthors(body.rows, existingTargets, successProofs);
     const resolutionRows = rowsEligibleForAuthorResolution(hydratedRows);
     const requests = buildAuthorEvidenceRequests(resolutionRows);
     const totalAuthors = requests.length
