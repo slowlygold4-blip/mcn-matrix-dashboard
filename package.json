@@ -1,0 +1,30 @@
+{
+  "name": "douyin-monitor-workbench",
+  "version": "1.3.0",
+  "private": true,
+  "type": "module",
+  "description": "本地网络抖音、B站、小红书账号监控工作台，运行时不调用 AI。",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "NODE_ENV=development node --watch server.mjs",
+    "test": "node --test test/*.test.mjs",
+    "check": "node --check server.mjs && node --check public/app.js && node --check public/rebuild.js && node --check public/console-model.js && npm test",
+    "audit:sources": "node scripts/probe-public-sources.mjs --strict",
+    "connect:douyin-topics": "node scripts/connect-douyin-topics.mjs",
+    "install-service": "node scripts/service.mjs install",
+    "uninstall-service": "node scripts/service.mjs uninstall",
+    "service-status": "node scripts/service.mjs status"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@e965/xlsx": "0.20.3",
+    "exceljs": "4.4.0",
+    "playwright-core": "1.62.1"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
+  }
+}

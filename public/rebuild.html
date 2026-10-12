@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090d10">
+  <title>矩阵数据台 · MCN 经营看板</title>
+  <script src="./local-entry.js?v=20260929-entry-1"></script>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/rebuild.css?v=20261010-import-integrity-2">
+  <link rel="stylesheet" href="/master-roster.css?v=20261010-jupiter-workspace-2">
+  <link rel="stylesheet" href="/team-access.css?v=20261004-team-access-1">
+</head>
+<body>
+  <a class="skip" href="#main">跳到主要内容</a>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">M</span><strong>矩阵数据台</strong></div>
+      <a class="public-view-link" href="https://mcn-matrix-observatory.slowlygold4.chatgpt.site/" target="_blank" rel="noopener noreferrer" aria-label="打开公开只读查看版，在新标签页打开" title="仅查看已发布快照；账号管理、导入和采集仍在本机管理台">公开只读版 <span aria-hidden="true">↗</span></a>
+      <div class="top-controls">
+        <span class="status-dot" id="connectionStatus" role="status" aria-live="polite" aria-atomic="true">连接中</span>
+        <button class="ghost-btn" id="refreshBtn" type="button" title="采集全部已启用账号及话题，结束后刷新数据；当前筛选不会缩小采集范围">刷新快照</button>
+        <button class="ghost-btn" id="worksSettingsButton" type="button" aria-haspopup="dialog" aria-controls="worksSettingsDialog" hidden>采集设置</button>
+        <span class="user-chip" id="userChip">—</span>
+      </div>
+    </header>
+    <div class="workspace">
+      <aside class="sidebar" aria-label="主导航">
+        <p class="sidebar-label">工作区</p>
+        <button class="nav-item active" data-view="overview" type="button">经营总览</button>
+        <button class="nav-item" data-view="accounts" type="button">账号管理</button>
+        <button class="nav-item" data-view="topics" type="button">话题监控</button>
+        <button class="nav-item" data-view="import" type="button">导入名单</button>
+        <button class="nav-item" id="teamAccessButton" type="button" aria-haspopup="dialog" aria-controls="teamAccessDialog" hidden>成员权限</button>
+        <div class="sidebar-bottom"><p>数据口径</p><span>北京时区 · 每日快照</span><span>估算播放 = 获赞净变化 × 100</span></div>
+      </aside>
+      <main id="main" class="content" tabindex="-1">
+        <section class="page-head">
+          <div><h1 id="pageTitle" tabindex="-1">今天的矩阵</h1><p id="pageSubtitle">读取已保存的每日快照，缺失数据不会补零。</p></div>
+        </section>
+        <div class="notice" id="notice" role="status" aria-live="polite" hidden></div>
+        <div class="notice collection-refresh-status" id="collectionRefreshStatus" role="status" aria-live="polite" hidden><span id="collectionRefreshMessage"></span> <button class="link-btn" id="collectionRefreshRead" type="button" hidden>核对采集任务状态</button></div>
+        <section id="appliedScopeBar" class="applied-scope-bar" aria-label="已应用数据范围">
+          <div class="applied-scope-content"><span class="applied-scope-label">已应用范围</span><div class="scope-summary" id="scopeSummary" aria-label="当前已应用数据范围"><span class="scope-caption">正在核对数据范围…</span></div></div>
+          <button id="adjustScopeButton" class="secondary-btn" type="button" aria-controls="filterDetails" aria-expanded="false">调整范围</button>
+        </section>
+        <details id="filterDetails" class="control-disclosure">
+          <summary><strong>范围设置</strong><span id="filterBrief">矩阵、主题、分类与日期</span><span class="disclosure-action" aria-hidden="true">收起 / 展开</span></summary>
+          <div id="scopeEditorBody" class="scope-editor-body">
+            <section id="primaryScope" class="primary-scope" aria-label="矩阵、主题与内容筛选"><label>矩阵<select id="boardSelect" aria-label="选择矩阵板块"><option value="">全部账号</option></select></label></section>
+            <div class="date-controls">
+              <label>统计周期<select id="periodSelect"><option value="day">今日</option><option value="week" selected>近 7 天</option><option value="month">本月</option><option value="30d">近 30 天</option><option value="custom">自定义</option></select></label>
+              <label id="startDateWrap" hidden>开始<input id="startDate" type="date"></label>
+              <label id="endDateWrap" hidden>结束<input id="endDate" type="date"></label>
+              <button class="primary-btn" id="applyDateBtn" type="button">应用范围</button>
+            </div>
+          </div>
+        </details>
+        <div class="load-feedback" id="loadFeedback" data-state="loading" data-read-state="loading"><span>连接账号资料与每日快照…</span></div>
+        <div class="live-sync-status" id="liveSyncStatus" data-state="idle" role="status" aria-live="polite" hidden><span id="liveSyncMessage">自动同步将在首次读取后开启</span><button id="applyLiveUpdate" class="link-btn" type="button" hidden>应用更新</button></div>
+        <details id="operationsDetails" class="control-disclosure">
+          <summary><strong>自动更新与来源</strong><span id="monitoringBrief">正在读取计划与检查状态…</span><span class="disclosure-action" aria-hidden="true">详情</span></summary>
+          <section class="monitoring-status" id="monitoringStatus" aria-label="自动更新与来源检查"><p class="monitoring-unavailable">正在读取自动更新计划…</p></section>
+          <p class="operations-note" id="runtimeCollectionBoundary" role="note">刷新快照 = 发起全局采集 + 更新数据；采集需本机开机联网，失败和缺测不补零。管理员或编辑成员点击“刷新快照”会采集全部已启用账号及话题，结束后刷新当前范围的数据；已有任务时排队或复用，不重复并发。先更新主页粉丝、获赞、作品存量及话题双指标，作品明细由后台分批补充，不代表全部历史作品已采齐。计划采集依赖运行此后台的电脑保持唤醒并联网；关机、睡眠或断网期间会暂停，恢复后按后续计划继续，离线缺口不补造。公开只读镜像仅展示已发布快照，不在云端执行采集；来源元数据检查不等于名单内容同步。</p>
+        </details>
+        <p class="operations-note" hidden id="runtimeCollectionHint">刷新快照 = 发起全局采集 + 更新数据；采集需本机开机联网，失败和缺测不补零。</p>
+        <p id="recordedWindowNotice" class="recorded-window-notice" role="status" hidden></p>
+        <section id="overviewView" data-view-panel>
+          <p class="metric-boundary">区间净变化 · 缺采不补零 · 估算播放 = 获赞净变化 × 100，非平台实际播放量</p>
+          <div class="kpi-grid" id="kpiGrid" aria-label="关键指标"></div>
+          <details id="recordedWindowAlternative" class="recorded-window-alternative" hidden></details>
+          <div class="section-row section-row-space"><div><h2>账号表现</h2><p class="muted">先选关注指标，再查看增长、下滑或缺少可比数据的账号。</p></div><div class="overview-metric-tools"><label>关注指标<select id="workflowMetric"><option value="followers">粉丝</option><option value="likes">获赞</option><option value="posts">作品存量</option><option value="estimatedPlays">估算播放</option></select></label><button class="link-btn" data-action="workflow-accounts" type="button">查看全部账号</button></div></div>
+          <div id="dailyWorkflow" class="daily-workflow" aria-label="账号表现筛选"></div>
+          <p id="workflowCaption" class="workflow-caption" role="status"></p>
+          <section class="table-card" id="overviewTable" role="region" aria-label="重点账号表现" tabindex="0"></section>
+          <div class="section-row section-row-space"><div><h2>每日走势</h2><p class="muted" id="trendCaption">—</p></div><div class="legend"><span>粉丝</span><span>点赞</span><span>作品</span></div></div>
+          <section class="trend-card" id="trendCard"><div class="chart-wrap" id="trendChart"><div class="empty">等待数据…</div></div><div class="chart-axis" id="chartAxis"></div></section>
+          <details id="rosterDistribution" class="roster-distribution"><summary>名册分布与分类来源</summary>
+          <section class="theme-panel" aria-labelledby="themeTitle">
+            <div class="section-row"><div><h2 id="themeTitle">大主题</h2><p class="muted">已建档经营账号按账号 ID 去重（含暂停）；指标仅统计启用账号。同一账号只计入一个大主题。</p></div><button class="link-btn" data-view="accounts" type="button">查看主题账号 →</button></div>
+            <div class="theme-grid" id="themeGrid"><div class="empty">读取主题统计…</div></div><p class="theme-summary" id="themeSummary">—</p>
+          </section>
+          <section class="classification-panel" aria-labelledby="classificationTitle">
+            <div class="section-row"><div><h2 id="classificationTitle">矩阵类型与内容标签</h2><p class="muted">已确认归属团团的合并名册统一以“切片矩阵”为主分类；原创、AI二创等作为可重叠二级标签，原表自由描述只保留为来源证据。</p></div><button class="link-btn" data-view="accounts" type="button">查看对应账号 →</button></div>
+            <div class="classification-grid" id="classificationGrid"><div class="empty">读取分类统计…</div></div><p class="classification-summary" id="classificationSummary">—</p>
+            <details class="classification-sources"><summary>查看表格来源与明确分类覆盖</summary><div id="classificationSources"><div class="empty">读取来源…</div></div></details>
+          </section>
+          </details>
+        </section>
+        <section id="accountsView" data-view-panel hidden>
+          <div id="accountModeSwitch" class="account-mode-switch" role="tablist" aria-label="账号资料范围">
+            <button id="accountModeOperatingTab" type="button" role="tab" data-account-mode="operating" aria-selected="true" aria-controls="operatingAccountsPanel">经营账号</button>
+            <button id="accountModeRosterTab" type="button" role="tab" data-account-mode="roster" aria-selected="false" aria-controls="rosterAccountsPanel" tabindex="-1">完整来源名册</button>
+          </div>
+          <section id="operatingAccountsPanel" class="account-mode-panel" role="tabpanel" aria-labelledby="accountModeOperatingTab">
+            <div class="section-row"><div><h2>经营账号</h2><p class="muted" id="accountCount" tabindex="-1">—</p></div><div class="table-tools"><label class="search"><input id="accountSearch" type="search" placeholder="搜索作者、平台账号 ID…" aria-label="搜索经营账号"></label><label class="sort-label">排序<select id="sortSelect"><option value="followers">粉丝</option><option value="likes">点赞</option><option value="estimatedPlays">估算播放</option><option value="posts">作品</option><option value="delta">日变化</option></select></label></div></div>
+            <div class="overview-metric-tools"><label>表现指标<select id="accountWorkflowMetric"><option value="followers">粉丝</option><option value="likes">获赞</option><option value="posts">作品存量</option><option value="estimatedPlays">估算播放</option></select></label></div>
+            <div id="accountWorkflow" class="daily-workflow" aria-label="台账表现筛选"></div>
+            <p id="accountWorkflowCaption" class="workflow-caption"></p>
+            <p class="account-mode-note">这里只显示已建档、可进入经营统计的账号。没找到？<button type="button" class="link-btn" data-action="search-master-roster">用当前关键词查完整来源名册</button></p>
+            <p class="muted ledger-reading-help" id="accountTableHelp">账号台账可上下、左右滚动；聚焦表格区域后用方向键浏览，Tab 可进入列名与账号，Shift+Tab 可返回翻页。</p>
+            <section class="table-card" id="accountsTable" role="region" aria-label="经营账号台账" aria-describedby="accountCount accountTableHelp" tabindex="0"></section><div class="pager" id="pager"></div>
+          </section>
+          <section id="rosterAccountsPanel" class="account-mode-panel" role="tabpanel" aria-labelledby="accountModeRosterTab" hidden>
+            <div class="account-mode-intro"><div><h2>完整来源名册</h2><p class="muted">包含已建档、暂停和待核对资料；待核对条目不会进入经营指标。</p></div></div>
+            <div id="masterRosterHost"></div>
+          </section>
+        </section>
+        <section id="topicsView" data-view-panel hidden><div class="section-row"><div><h2>话题监控</h2><p class="muted">只呈现参与人数与播放量变化，独立于账号板块。</p></div></div><section class="topic-grid" id="topicsGrid"><div class="empty">正在读取话题数据…</div></section></section>
+        <section id="importView" data-view-panel hidden>
+          <div class="section-row"><div><h2>导入作者名单</h2><p class="muted">上传表格后先预览审查，再提交处理。新增账号、既有记录与证据请求分别计数。</p></div></div>
+          <section class="import-card">
+            <label class="upload-drop" id="uploadDrop"><input id="fileInput" type="file" accept=".xlsx,.xls,.xlsm,.xlsb,.csv,.tsv"><span class="upload-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5"/></svg></span><strong>拖入表格，或点击选择文件</strong><small>支持 XLSX、XLS、CSV、TSV · Excel 多工作表可一次预览、逐表分板块并统一提交</small></label>
+            <details id="pasteAuthorsPanel" class="paste-authors-panel"><summary>没有文件？直接粘贴表格或账号名单</summary>
+              <div class="paste-author-options"><label for="pasteAuthorsMode">粘贴内容<select id="pasteAuthorsMode"><option value="table">带表头的表格</option><option value="names">作者名称（每行一个）</option><option value="ids">平台账号 ID（每行一个）</option><option value="links">主页 / 分享链接（每行一个）</option></select></label><label id="pastePlatformLabel" for="pasteAuthorsPlatform" hidden>这些账号的平台<select id="pasteAuthorsPlatform"><option value="douyin">抖音</option><option value="bilibili">B站</option><option value="xiaohongshu">小红书</option></select></label></div>
+              <label class="paste-authors-label" for="pasteAuthorsText">作者资料</label><textarea id="pasteAuthorsText" rows="7" maxlength="1000000" spellcheck="false" aria-describedby="pasteAuthorsHelp pasteAuthorsStatus" placeholder="平台&#9;作者名称&#9;抖音号&#9;主页链接&#9;板块&#10;抖音&#9;示例作者&#9;请填真实抖音号&#9;&#9;团团矩阵"></textarea>
+              <p id="pasteAuthorsHelp" class="import-unit-note">从 Excel / 飞书复制时请带上表头，保留制表符；也支持逗号分隔 CSV。推荐列：平台、作者名称、抖音号 / B站UID / 小红书用户ID、主页链接、板块。平台未填时按原导入规则识别，混合平台请逐行写明。</p>
+              <div class="import-actions"><button id="previewPastedAuthors" class="secondary-btn" type="button">先预览粘贴内容</button><button id="clearPastedAuthors" class="link-btn" type="button">清空粘贴内容</button></div><p id="pasteAuthorsStatus" class="import-unit-note" role="status" aria-live="polite">只预览，不自动提交。只有昵称不会当成已确认账号；后续仍需核对身份。</p>
+            </details>
+            <div id="importPreview" class="import-preview" tabindex="-1" hidden></div>
+          </section>
+          <section id="importSessionJobs" class="import-result-card" aria-labelledby="importSessionJobsHeading" hidden><div class="section-row"><h2 id="importSessionJobsHeading">本人最近任务与本次会话回执</h2><button id="loadRecentImportJobs" class="secondary-btn" type="button">读取最近任务</button></div><p class="import-unit-note">只读取本人最近 8 条任务，并保留本次会话回执。点击任务不会重新提交；当前查看任务会保留在地址栏，刷新可恢复。</p><p id="importHistoryStatus" class="import-unit-note" role="status" aria-live="polite">尚未读取最近任务。</p><div id="importSessionJobList" class="import-actions"></div></section>
+          <section id="importJobResult" class="import-result-card" aria-labelledby="importJobHeading" hidden>
+            <div class="section-row"><div><h2 id="importJobHeading">任务处理结果</h2><p class="muted" id="importJobMeta"></p></div><button type="button" class="secondary-btn" id="checkImportJob">检查处理结果</button></div>
+            <p id="importJobReadStatus" class="muted" role="status" aria-live="polite"></p><div id="importJobBody"></div>
+            <section id="importMonitoring" class="import-review-list" aria-labelledby="importMonitoringTitle" hidden>
+              <div class="section-row"><h3 id="importMonitoringTitle">本任务当前监控接入</h3><button data-monitoring="refresh" class="secondary-btn" type="button">读取最新接入状态</button></div>
+              <p class="import-unit-note">按本任务提交的平台与账号 ID 去重核对。启用监控、暂停与尚未接入分别统计；任务处理完成、证据排队或核验通过，都不等于这些账号已全部接入或采样完成。</p>
+              <div data-monitoring="summary"></div><p data-monitoring="checkedAt" class="import-review-checked-at"></p>
+              <form data-monitoring="form" class="import-review-controls"><label>当前接入状态<select data-monitoring="filter" aria-label="当前监控接入状态"><option value="all">全部状态</option><option value="enabled">启用监控</option><option value="paused">已暂停</option><option value="pending">尚未接入</option><option value="conflict">关联冲突</option><option value="unknown">无法确认</option></select></label><button data-monitoring="search" class="secondary-btn" type="submit">应用筛选</button></form>
+              <p data-monitoring="status" role="status" aria-live="polite"></p>
+              <div class="import-review-scroll" tabindex="0" role="region" aria-label="本任务去重账号的当前监控接入表，可横向滚动"><table class="table"><thead><tr><th scope="col">序号</th><th scope="col">平台 / 提交 ID</th><th scope="col">名称 / 来源行</th><th scope="col">当前接入</th><th scope="col">监控账号 / 采样</th><th scope="col">核对说明</th></tr></thead><tbody data-monitoring="rows"></tbody></table></div>
+              <div class="import-review-pager"><button data-monitoring="previous" type="button" class="secondary-btn" disabled>上一页</button><button data-monitoring="next" type="button" class="secondary-btn" disabled>下一页</button></div>
+            </section>
+            <section id="importReviewList" class="import-review-list" aria-labelledby="importReviewTitle" hidden>
+              <h3 id="importReviewTitle">逐项审查清单</h3><p class="import-unit-note">历史列保留任务完成时的状态与原因，右侧单独显示本次查询的证据核验结果。搜索与筛选仅作用于历史记录，不代表当前待处理人数，也不改变原始名单。</p>
+              <form data-review="form" class="import-review-controls"><label>查找记录<input data-review="query" type="search" maxlength="200" placeholder="作者 / 账号ID / 源行 / 历史原因"></label><label>历史状态<select data-review="filter" aria-label="历史审查状态"><option value="">全部原因状态</option></select></label><button class="secondary-btn" type="submit">搜索 / 重试</button><button data-review="refresh" class="secondary-btn" type="button" disabled>刷新当前页状态</button></form>
+              <p data-review="status" role="status" aria-live="polite"></p>
+              <p data-review="checkedAt" class="import-review-checked-at"></p>
+              <div class="import-review-scroll" tabindex="0" role="region" aria-label="历史审查记录与当前证据核验表，可横向滚动"><table class="table"><thead><tr><th scope="col">源行</th><th scope="col">作者 / 平台ID</th><th scope="col">板块</th><th scope="col">历史状态</th><th scope="col">历史未接入 / 审查原因</th><th scope="col">当前证据核验</th></tr></thead><tbody data-review="rows"></tbody></table></div>
+              <div class="import-review-pager"><button data-review="previous" type="button" class="secondary-btn" disabled>上一页</button><button data-review="next" type="button" class="secondary-btn" disabled>下一页</button></div>
+            </section>
+          </section>
+          <details id="sourceImportHistory" class="import-result-card"><summary>全局来源表格 · 历史处理回执</summary><p id="sourceImportFreshness" class="import-unit-note">正在读取来源任务回执…</p><div id="sourceImportResults"><p class="muted">尚未读取业务结果，不能推断为零或全部成功。</p></div></details>
+        </section>
+      </main>
+    </div>
+  </div>
+  <dialog id="accountDialog" class="account-dialog"><div class="dialog-head"><div><p class="eyebrow">账号详情</p><h2 id="dialogName">账号趋势</h2><p class="muted" id="dialogMeta">—</p></div><button class="close-btn" data-close-dialog type="button" aria-label="关闭">×</button></div><div id="dialogBody"><div class="empty">读取中…</div></div></dialog>
+  <dialog id="worksSettingsDialog" class="works-settings-dialog" aria-labelledby="worksSettingsTitle" aria-describedby="worksSettingsBoundary">
+    <div class="dialog-head"><div><h2 id="worksSettingsTitle">采集设置</h2><p class="muted">只影响后续后台采集，不修改已保存的历史。</p></div><button id="worksSettingsClose" class="close-btn" type="button" aria-label="关闭采集设置">×</button></div>
+    <p id="worksSettingsSaved" class="muted">尚未读取已保存策略。</p>
+    <form id="worksSettingsForm">
+      <label>抖音作品保存策略<select id="worksPageMode" disabled><option value="legacy">旧数量上限模式</option><option value="whole-page-v2">整页保存模式</option></select></label>
+      <div id="worksLegacyFields"><label>每账号每轮作品上限<input id="worksLegacyLimit" type="number" min="1" max="100" step="1" required disabled></label></div>
+      <div id="worksWholeFields" hidden><div class="works-settings-fields"><label>每轮保存硬上限<input id="worksHardLimit" type="number" min="1" max="100" step="1" required disabled></label><label>停止续页的目标数量<input id="worksThreshold" type="number" min="1" max="100" step="1" required disabled></label></div><p class="muted">达到目标数量就不再请求下一页；当前已返回页可超过目标数量，但不能超过保存硬上限。新模式不改旧模式的上限设置。</p></div>
+      <p id="worksSettingsPreview" class="works-settings-preview">读取已保存的策略后才能修改。</p>
+      <p id="worksSettingsBoundary" class="muted">整页保存不是“采到全部作品”。原有每轮 45 秒、最多 3 页和来源核验限制保持；仅用于抖音授权浏览器作品读取，其他平台与匿名采集不变。登录失效或访问受限不会被绕过。</p>
+      <div class="works-settings-actions"><button id="worksSettingsSave" class="primary-btn" type="submit" disabled>保存策略</button><button id="worksSettingsReload" class="secondary-btn" type="button" disabled>重新读取</button></div>
+      <p id="worksSettingsStatus" class="form-status" role="status" aria-live="polite" aria-atomic="true"></p>
+    </form>
+  </dialog>
+  <dialog id="teamAccessDialog" class="team-access-dialog" aria-labelledby="teamAccessTitle" aria-describedby="teamAccessDescription">
+    <div class="dialog-head"><div><p class="eyebrow">团队管理</p><h2 id="teamAccessTitle">成员与邀请</h2><p class="muted" id="teamAccessDescription">仅管理员可调整成员权限、停用成员或撤销邀请码。查看者只读；编辑者可维护名单。</p></div><button id="teamAccessClose" class="close-btn" type="button" aria-label="关闭成员权限">×</button></div>
+    <p id="teamAccessSummary" class="team-access-summary">正在读取团队清单…</p>
+    <div class="team-access-heading"><h3>成员</h3><button id="teamAccessRefresh" class="secondary-btn" type="button">刷新清单</button></div>
+    <div id="teamMemberList" aria-live="polite"><p class="team-access-empty">正在读取…</p></div>
+    <section class="team-invite-section" aria-labelledby="teamInviteTitle">
+      <h3 id="teamInviteTitle">创建一次性团队邀请</h3>
+      <p class="team-access-boundary">公网 HTTPS 地址只是已配置入口，不代表所有网络都可达；临时隧道依赖本机持续运行。只有明确显示局域网入口时才可同网使用。不要向不可信对象发送链接。</p>
+      <form id="teamInviteForm">
+        <div class="team-invite-fields">
+          <label>加入后权限<select id="teamInviteRole"><option value="viewer">查看者（只读）</option><option value="editor">编辑者（可维护名单）</option></select></label>
+          <label>邀请备注<input id="teamInviteLabel" type="text" maxlength="80" placeholder="例如：剪辑组运营"></label>
+          <label>有效期<select id="teamInviteHours"><option value="24">24 小时</option><option value="72">3 天</option><option value="168">7 天</option></select></label>
+          <label>最多使用<select id="teamInviteMaxUses"><option value="1">1 次</option><option value="5">5 次</option><option value="20">20 次</option></select></label>
+        </div>
+        <button id="teamInviteSubmit" class="primary-btn" type="submit">生成邀请链接</button>
+      </form>
+      <div id="teamInviteResult" class="team-invite-result" hidden>
+        <strong>邀请码只在本次显示；关闭面板后无法找回。</strong>
+        <p>完整邀请码：<code id="teamInviteCode"></code></p>
+        <label>发给成员的登录链接<input id="teamInviteLink" type="url" readonly aria-label="一次性登录链接"></label>
+        <button id="teamInviteCopy" class="secondary-btn" type="button">复制登录链接</button>
+      </div>
+      <div id="teamInviteAcknowledgeRow" class="team-access-ack" hidden>
+        <label><input id="teamInviteAcknowledgeCheck" type="checkbox">我已核对上方列表；若上次请求已创建邀请码，我会先撤销疑似重复记录，仍需新建。</label>
+        <button id="teamInviteAcknowledge" class="secondary-btn" type="button" disabled>确认后允许新建</button>
+      </div>
+      <button id="teamInviteReconcile" class="secondary-btn" type="button" hidden>先刷新并核对邀请码列表</button>
+    </section>
+    <p id="teamInviteListTitle" class="team-access-heading"><strong>邀请码（列表不含邀请码正文）</strong></p>
+    <div id="teamInviteList" aria-live="polite"><p class="team-access-empty">正在读取…</p></div>
+    <p id="teamAccessStatus" class="form-status" role="status" aria-live="polite" aria-atomic="true"></p>
+  </dialog>
+  <dialog id="authDialog" class="auth-dialog"><form method="dialog" id="authForm"><h2>进入矩阵数据台</h2><p class="muted">请输入管理员提供的邀请码。数据仅来自工作台已保存的快照。</p><label>显示名称<input name="displayName" required minlength="2" placeholder="例如：运营小王"></label><label>邀请码<input name="code" required placeholder="XXXX-XXXX-XXXX-XXXX"></label><button class="primary-btn" type="submit">验证并进入</button><p id="authStatus" class="form-status"></p></form></dialog>
+  <script type="module" src="/works-settings.js?v=20261002-works-settings-1"></script>
+  <script type="module" src="/team-access.js?v=20261004-team-access-2"></script>
+  <script type="module" src="/import-review.js?v=20261009-current-resolution-1"></script>
+  <script type="module" src="/import-monitoring.js?v=20261010-import-integrity-2"></script>
+  <script type="module" src="/rebuild.js?v=20261010-import-integrity-2"></script>
+  <script type="module" src="/master-roster-entry.js?v=20261010-jupiter-workspace-2"></script>
+</body>
+</html>

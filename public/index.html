@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#090B10">
+  <title>内容数据指挥台</title>
+  <script src="./local-entry.js?v=20260929-entry-1"></script>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css?v=20260913-board-catalog-1">
+  <link rel="stylesheet" href="/product-dashboard.css?v=20261004-topic-target-metrics-verified-1">
+    <link rel="stylesheet" href="/account-detail.css?v=20260914-topic-stats-4">
+</head>
+<body class="auth-pending">
+  <a class="skip-link" href="#overview">跳到主要内容</a>
+
+  <section class="auth-gate" id="authGate" aria-labelledby="authGateTitle">
+    <form class="auth-gate-card" id="joinForm">
+      <span class="brand-mark auth-brand"><img src="/icons/brand-logo.svg" alt=""></span>
+      <p class="eyebrow">PRIVATE TEAM ACCESS / 团队协作</p>
+      <h1 id="authGateTitle">使用邀请码进入<br>监控工作台</h1>
+      <p>这台电脑上的数据不会公开暴露。请向管理员索取邀请码，并使用便于识别的名字加入。</p>
+      <label class="field"><span>你的显示名称</span><input name="displayName" minlength="2" maxlength="40" autocomplete="name" required placeholder="例如：小王"></label>
+      <label class="field"><span>邀请码</span><input name="code" minlength="32" maxlength="48" autocomplete="one-time-code" required placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"></label>
+      <button class="button button-primary auth-submit" type="submit">验证并进入 →</button>
+      <small id="joinStatus">需要管理员邀请码；会话使用 HttpOnly 安全 Cookie。</small>
+    </form>
+  </section>
+  <header class="topbar">
+    <a class="brand" href="#overview" aria-label="回到总览">
+      <span class="brand-mark"><img src="/icons/brand-logo.svg" alt=""></span>
+      <span><strong>内容数据指挥台</strong><small>账号 · 板块 · 每日增长</small></span>
+    </a>
+  <nav class="nav-links" aria-label="工作台导航">
+    <a href="#overview"><span class="nav-icon"><img src="/icons/overview.svg" alt="" aria-hidden="true"></span><span>数据总览</span></a>
+    <a href="#boards"><span class="nav-icon"><img src="/icons/authors.svg" alt="" aria-hidden="true"></span><span>板块分析</span></a>
+    <a href="#topics"><span class="nav-icon"><img src="/icons/reports.svg" alt="" aria-hidden="true"></span><span>话题监控</span></a>
+    <a href="#targets"><span class="nav-icon"><img src="/icons/authors.svg" alt="" aria-hidden="true"></span><span>账号管理</span></a>
+    <a href="#updates"><span class="nav-icon"><img src="/icons/settings.svg" alt="" aria-hidden="true"></span><span>导入更新</span></a>
+    <a href="#reports"><span class="nav-icon"><img src="/icons/reports.svg" alt="" aria-hidden="true"></span><span>报告</span></a>
+    <a href="#audit"><span class="nav-icon"><img src="/icons/settings.svg" alt="" aria-hidden="true"></span><span>数据检查</span></a>
+  </nav>
+    <div class="top-actions">
+      <span class="runtime-badge"><span></span><span id="runtimeBadgeText">正在读取数据</span></span>
+      <button class="user-access-button" id="userAccessButton" type="button" aria-label="多人使用与当前身份"><span id="userAvatar">本</span><span><strong id="currentUserName">读取身份…</strong><small id="currentUserRole">—</small></span></button>
+      <button class="icon-button" id="settingsButton" data-min-role="admin" type="button" aria-label="数据源与定时设置"><img src="/icons/settings.svg" alt=""></button>
+      <button class="button button-primary" id="authorSpreadsheetHeaderButton" data-min-role="editor" type="button">上传监控名单</button>
+    </div>
+  </header>
+  <nav class="nav-links mobile-nav" aria-label="手机端工作台导航">
+    <a href="#overview"><span class="nav-icon"><img src="/icons/overview.svg" alt="" aria-hidden="true"></span><span>总览</span></a>
+    <a href="#boards"><span class="nav-icon"><img src="/icons/authors.svg" alt="" aria-hidden="true"></span><span>板块</span></a>
+    <a href="#topics"><span class="nav-icon"><img src="/icons/reports.svg" alt="" aria-hidden="true"></span><span>话题</span></a>
+    <a href="#targets"><span class="nav-icon"><img src="/icons/authors.svg" alt="" aria-hidden="true"></span><span>账号</span></a>
+    <a href="#updates"><span class="nav-icon"><img src="/icons/settings.svg" alt="" aria-hidden="true"></span><span>更新</span></a>
+    <a href="#reports"><span class="nav-icon"><img src="/icons/reports.svg" alt="" aria-hidden="true"></span><span>报告</span></a>
+    <a href="#audit"><span class="nav-icon"><img src="/icons/settings.svg" alt="" aria-hidden="true"></span><span>检查</span></a>
+  </nav>
+
+  <main class="product-main">
+    <div class="product-scope" id="productScope">
+      <div><span class="product-scope__caption">查看范围</span><label class="product-scope__board"><select data-board-select aria-label="选择数据板块"><option>全部板块</option></select></label></div>
+      <div class="product-scope__actions"><a href="#reports">生成报告</a><a href="#audit">数据检查</a><button type="button" class="text-button" data-create-board data-min-role="editor">新建板块</button></div>
+    </div>
+    <div id="productControls"></div>
+    <div id="productFeedback" role="status" aria-live="polite"></div>
+    <section id="overview" class="product-page" data-product-page><div class="product-loading">正在读取已保存的每日数据…</div></section>
+    <section id="boards" class="product-page" data-product-page hidden></section>
+    <section id="topics" class="product-page" data-product-page hidden></section>
+    <section id="targets" class="product-page" data-product-page hidden></section>
+    <section id="updates" class="product-page" data-product-page hidden>
+      <div id="productUpdates"></div>
+      <div class="product-update-actions">
+        <button class="button button-primary" id="authorSpreadsheetButton" data-min-role="editor" type="button">上传表格 / 读取飞书</button>
+        <button class="button button-quiet" id="authorQueueButton" type="button">查看未确认的名单证据 <b id="authorQueueButtonCount">0</b></button>
+      </div>
+      <section class="author-job-panel hidden" id="authorJobPanel" aria-live="polite" aria-labelledby="authorJobTitle">
+        <div class="author-job-head"><h3 id="authorJobTitle">最近导入回执 · 全部板块</h3><span class="author-job-status" id="authorJobStatus">—</span></div>
+        <p class="product-note">这里记录提交时的处理结果；后续已通过的证据以“名单证据”当前状态为准。</p>
+        <div class="author-job-body" id="authorJobBody"></div>
+      </section>
+    </section>
+
+    <section class="reports-section section-shell product-page" id="reports" data-product-page hidden>
+      <div class="section-heading">
+        <div>
+
+          <h2>自动报告</h2>
+        </div>
+        <div class="report-tabs" role="tablist" aria-label="报告周期">
+          <button class="active" data-period="day" type="button" role="tab" aria-selected="true">每日</button>
+          <button data-period="week" type="button" role="tab" aria-selected="false">每周</button>
+          <button data-period="month" type="button" role="tab" aria-selected="false">每月</button>
+        </div>
+      </div>
+      <div class="report-context-row">
+        <div class="report-context" id="reportContext" role="status" aria-live="polite"></div>
+        <label class="daily-report-picker" id="dailyReportPicker">
+          <span>日报日期</span>
+          <select id="dailyReportSelect" aria-label="选择已完成的自动日报"></select>
+        </label>
+      </div>
+      <div class="collection-proof" id="collectionProof" aria-label="本期采集写入证据"></div>
+      <div class="growth-ledger" id="growthLedger" aria-label="账号增长指标"></div>
+      <p class="growth-method">优先使用期初前最近快照；若系统在本期内首次建立基线，则明确标注“从本期首条快照起算”。缺少两份可比快照的账号不按 0 汇总。新增点赞取主页“累计获赞”净变化，估算播放量按新增点赞 × 100 换算。</p>
+      <section class="contributor-panel" aria-labelledby="contributorTitle">
+        <div class="subheading contributor-heading"><div><h3 id="contributorTitle">作者增长贡献</h3><span id="contributorCoverage">—</span><p id="contributorDescriptor" class="contributor-descriptor">涨跌基于最近两次可比快照；缺少可比数据的作者不参与排序。</p></div><div class="contributor-tabs" role="tablist" aria-label="贡献榜指标"><button class="active" data-contributor-metric="followers" type="button" role="tab" aria-selected="true">涨粉榜</button><button data-contributor-metric="likes" type="button" role="tab" aria-selected="false">新增赞榜</button><button data-contributor-metric="loss" type="button" role="tab" aria-selected="false">掉粉榜</button><button data-contributor-metric="plays" type="button" role="tab" aria-selected="false">估算播放榜</button></div></div>
+        <div class="contributor-list" id="contributorList"></div>
+      </section>
+      <div class="report-grid">
+        <div class="report-summary" id="reportSummary"></div>
+        <div class="viral-list-wrap">
+          <div class="subheading"><h3>爆款作品</h3><span id="viralThresholdLabel">—</span></div>
+          <div class="viral-list" id="viralList"></div>
+        </div>
+      </div>
+      <div class="export-row">
+        <span id="reportRange">—</span>
+        <div><a class="text-button" id="exportGrowthCsv" href="/api/export?period=day&format=csv&scope=growth">增长明细 CSV</a><a class="text-button" id="exportCsv" href="/api/export?period=day&format=csv">作品明细 CSV</a><a class="text-button" id="exportMd" href="/api/export?period=day&format=md">汇总 Markdown</a></div>
+      </div>
+    </section>
+
+    <section class="audit-section product-page" id="audit" data-product-page hidden>
+      <div class="section-heading">
+        <div>
+
+          <h2>每次采集都有证据</h2>
+        </div>
+        <p class="section-note">原始响应使用 SHA-256 生成校验指纹；异常数据只警告或拒绝，不覆写历史。</p>
+      </div>
+      <div class="audit-layout">
+        <div class="audit-feed" id="auditFeed"></div>
+        <aside class="health-panel">
+          <p class="eyebrow">COLLECTOR HEALTH</p>
+          <h3>采集器健康</h3>
+          <dl>
+            <div><dt>最近任务</dt><dd id="lastRunStatus">尚未运行</dd></div>
+            <div><dt>自动整批</dt><dd id="healthBatchStatus">尚未运行</dd></div>
+            <div><dt>自动时点</dt><dd id="healthScheduleStatus">—</dd></div>
+            <div><dt>自动补采</dt><dd id="healthRetryStatus">无补采记录</dd></div>
+            <div><dt>主页已保存</dt><dd id="lastRunSuccess">—</dd></div>
+            <div><dt>数据范围提示</dt><dd id="lastRunWarning">—</dd></div>
+            <div><dt>失败目标</dt><dd><button class="health-link" id="lastRunError" type="button" disabled>—</button></dd></div>
+            <div><dt>公开源自检</dt><dd id="healthProbeStatus">尚未执行</dd></div>
+            <div><dt>采集模式</dt><dd id="healthCollectionMode">后台快照 · 网页仅阅读</dd></div>
+            <div><dt>下次自动</dt><dd id="healthNextRun">—</dd></div>
+            <div><dt>数据截至</dt><dd id="healthDataCutoff">—</dd></div>
+            <div><dt>本地数据库</dt><dd id="healthDatabaseStatus">—</dd></div>
+            <div><dt>数据契约</dt><dd id="healthDataQualityStatus">—</dd></div>
+            <div><dt>自动备份</dt><dd id="healthBackupStatus">—</dd></div>
+            <div><dt>付费 API / 密钥</dt><dd id="providerKeyStatus">不使用</dd></div>
+          </dl>
+          <p class="health-panel-note" id="healthAutomationTrace">每日整批完成后，失败对象按退避自动补采；页面关闭不会中断任务。</p>
+          <details class="source-probe-history">
+            <summary>查看最近来源探针 <span id="sourceProbeHistorySummary" class="source-probe-history-summary">未读取</span></summary>
+            <div id="sourceProbeHistory" class="source-probe-history-list"></div>
+          </details>
+          <p class="runtime-audit-status" id="runtimeAuditStatus" role="status" aria-live="polite">本机完整性自检读取中…</p>
+          <button class="button button-dark" id="runtimeAuditButton" type="button">重新运行本机自检</button>
+          <button class="button button-dark" id="healthSettingsButton" data-min-role="admin" type="button">检查数据源设置</button>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>内容数据指挥台 · 受保护的团队工作台</span>
+    <span id="footerStatus">正在连接本地数据库…</span>
+  </footer>
+
+  <dialog id="targetDialog">
+    <form class="dialog-card" id="targetForm" method="dialog">
+      <div class="dialog-heading"><div><p class="eyebrow">ADD SIGNAL</p><h2>添加监控对象</h2></div><button class="dialog-close" type="button" data-close-dialog aria-label="关闭">×</button></div>
+      <div class="segmented" role="group" aria-label="目标类型">
+        <label><input type="radio" name="type" value="account" checked><span>平台账号</span></label>
+        <label><input type="radio" name="type" value="hashtag"><span>话题标签</span></label>
+      </div>
+      <label class="field" id="platformField"><span>平台</span><select name="platform" id="platformSelect"><option value="douyin">抖音</option><option value="bilibili">B站</option><option value="xiaohongshu">小红书</option></select></label>
+      <label class="field"><span>显示名称</span><input name="label" required maxlength="120" placeholder="例如：品牌主账号"></label>
+      <label class="field"><span id="locatorLabel">完整主页 / 分享链接 / sec_uid</span><input name="locator" required placeholder="粘贴抖音主页或分享链接"><small id="locatorHelp">游客接口不能按昵称或纯抖音号可靠解析，因此不做猜测匹配。</small></label>
+      <label class="field"><span>数据源</span><select name="provider" id="providerSelect"><option value="public-web">公开网页采集（默认）</option><option value="manual">手动标准 JSON（审计保底）</option></select></label>
+      <p class="form-note" id="providerNote">抖音使用匿名 HTTP 公开接口与本地签名；每日统计不打开浏览器页面，只保留严格白名单内的匿名站点状态，不读取个人登录 Cookie，不调用付费 API 或 AI。</p>
+      <div class="dialog-actions"><button class="button button-quiet" value="cancel" type="button" data-close-dialog>取消</button><button class="button button-primary" type="submit">保存监控</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="statusDialog" aria-labelledby="statusDialogTitle">
+    <div class="dialog-card dialog-wide status-dialog-card">
+      <div class="dialog-heading">
+        <div><p class="eyebrow">STATUS DETAIL / 状态说明</p><h2 id="statusDialogTitle">采集状态</h2></div>
+        <button class="dialog-close" type="button" data-close-dialog aria-label="关闭">×</button>
+      </div>
+      <div class="status-impact" id="statusImpact"></div>
+      <div class="status-facts" id="statusFacts"></div>
+      <section class="status-detail-section hidden" id="statusGrowthSection">
+        <h3>本期增长计算证据</h3>
+        <div class="status-growth-evidence" id="statusGrowthEvidence"></div>
+      </section>
+      <section class="status-detail-section">
+        <h3>具体信息</h3>
+        <ul class="status-detail-list" id="statusWarningList"></ul>
+        <details class="technical-evidence hidden" id="statusTechnicalEvidence">
+          <summary>查看原始技术证据</summary>
+          <ul class="status-detail-list" id="statusTechnicalList"></ul>
+        </details>
+      </section>
+      <section class="status-detail-section">
+        <h3>建议操作</h3>
+        <ul class="status-detail-list advice" id="statusAdviceList"></ul>
+      </section>
+      <section class="status-detail-section">
+        <h3>最近审查记录</h3>
+        <div class="status-history" id="statusHistory"></div>
+      </section>
+      <div class="dialog-actions">
+        <button class="button button-quiet" type="button" data-close-dialog>关闭</button>
+        <button class="button button-primary hidden" id="statusSyncButton" type="button">立即重新同步</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="settingsDialog">
+    <form class="dialog-card" id="settingsForm" method="dialog">
+      <div class="dialog-heading"><div><p class="eyebrow">SETTINGS</p><h2>公开采集与定时</h2></div><button class="dialog-close" type="button" data-close-dialog aria-label="关闭">×</button></div>
+      <div class="settings-group">
+        <h3>自动更新</h3>
+        <label class="field"><span id="settingsTimeZoneLabel">每天自动采集时间 · 正在读取统计时区</span><input name="scheduleTime" type="time" required></label>
+        <p class="form-note" id="settingsAutomationSummary">正在读取上次与下次自动任务。</p>
+      </div>
+      <div class="settings-group">
+        <h3>爆款判定</h3>
+        <div class="field-row"><label class="field"><span>固定点赞阈值</span><input name="viralLikeThreshold" type="number" min="0" step="100"></label><label class="field"><span>高于中位数倍数</span><input name="viralRelativeMultiplier" type="number" min="1" step="0.5"></label></div>
+        <p class="form-note">实际阈值取“固定阈值”和“样本基线 × 倍数”中较高者，避免小样本误报。</p>
+      </div>
+      <div class="settings-group">
+        <h3>公开网页采集</h3>
+        <label class="field"><span>每个账号最多读取的近期作品</span><input name="publicPostsPerAccount" type="number" min="1" max="100" step="1"></label>
+        <button class="button button-quiet" id="testPublicCollectorButton" type="button">测试公开采集链路</button>
+        <div class="collector-probe" id="collectorProbeResult" data-state="idle" role="status" aria-live="polite">
+          <strong>公开链路自检</strong>
+          <span>尚未测试；点击后会分别显示主页、作品窗口和热榜的实际可用性。</span>
+        </div>
+        <p class="form-note">主页总量无需登录；作品列表受抖音当前风控影响，失败时会显示警告并保留历史。每日自动整批开始前会先做一次公开源自检，同日补采不会重复探测。作者名单自动核验默认走匿名签名接口，不启动浏览器；话题面板只呈现官方参与人数、播放量及变化，接口未返回时保留为空。</p>
+      </div>
+      <div class="dialog-actions"><button class="button button-quiet" value="cancel" type="button" data-close-dialog>取消</button><button class="button button-primary" type="submit">保存设置</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="importDialog">
+    <form class="dialog-card dialog-wide" id="importForm" method="dialog">
+      <div class="dialog-heading"><div><p class="eyebrow">VALIDATED INGEST</p><h2>导入标准 JSON</h2></div><button class="dialog-close" type="button" data-close-dialog aria-label="关闭">×</button></div>
+      <label class="field"><span>写入目标</span><select name="targetId" id="importTargetSelect" required></select></label>
+      <label class="field"><span>标准数据</span><textarea name="payload" rows="14" spellcheck="false" required placeholder='{"capturedAt":"2026-08-31T08:30:00+08:00","snapshot":{"followers":1200},"posts":[{"id":"作品ID","author_name":"作者","title":"标题","like_count":123,"published_at":"2026-08-31T07:00:00+08:00"}]}'></textarea><small>数字必须为非负值；作品按 ID 去重。导入结果同样进入审查日志。</small></label>
+      <div class="dialog-actions"><button class="button button-quiet" value="cancel" type="button" data-close-dialog>取消</button><button class="button button-primary" type="submit">校验并写入</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="authorSpreadsheetDialog">
+    <form class="dialog-card dialog-xwide" id="authorSpreadsheetForm" method="dialog">
+      <div class="dialog-heading">
+        <div><p class="eyebrow">AUTHOR SOURCE / 严格审查</p><h2>从飞书表格新增作者监控</h2></div>
+        <button class="dialog-close" value="cancel" type="button" data-close-dialog aria-label="关闭">×</button>
+      </div>
+      <div class="lark-source-card">
+        <div class="lark-source-copy">
+          <strong>粘贴飞书云表格链接</strong>
+          <span>推荐入口 · 完整读取全部数据行，原表保持不变</span>
+          <span class="template-link">板块模板链接请由部署者自行配置</span>
+          <small>模板已包含“板块”字段。指挥台的板块目录独立保存，暂无作者也可切换查看；上传时可选择本次名单所属板块，只补充表格中的空白归属，不覆盖已填写的板块。</small>
+        </div>
+        <div class="lark-source-action">
+          <label class="field">
+            <span>飞书电子表格链接</span>
+            <input id="authorLarkUrl" name="larkUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://…larkoffice.com/sheets/…">
+            <small>使用本机管理员已授权的只读身份；不会保存原表文件，也不会把飞书凭据发到浏览器。</small>
+          </label>
+          <button class="button button-primary" id="authorLarkPreviewButton" type="button">读取并严格审查</button>
+        </div>
+      </div>
+      <div class="source-divider"><span>或上传本地文件</span></div>
+      <div class="upload-grid">
+        <label class="field upload-field">
+          <span>本地作者表格</span>
+          <div class="file-picker" id="authorFilePicker">
+            <button class="button button-primary" id="authorChooseFileButton" type="button">选择本地文件</button>
+            <span class="file-picker-name" id="authorFileName">尚未选择文件</span>
+          </div>
+          <input id="authorSpreadsheetFile" name="file" type="file" accept=".xlsx,.xls,.xlsm,.xlsb,.csv,.tsv" aria-label="选择本地作者表格">
+          <small>支持 XLSX、XLS、XLSM、XLSB、CSV、TSV，最大 8MB / 5,000 行。文件只在本机内存解析，不保存原文件。</small>
+        </label>
+        <label class="field">
+          <span>工作表</span>
+          <select id="authorSheetSelect" name="sheetName" disabled><option value="">上传后自动识别</option></select>
+          <small>系统会优先选择作者字段最完整的工作表，也可以手动切换后重新审查。</small>
+        </label>
+      </div>
+      <div class="author-board-assignment">
+        <label class="field"><span>本次名单所属板块</span><select id="authorDefaultBoard" name="defaultBoard"><option value="">使用表格内板块；空白保持未分板块</option></select><small id="authorDefaultBoardNote">表格已有板块会保留；没有填写的作者保持未分板块，不按昵称猜测。</small></label>
+        <button type="button" class="button button-quiet" data-create-board>新建板块</button>
+      </div>
+      <div class="author-review-empty" id="authorReviewEmpty">
+        <strong>读取 → 识别 → 严格核验 → 去重 → 监控</strong>
+        <span>账号主页或账号 ID 可直接进入严格核验；抖音支持作品 ID、作品链接或分享链接，自动核验默认走匿名 HTTP、不启动浏览器；B站支持 BV 号、官方视频链接或 b23 短链匿名反查发布者。小红书仍须提供账号主页或账号 ID，无法唯一确认的条目不会猜测写入。“板块”用于切换业务范围，同一作者可属于多个板块；留空会归入“未分板块”，不会把缺失数据当作 0。</span>
+      </div>
+      <div class="author-review hidden" id="authorReview">
+        <div class="review-summary" id="authorReviewSummary"></div>
+        <div class="mapping-line" id="authorMappingLine"></div>
+        <div class="review-table-shell">
+          <table class="review-table">
+            <thead><tr><th>源行</th><th>作者</th><th>主页 / 作品证据</th><th>板块</th><th>作者信息</th><th>审查结果</th></tr></thead>
+            <tbody id="authorReviewBody"></tbody>
+          </table>
+        </div>
+        <p class="review-footnote" id="authorReviewFootnote"></p>
+      </div>
+      <div class="dialog-actions dialog-actions-split">
+        <span class="form-note" id="authorUploadStatus">尚未读取文件</span>
+        <div>
+          <button class="button button-quiet" value="cancel" type="button" data-close-dialog>取消</button>
+          <button class="button button-quiet" id="authorPreviewButton" type="button" disabled>选择文件后自动审查</button>
+          <button class="button button-primary hidden" id="authorCommitButton" type="submit" disabled>自动核验并监控</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="createBoardDialog" aria-labelledby="createBoardTitle">
+    <form id="createBoardForm" class="dialog-card">
+      <div class="dialog-heading"><h2 id="createBoardTitle">新建板块</h2><button class="dialog-close" type="button" data-close-dialog aria-label="关闭">×</button></div>
+      <label class="field"><span>板块名称</span><input id="createBoardName" name="name" type="text" required maxlength="80" autocomplete="off" placeholder="例如：一条小团团切片矩阵"></label>
+      <p class="form-note" id="createBoardStatus" role="status">创建后立即显示；作者名单和历史数据保持不变。</p>
+      <div class="dialog-actions"><button class="button button-quiet" type="button" data-close-dialog>取消</button><button class="button button-primary" id="createBoardSubmit" type="submit">创建板块</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="authorQueueDialog" aria-labelledby="authorQueueDialogTitle">
+    <div class="dialog-card dialog-xwide author-queue-dialog-card">
+      <div class="dialog-heading">
+        <div><p class="eyebrow">IDENTITY REVIEW / 身份核验</p><h2 id="authorQueueDialogTitle">身份与作品证据核验明细</h2></div>
+        <button class="dialog-close" type="button" data-close-dialog aria-label="关闭">×</button>
+      </div>
+      <div class="author-queue-explainer" id="authorQueueSummary">正在读取核验记录…</div>
+      <div class="author-queue-tabs" role="tablist" aria-label="筛选证据核验状态">
+        <button class="active" data-author-queue-status="all" type="button" role="tab">全部</button>
+        <button data-author-queue-status="pending" type="button" role="tab">正在核验</button>
+        <button data-author-queue-status="retry" type="button" role="tab">自动重试</button>
+        <button data-author-queue-status="rejected" type="button" role="tab">未通过</button>
+        <button data-author-queue-status="resolved" type="button" role="tab">已通过</button>
+      </div>
+      <div class="author-queue-list" id="authorQueueList"><div class="empty-inline">正在读取…</div></div>
+      <p class="form-note">“正在核验 / 自动重试”由后台自动处理，不需要保持页面打开；“未通过”只代表本条证据未确认，不等于该作者未被监控。同一作者可有多条记录，账号启用状态以监控列表为准。</p>
+      <div class="dialog-actions"><button class="button button-quiet" type="button" data-close-dialog>关闭</button></div>
+    </div>
+  </dialog>
+
+  <dialog id="accessDialog" aria-labelledby="accessDialogTitle">
+    <div class="dialog-card dialog-xwide access-dialog-card">
+      <div class="dialog-heading">
+        <div><p class="eyebrow">TEAM ACCESS / 多人使用</p><h2 id="accessDialogTitle">团队协作与权限</h2></div>
+        <button class="dialog-close" type="button" data-close-dialog aria-label="关闭">×</button>
+      </div>
+      <div class="access-owner-note" id="accessOwnerNote">
+        <div><span class="online-dot"></span><strong id="onlineCount">— 人在线</strong><small>最近 5 分钟有活动</small></div>
+        <button class="text-button hidden" id="logoutButton" type="button">退出当前账号</button>
+      </div>
+      <section class="access-admin-only" id="accessAdminPanel">
+        <div class="access-grid">
+          <div class="access-block">
+            <p class="eyebrow">SHARE ADDRESS</p>
+            <h3>管理员分享地址</h3>
+            <div id="lanUrlList" class="lan-url-list"><span>正在读取…</span></div>
+            <p class="form-note">本机地址只代表当前设备。远程成员请使用管理员分享的 HTTPS 地址，并输入邀请码。</p>
+          </div>
+          <form class="access-block invite-builder" id="inviteForm">
+            <p class="eyebrow">NEW INVITE</p>
+            <h3>生成限时邀请</h3>
+            <div class="field-row">
+              <label class="field"><span>权限</span><select name="role"><option value="viewer">查看者 · 只能读</option><option value="editor">编辑者 · 可更新名单与重试异常</option></select></label>
+              <label class="field"><span>有效期</span><select name="hours"><option value="24">24 小时</option><option value="72">3 天</option><option value="168">7 天</option></select></label>
+            </div>
+            <div class="field-row">
+              <label class="field"><span>用途备注</span><input name="label" maxlength="80" placeholder="例如：运营组查看"></label>
+              <label class="field"><span>可使用人数</span><select name="maxUses"><option value="1">1 人</option><option value="3">3 人</option><option value="5">5 人</option><option value="10">10 人</option></select></label>
+            </div>
+            <button class="button button-primary" type="submit">生成邀请链接</button>
+            <div class="invite-result hidden" id="inviteResult"><input id="inviteShareLink" aria-label="生成的公开邀请链接" title="生成的公开邀请链接" readonly><button class="button button-quiet" id="copyInviteButton" type="button">复制链接</button></div>
+          </form>
+        </div>
+        <div class="access-list-grid">
+          <section><div class="subheading"><h3>成员</h3><span>管理员可调整权限或停用</span></div><div class="access-list" id="memberList"></div></section>
+          <section><div class="subheading"><h3>邀请码</h3><span>原始码只显示一次</span></div><div class="access-list" id="inviteList"></div></section>
+        </div>
+        <section class="activity-section"><div class="subheading"><h3>操作记录</h3><span>写入、权限与会话事件</span></div><div class="activity-list" id="activityList"></div></section>
+      </section>
+      <section class="access-member-summary hidden" id="accessMemberSummary">
+        <h3>当前权限：<span id="memberRoleSummary">—</span></h3>
+        <p id="memberPermissionSummary">—</p>
+        <p class="form-note">权限由本机管理员控制；需要升级权限时，请联系管理员。</p>
+      </section>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="/app.js?v=20261004-topic-target-metrics-verified-2"></script>
+</body>
+</html>
