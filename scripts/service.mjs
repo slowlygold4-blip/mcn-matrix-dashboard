@@ -3,7 +3,9 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "n
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { DatabaseSync } from "node:sqlite";
 import { validatedIdentityProxyUrl } from "../lib/identity-proxy.mjs";
+import { readServiceTransitionGate } from "../lib/service-transition-gate.mjs";
 
 const projectDir = fileURLToPath(new URL("..", import.meta.url));
 const label = "com.codex.douyin-monitor-workbench";
@@ -116,6 +118,18 @@ function runLaunchctl(args, { ignoreError = false } = {}) {
 }
 
 function install() {
+  if (existsSync(agentPath) || existsSync(sourceAgentPath) || existsSync(tunnelAgentPath)) {
+    const databasePath = join(dataDir, "douyin-monitor.sqlite");
+    if (!existsSync(databasePath)) throw new Error("现有服务的数据文件不可读取，拒绝盲目重装；请先核对数据路径");
+    const db = new DatabaseSync(databasePath, { readOnly: true });
+    let gate;
+    try { gate = readServiceTransitionGate(db); }
+    finally { db.close(); }
+    if (!gate.safe) throw new Error(`已有任务运行中，拒绝重装服务：运行采集 ${gate.runningRuns}、作者导入 ${gate.runningAuthorJobs}、作者核验租约 ${gate.activeAuthorLeases}`);
+    if (existsSync(join(dataDir, "source-poll", ".poll.lock"))) {
+      throw new Error("飞书来源检查正在执行或锁状态待核对，拒绝重装服务");
+    }
+  }
   mkdirSync(dirname(agentPath), { recursive: true });
   mkdirSync(dataDir, { recursive: true });
   const configuration = plist();
