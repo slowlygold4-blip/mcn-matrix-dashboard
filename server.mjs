@@ -816,11 +816,6 @@ async function executeAuthorResolveJob(job) {
       + identityConflictCount(hydratedRows)
       + needsLocatorReviewCount(hydratedRows);
     if (!database.updateAuthorResolutionJob(job.id, { phase: "resolving", totalAuthors, ...claim })) return;
-    // Only an accepted, leased job may register its catalog. A rejected retry
-    // must never create boards; a restart can safely repeat this idempotent step.
-    for (const board of body.boardCatalog || []) database.createBoard(board.name, {
-      sourceType: body.sourceType === "lark-bitable" ? "lark-bitable" : body.sourceType === "lark-sheet" ? "lark-sheet" : "author-spreadsheet",
-    });
     const provider = new PublicWebProvider(database.getSettings(), { database, signal: shutdownController.signal });
     // Complete the immutable import first so the owned authorised worker can
     // bind each Douyin work to its exact source. No AI/manual batch is needed.
@@ -840,6 +835,15 @@ async function executeAuthorResolveJob(job) {
     // Validate synchronously before enqueuing or importing identity changes.
     if (job.request?.masterRosterSupplement) assertMasterRosterSupplementJob(database.db, job);
     if (!database.updateAuthorResolutionJob(job.id, { phase: "importing", totalAuthors, ...claim })) return;
+    // No network work below this point. Catalog, queue, targets, job receipt
+    // and activity must commit together, or leave no partial imported state.
+    // Queue workers are scheduled only after the transaction is durable.
+    let scheduleQueuedEvidence = false;
+    database.db.exec("BEGIN IMMEDIATE");
+    try {
+    for (const board of body.boardCatalog || []) database.createBoard(board.name, {
+      sourceType: body.sourceType === "lark-bitable" ? "lark-bitable" : body.sourceType === "lark-sheet" ? "lark-sheet" : "author-spreadsheet",
+    });
     const queueSummary = database.enqueueAuthorResolutions(queueRequests, {
       fileName: basename(String(body.fileName ?? "未命名表格")),
       sheetName: String(body.sheetName ?? "").slice(0, 120),
@@ -856,7 +860,7 @@ async function executeAuthorResolveJob(job) {
       },
     });
     const queueOutcomes = summarizeQueuedAuthorEvidence(queueRequests, queueSummary);
-    if (queueOutcomes.queuedEvidenceRequestCount > 0) scheduleAuthorResolutionQueue(1_000, true);
+    scheduleQueuedEvidence = queueOutcomes.queuedEvidenceRequestCount > 0;
     const reviewed = importableAuthorTargets({ ...body, rows: resolved.rows }, existingTargets);
     const imported = database.importAuthorTargets(reviewed.inputs, {
       fileName: reviewed.fileName,
@@ -946,7 +950,7 @@ async function executeAuthorResolveJob(job) {
       const receipt = buildMasterRosterSupplementReceipt(database.db, job, resolved.rows, result);
       if (receipt) result.masterRosterSupplementReceipt = receipt;
     }
-    if (!database.completeAuthorResolutionJob(job.id, result, claim)) return;
+    if (!database.completeAuthorResolutionJob(job.id, result, claim)) throw new Error("作者导入任务租约已变化；本次写入已回滚");
     database.recordActivity({
       userId: job.userId,
       actorName: job.actorName,
@@ -955,6 +959,12 @@ async function executeAuthorResolveJob(job) {
       clientIp: job.clientIp,
       details: { fileName: reviewed.fileName, createdCount: result.createdCount, skippedCount: result.skippedCount, resolution: result.resolution },
     });
+    database.db.exec("COMMIT");
+    } catch (commitError) {
+      if (database.db.isTransaction) database.db.exec("ROLLBACK");
+      throw commitError;
+    }
+    if (scheduleQueuedEvidence) scheduleAuthorResolutionQueue(1_000, true);
   } catch (error) {
     database.failAuthorResolutionJob(job.id, error, claim);
   }
