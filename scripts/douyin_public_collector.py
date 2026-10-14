@@ -13,10 +13,13 @@ import hashlib
 from http.cookiejar import Cookie, CookieJar
 import json
 import math
+import os
 import random
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import unicodedata
 from pathlib import Path
@@ -24,6 +27,11 @@ from urllib.parse import parse_qs, urlencode, urlparse
 import urllib.parse
 import urllib.request
 
+
+if os.name == "nt":
+    # Chinese Windows pipes default to GBK, but Node decodes this output as UTF-8.
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_DIR / "vendor"))
@@ -232,6 +240,15 @@ def post_transport_evidence(stderr, status, now=None):
     return evidence
 
 
+def curl_command():
+    """Mac/Linux keep the plain `curl` lookup. Windows CreateProcess searches
+    System32 before PATH, and that bundled curl may lack --compressed, so use
+    CURL_BIN, then the first curl on PATH."""
+    if os.name != "nt":
+        return "curl"
+    return os.environ.get("CURL_BIN") or shutil.which("curl") or "curl"
+
+
 def request(url, *, method="GET", data=None, referer="https://www.douyin.com/", timeout=35, cookie=None, transport_evidence=None):
     marker = b"\n__CODEX_HTTP_META__"
     parsed_url = urlparse(url)
@@ -240,7 +257,7 @@ def request(url, *, method="GET", data=None, referer="https://www.douyin.com/", 
         and parsed_url.path in {"/aweme/v1/web/aweme/post/", "/aweme/v1/web/aweme/detail/"}
     )
     args = [
-        "curl",
+        curl_command(),
         "-sS",
         "-L",
         "--compressed",
@@ -257,9 +274,17 @@ def request(url, *, method="GET", data=None, referer="https://www.douyin.com/", 
         "-w",
         "\n__CODEX_HTTP_META__%{http_code}\t%{url_effective}",
     ]
+    header_path = None
     if capture_transport:
         # stderr remains in memory; stdout/body and the tuple contract do not change.
-        args.extend(["-D", "/dev/stderr"])
+        if os.name == "nt":
+            # Windows has no /dev/stderr; curl dumps headers to a private temp
+            # file that is merged back into stderr below, then removed.
+            handle, header_path = tempfile.mkstemp(prefix="dy-headers-")
+            os.close(handle)
+            args.extend(["-D", header_path])
+        else:
+            args.extend(["-D", "/dev/stderr"])
         transport_evidence.update(post_transport_evidence(b"", None))
     if cookie:
         args.extend(["-b", "ttwid=%s" % cookie])
@@ -268,10 +293,19 @@ def request(url, *, method="GET", data=None, referer="https://www.douyin.com/", 
     args.append(url)
     try:
         completed = subprocess.run(args, input=data, capture_output=True, timeout=timeout + 5, check=False)
+        if header_path:
+            # Same order as /dev/stderr: response headers, then curl diagnostics.
+            completed.stderr = Path(header_path).read_bytes() + completed.stderr
     except (OSError, subprocess.TimeoutExpired) as exc:
         if capture_transport:
             raise CollectorError("公开网页连接失败；未记录传输错误原文", code="network_error") from None
         raise CollectorError("公开网页连接失败：%s" % exc) from exc
+    finally:
+        if header_path:
+            try:
+                os.remove(header_path)
+            except OSError:
+                pass
     if completed.returncode != 0:
         if capture_transport and parsed_url.path == "/aweme/v1/web/aweme/detail/" and marker in completed.stdout:
             # Curl can fail while finishing a body after already observing an
@@ -320,7 +354,7 @@ def register_guest():
         separators=(",", ":"),
     ).encode("utf-8")
     args = [
-        "curl",
+        curl_command(),
         "-sS",
         "--max-time",
         "25",
@@ -336,7 +370,7 @@ def register_guest():
         "-D",
         "-",
         "-o",
-        "/dev/null",
+        os.devnull,
     ]
     try:
         completed = subprocess.run(args, input=body, capture_output=True, timeout=30, check=False)
@@ -1443,8 +1477,8 @@ def official_share_redirect(url):
     # Deliberately do not use request(): its curl -L would follow an unchecked
     # redirect. Validate every hop before any network request and send no cookie.
     validated_douyin_url(url)
-    args = ["curl", "-sS", "--proto", "=https", "--max-time", "20",
-            "-A", UA, "-D", "-", "-o", "/dev/null", url]
+    args = [curl_command(), "-sS", "--proto", "=https", "--max-time", "20",
+            "-A", UA, "-D", "-", "-o", os.devnull, url]
     try:
         completed = subprocess.run(args, capture_output=True, timeout=25, check=False)
     except (OSError, subprocess.TimeoutExpired) as exc:
