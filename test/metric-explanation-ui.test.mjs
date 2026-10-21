@@ -30,7 +30,7 @@ function harness(data = payload()) {
     location: new URL('http://127.0.0.1:4188/?theme=tuantuan&period=week#overview'), history: { replaceState() {} }, window: {},
     fetch: () => { throw new Error('explanation must not request network'); } };
   const js = readFileSync(new URL('../public/rebuild.js', import.meta.url), 'utf8').replace(/^import[^\n]+\n/, '').replace(/void init\(\);\s*$/, '');
-  runInNewContext(`${js}\nthis.subject={state,renderMetricExplanation,selectMetricExplanation,showContributionLedger,rememberAppliedRequest};`, ctx);
+  runInNewContext(`${js}\nthis.subject={state,renderMetricExplanation,selectMetricExplanation,showContributionLedger,rememberAppliedRequest,accountHealthMarkup,overviewAccountTable};`, ctx);
   Object.assign(ctx.subject.state, { data, start: data.range.startDate, end: data.range.endDate });
   return { ...ctx.subject, node, document };
 }
@@ -43,6 +43,28 @@ test('contributions retain negative/zero, omit missing and paused, and never dup
   assert.equal(result.delta, 30); assert.equal(result.missingCount, 1); assert.equal(result.enabledCount, 4);
   assert.deepEqual(result.groups.map(group => [group.key, group.count, group.delta]), [['tuantuan', 2, 50], ['anchors', 1, -20]]);
   assert.equal(JSON.stringify(data), before);
+});
+
+test('account health exposes bounded failure code and streak without rendering untrusted HTML', () => {
+  const f = harness();
+  const failed = f.accountHealthMarkup({ status: { label: '<img src=x>', consecutiveFailures: 3,
+    lastErrorCode: 'blocked', lastAttemptAt: '2026-09-28T12:00:00Z', lastSuccessAt: '2026-09-27T12:00:00Z' } });
+  assert.match(failed, /错误码 blocked/);
+  assert.match(failed, /连续失败 3 次/);
+  assert.match(failed, /最近成功/);
+  assert.match(failed, /&lt;img src=x&gt;/);
+  assert.doesNotMatch(failed, /<img/);
+  const unknown = f.accountHealthMarkup({ status: { label: '待采集', consecutiveFailures: null } });
+  assert.match(unknown, /连续失败次数未确认/);
+  assert.doesNotMatch(unknown, /连续失败 0 次/);
+  const oldFailure = f.accountHealthMarkup({ status: { label: '更新失败', consecutiveFailures: null,
+    lastErrorCode: 'blocked' } });
+  assert.match(oldFailure, /错误码 blocked/);
+  assert.match(oldFailure, /连续失败次数未确认/);
+  const firstScreen = f.overviewAccountTable([{ ...account(1, 5),
+    status: { label: '更新待重试', consecutiveFailures: 3, lastErrorCode: 'blocked' } }]);
+  assert.match(firstScreen, /错误码 blocked/);
+  assert.match(firstScreen, /连续失败 3 次/);
 });
 
 test('estimated contribution uses the same signed likes and explicit aggregate multiplier', () => {

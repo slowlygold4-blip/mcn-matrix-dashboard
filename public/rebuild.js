@@ -1121,7 +1121,7 @@ function overviewAccountTable(accounts) {
   const tableColumns = [['label', '账号'], ['followers.value', '粉丝数'], ['followers.delta', '粉丝净变化'],
     ['likes.value', '获赞数'], ['likes.delta', '获赞净变化'], ['posts.value', '作品数'],
     ...(['followers.delta', 'likes.delta'].includes(key) ? [] : [[key, `${METRICS[state.workflowMetric]}净变化`]])];
-  return `<table class="table overview-ledger"><thead><tr>${tableColumns.map(([sort, label]) => `<th scope="col" aria-sort="${state.sort === sort ? state.direction === 'asc' ? 'ascending' : 'descending' : 'none'}"><button type="button" class="sort-button" data-sort="${sort}">${esc(label)}<span aria-hidden="true">${state.sort === sort ? state.direction === 'asc' ? ' ↑' : ' ↓' : ' ↕'}</span></button></th>`).join('')}<th scope="col">大主题</th><th scope="col">最近采样</th></tr></thead><tbody>${accounts.map(a => `<tr><td><button type="button" class="row-btn account-cell" data-account-id="${a.id}" data-account-metric="${state.workflowMetric}"><span><strong>${esc(a.label)}</strong><small>${esc(platformNames[a.platform] || a.platform)} · ${esc(a.publicId || a.submittedAccountId || '暂无账号ID')}</small></span></button></td>${tableColumns.slice(1).map(([metric]) => accountMetricCell(a, metric, 'overviewTable')).join('')}<td>${accountThemeMarkup(a)}</td><td>${dateTime(a.status?.lastSuccessAt)}</td></tr>`).join('')}</tbody></table>`;
+  return `<table class="table overview-ledger"><thead><tr>${tableColumns.map(([sort, label]) => `<th scope="col" aria-sort="${state.sort === sort ? state.direction === 'asc' ? 'ascending' : 'descending' : 'none'}"><button type="button" class="sort-button" data-sort="${sort}">${esc(label)}<span aria-hidden="true">${state.sort === sort ? state.direction === 'asc' ? ' ↑' : ' ↓' : ' ↕'}</span></button></th>`).join('')}<th scope="col">大主题</th><th scope="col">最近采样</th></tr></thead><tbody>${accounts.map(a => `<tr><td><button type="button" class="row-btn account-cell" data-account-id="${a.id}" data-account-metric="${state.workflowMetric}"><span><strong>${esc(a.label)}</strong><small>${esc(platformNames[a.platform] || a.platform)} · ${esc(a.publicId || a.submittedAccountId || '暂无账号ID')}</small></span></button>${accountHealthMarkup(a)}</td>${tableColumns.slice(1).map(([metric]) => accountMetricCell(a, metric, 'overviewTable')).join('')}<td>${accountThemeMarkup(a)}</td><td>${dateTime(a.status?.lastSuccessAt)}</td></tr>`).join('')}</tbody></table>`;
 }
 const columns = [['label', '账号'], ['followers.value', '粉丝数'], ['followers.delta', '粉丝净变化'], ['likes.value', '获赞数'], ['likes.delta', '获赞净变化'], ['estimatedPlays.delta', '估算播放变化'], ['posts.value', '作品数'], ['posts.delta', '作品净变化']];
 function compactLedger() { return ledgerMode === 'compact' || ledgerMode === null && typeof window !== 'undefined' && window.matchMedia?.('(max-width: 720px)').matches; }
@@ -1144,7 +1144,7 @@ function ledgerSortButton(key) {
 function compactAccountTable(accounts) {
   if (!accounts.length) return '<div class="table-empty">没有符合条件的账号。试试清除搜索或切换矩阵。</div>';
   const keys = ledgerMetric === 'estimatedPlays' ? ['estimatedPlays.delta'] : [`${ledgerMetric}.value`,`${ledgerMetric}.delta`];
-  return `<table class="table compact-ledger"><thead><tr><th scope="col" aria-sort="${state.sort==='label'?(state.direction==='asc'?'ascending':'descending'):'none'}">${ledgerSortButton('label')}</th><th scope="col" aria-sort="${keys.includes(state.sort)?(state.direction==='asc'?'ascending':'descending'):'none'}">${keys.map(ledgerSortButton).join('')}</th></tr></thead><tbody>${accounts.map(a=>`<tr><td><button class="row-btn account-cell" data-account-id="${esc(a.id)}"><span><strong>${esc(a.label)}</strong><small>${esc(platformNames[a.platform]||a.platform)} · ${esc(a.publicId||a.submittedAccountId||'尚无账号 ID')}</small>${a.enabled?'':'<small>已暂停</small>'}</span></button><small>${dateTime(a.status?.lastSuccessAt)}</small>${accountCollectionMarkup(a)}</td><td>${keys.map(key=>`<div class="compact-metric"><small>${esc(columns.find(([column])=>column===key)[1])}</small>${accountMetricCell(a,key,'accountsTable','div')}</div>`).join('')}${ledgerMetric==='estimatedPlays'?'<small class="muted">获赞净变化 × 100 · 非实际播放量</small>':''}</td></tr>`).join('')}</tbody></table>`;
+  return `<table class="table compact-ledger"><thead><tr><th scope="col" aria-sort="${state.sort==='label'?(state.direction==='asc'?'ascending':'descending'):'none'}">${ledgerSortButton('label')}</th><th scope="col" aria-sort="${keys.includes(state.sort)?(state.direction==='asc'?'ascending':'descending'):'none'}">${keys.map(ledgerSortButton).join('')}</th></tr></thead><tbody>${accounts.map(a=>`<tr><td><button class="row-btn account-cell" data-account-id="${esc(a.id)}"><span><strong>${esc(a.label)}</strong><small>${esc(platformNames[a.platform]||a.platform)} · ${esc(a.publicId||a.submittedAccountId||'尚无账号 ID')}</small>${a.enabled?'':'<small>已暂停</small>'}</span></button>${accountHealthMarkup(a)}<small>${dateTime(a.status?.lastSuccessAt)}</small>${accountCollectionMarkup(a)}</td><td>${keys.map(key=>`<div class="compact-metric"><small>${esc(columns.find(([column])=>column===key)[1])}</small>${accountMetricCell(a,key,'accountsTable','div')}</div>`).join('')}${ledgerMetric==='estimatedPlays'?'<small class="muted">获赞净变化 × 100 · 非实际播放量</small>':''}</td></tr>`).join('')}</tbody></table>`;
 }
 function accountMetricCell(a, key, tableId, tag = 'td') {
   const [metric, field] = key.split('.'); const m = a.metrics?.[metric] || {};
@@ -1174,9 +1174,28 @@ function accountThemeMarkup(account) {
   const theme = account.classification?.theme || { key: 'unassigned', label: '待归属' };
   return `<span class="theme-chip theme-chip-${esc(theme.key || 'unassigned')}">${esc(theme.label || '待归属')}</span>`;
 }
+function accountHealthMarkup(account) {
+  const health = account.status;
+  if (!health) return '<small class="muted">采集状态未读取</small>';
+  const count = Number.isSafeInteger(health.consecutiveFailures) && health.consecutiveFailures >= 0
+    ? health.consecutiveFailures : null;
+  const failing = count !== null && count > 0;
+  const hasError = Boolean(health.lastErrorCode);
+  const label = health.label || '状态未确认';
+  const code = hasError ? ` · 错误码 ${health.lastErrorCode}` : '';
+  const streak = count === null ? '连续失败次数未确认' : `连续失败 ${count} 次`;
+  const errorLabels = { login_required: '需要重新登录', rate_limited: '平台限流', blocked: '访问被拒',
+    network_error: '网络或响应异常', upstream_changed: '上游结构变化', collector_error: '采集器异常',
+    identity_mismatch: '账号身份不一致', unknown: '原因尚未归类' };
+  const errorLabel = hasError ? errorLabels[health.lastErrorCode] || errorLabels.unknown : '';
+  const tone = failing || hasError ? 'down' : count === 0 && health.key === 'updated'
+    && account.collection?.worksState === 'complete' ? 'up' : 'flat';
+  const tip = `最近结果：${label}；${streak}${code}${errorLabel ? `（${errorLabel}）` : ''}；最近尝试：${dateTime(health.lastAttemptAt)}；最近成功：${dateTime(health.lastSuccessAt)}。主页采集与作品明细覆盖分别核对。`;
+  return `<small class="${tone}" title="${esc(tip)}"><span aria-hidden="true">●</span> ${esc(label)} · ${esc(streak)}${esc(code)}</small>`;
+}
 function accountTable(accounts, tableId = 'accountsTable') {
   if (!accounts.length) return '<div class="table-empty">没有符合条件的账号。试试清除搜索或切换矩阵。</div>';
-  return `<table class="table"><thead><tr>${columns.map(([key, name]) => `<th scope="col" aria-sort="${state.sort === key ? state.direction === 'asc' ? 'ascending' : 'descending' : 'none'}"><button class="sort-button" data-sort="${key}">${name}<span aria-hidden="true">${state.sort === key ? state.direction === 'asc' ? ' ↑' : ' ↓' : ' ↕'}</span></button></th>`).join('')}<th scope="col">大主题</th><th scope="col">矩阵类型 / 内容标签</th><th scope="col">采样时间</th></tr></thead><tbody>${accounts.map(a => `<tr><td><button class="row-btn account-cell" data-account-id="${a.id}"><span class="avatar" aria-hidden="true">${esc(Array.from(a.label || '?')[0])}</span><span><strong>${esc(a.label)}</strong><small>${esc(platformNames[a.platform] || a.platform)} · ${esc(a.publicId || a.submittedAccountId || '尚无账号 ID')}</small>${a.enabled ? '' : '<small>已暂停</small>'}</span></button></td>${columns.slice(1).map(([key]) => {
+  return `<table class="table"><thead><tr>${columns.map(([key, name]) => `<th scope="col" aria-sort="${state.sort === key ? state.direction === 'asc' ? 'ascending' : 'descending' : 'none'}"><button class="sort-button" data-sort="${key}">${name}<span aria-hidden="true">${state.sort === key ? state.direction === 'asc' ? ' ↑' : ' ↓' : ' ↕'}</span></button></th>`).join('')}<th scope="col">大主题</th><th scope="col">矩阵类型 / 内容标签</th><th scope="col">采样时间</th></tr></thead><tbody>${accounts.map(a => `<tr><td><button class="row-btn account-cell" data-account-id="${a.id}"><span class="avatar" aria-hidden="true">${esc(Array.from(a.label || '?')[0])}</span><span><strong>${esc(a.label)}</strong><small>${esc(platformNames[a.platform] || a.platform)} · ${esc(a.publicId || a.submittedAccountId || '尚无账号 ID')}</small>${a.enabled ? '' : '<small>已暂停</small>'}</span></button>${accountHealthMarkup(a)}</td>${columns.slice(1).map(([key]) => {
     return accountMetricCell(a, key, tableId);
   }).join('')}<td class="theme-cell">${accountThemeMarkup(a)}</td><td class="classification-cell">${accountClassificationMarkup(a)}</td><td><span>${dateTime(a.status?.lastSuccessAt)}</span>${accountCollectionMarkup(a)}</td></tr>`).join('')}</tbody></table>`;
 }
