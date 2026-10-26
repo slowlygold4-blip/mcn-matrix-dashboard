@@ -240,7 +240,7 @@ const backupManager = new SQLiteBackupManager({
 });
 // First-sample micro-batches can finish every 30 seconds. They still commit
 // immediately; only redundant full-database automatic copies are coalesced.
-const scheduledBackup = createScheduledBackupThrottle(backupManager, { minIntervalMs: 600_000 });
+const scheduledBackup = createScheduledBackupThrottle(backupManager, { minIntervalMs: 6 * 60 * 60_000 });
 const systemAuditReader = new SystemAuditReader({ databasePath: database.filePath, backupDir: backupManager.backupDir });
 const scheduler = new MonitorScheduler(database, {
   asyncPlanning: true,
