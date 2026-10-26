@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "mode": "proposal-only-not-loadable-by-source-poller",
+  "entries": [
+    {
+      "decision": "controlled-activation-required",
+      "observedRows": 357,
+      "note": "The Bitable contains author names, Douyin IDs and profile screenshots, but no profile URL. Adding this source to the live registry would immediately queue an author-import job; it must not imply account identity verification or successful collection.",
+      "source": {
+        "sourceType": "lark-bitable",
+        "kind": "author-roster",
+        "sourceUrl": "https://ccnmwvgvsr3v.feishu.cn/wiki/Nzk1wUABNiGZvckQX4BcrVl6nqc?from=from_copylink",
+        "sourceTitle": "AI授权作者登记表",
+        "baseToken": "EVkPbUqX8aFBlcs7KEJc5CX6nLf",
+        "tableId": "tbldHq5cIDTm97XZ",
+        "defaultBoard": "一条小团团切片矩阵",
+        "registrationEvidence": "2026-10-24 user-authorized read: one Bitable table, rev819, 357 records; 355 syntactically usable Douyin-ID candidates, 1 empty ID, 1 nickname in ID field. No profile URL column."
+      }
+    },
+    {
+      "decision": "metadata-only-until-works-ingestion-exists",
+      "observedRows": 27526,
+      "note": "All five sheets contain work/video observations, not an author roster. monitorOnly reads workbook revision and sheet count only; it does not import the 27,526 rows or update their metrics.",
+      "source": {
+        "sourceType": "lark-sheet",
+        "kind": "content-statistics",
+        "monitorOnly": true,
+        "sourceUrl": "https://bytedance.larkoffice.com/sheets/LADGsO67ShxAO7tilVicYIF2n5d?sheet=097adb",
+        "sourceTitle": "小团团话题数据 · 五工作表",
+        "defaultBoard": "",
+        "registrationEvidence": "2026-10-24 user-authorized full read: workbook rev84, five sheets (097adb, eBp10g, cHgrJq, XzqdHx, XikH3j), 27,526 populated work rows, 17,868 distinct video IDs, all already linked by video ID in VQQ09 at the checked revision; no profile URL column."
+      }
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+// Independent read-only QA of the actual public Site. No routed/stubbed responses.
+import { chromium } from 'playwright-core';
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import assert from 'node:assert/strict';
+const origin='https://mcn-matrix-observatory.slowlygold4.chatgpt.site';
+const label=process.env.PHASE90_UX_RUN||'probe';
+assert.match(label,/^[a-z0-9-]+$/);
+const out='data/maintenance-journal/phase90ux';mkdirSync(out,{recursive:true});
+const hash=x=>createHash('sha256').update(x).digest('hex');
+const evidence={startedAt:new Date().toISOString(),label,origin,actualPublicSite:true,managedCloudPreview:false,localApiOverride:false,liveCollection:false,requests:[],pageErrors:[],steps:[],downloads:[]};
+const browser=await chromium.launch({executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true});
+const context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce',serviceWorkers:'block',acceptDownloads:true});
+const page=await context.newPage();page.setDefaultTimeout(18000);
+const bodies=new Map();
+page.on('pageerror',e=>evidence.pageErrors.push(e.message));
+page.on('response',async response=>{const u=new URL(response.url());if(u.origin!==origin)return;const r={path:u.pathname.startsWith('/cdn-cgi/')?'/cdn-cgi/[automatic-browser-resource]':u.pathname,status:response.status(),method:response.request().method()};if(u.pathname==='/api/replica'){r.part=u.searchParams.get('part')||'manifest';try{const body=await response.body();r.sha256=hash(body);bodies.set(r.part,JSON.parse(body));if(r.part==='manifest'){const j=JSON.parse(body);r.asOf=j.manifest?.asOf;r.publishedAt=j.publishedAt;evidence.manifest={asOf:j.manifest.asOf,counts:j.manifest.counts,fileCount:j.manifest.files.length};}}catch{r.bodyUnavailable=true;}}evidence.requests.push(r);});
+async function shot(name){const path=out+'/'+label+'-'+name+'.png';await page.screenshot({path,fullPage:false});evidence.steps.push({name,path,sha256:hash(readFileSync(path)),title:await page.title()});}
+async function download(button,name){const pending=page.waitForEvent('download');await button.click();const d=await pending,bytes=readFileSync(await d.path());evidence.downloads.push({name,filename:d.suggestedFilename(),bytes:bytes.length,sha256:hash(bytes),rows:bytes.toString().trim().split('\n').length-1});return bytes;}
+async function ready(){await page.waitForFunction(()=>document.querySelector('.period-state small')?.textContent==='当前已应用');}
+function csvRecords(bytes){const text=bytes.toString().replace(/^\ufeff/,''),cells=[...text.matchAll(/"((?:[^"]|"")*)"(?:,|\r?\n|$)/g)].map(m=>m[1].replaceAll('""','"')),width=text.slice(0,text.indexOf('\r\n')).match(/"(?:[^"]|"")*"(?:,|$)/g).length;assert.equal(cells.length%width,0);const headers=cells.slice(0,width),rows=[];for(let i=width;i<cells.length;i+=width)rows.push(Object.fromEntries(headers.map((h,n)=>[h,cells[i+n]])));return rows;}
+try {
+ const response=await page.goto(origin,{waitUntil:'domcontentloaded',timeout:45000});evidence.rootStatus=response.status();
+ await page.getByRole('heading',{name:'矩阵经营总览',exact:true}).waitFor({timeout:40000});
+ await page.getByRole('button',{name:'刷新已发布数据',exact:true}).waitFor();
+ await ready();
+ await shot('overview');
+ evidence.overview={coverage:await page.getByLabel('采样覆盖与新鲜度',{exact:true}).innerText(),metrics:await page.locator('.metric-ledger').innerText(),groups:await page.locator('.group-summary').innerText()};
+ await page.getByRole('region',{name:'大主题与内容分类数据',exact:true}).getByRole('button',{name:'团团',exact:true}).click();
+ await page.getByRole('heading',{name:'账号明细',exact:true}).waitFor();
+ await page.locator('.advanced-scope>summary').click();
+ await page.locator('.advanced-scope select').nth(2).selectOption('slice');
+ await page.locator('.period-toolbar select').selectOption('week');await page.getByRole('button',{name:'应用周期',exact:true}).click();await ready();
+ await page.getByRole('button',{name:'比较另一段日期',exact:true}).click();
+ await page.getByLabel('比较起点',{exact:true}).fill('2026-09-14');await page.getByLabel('比较终点',{exact:true}).fill('2026-09-28');await ready();
+ await page.waitForFunction(()=>new URL(location.href).searchParams.get('compareEnd')==='2026-09-28');
+ evidence.scope={url:page.url(),text:await page.getByLabel('当前生效范围',{exact:true}).innerText(),metrics:await page.locator('.metric-ledger').innerText(),trend:await page.locator('.growth-panel').innerText()};
+ await page.getByLabel('当前生效范围',{exact:true}).scrollIntoViewIfNeeded();await shot('tuantuan-slice-ab');
+ const table=page.locator('.account-ledger');await table.getByRole('button',{name:'粉丝变化',exact:false}).click();
+ await page.waitForFunction(()=>new URL(location.href).searchParams.get('order')==='asc');
+ evidence.rankAsc=await table.locator('tbody tr').evaluateAll(rows=>rows.map(r=>({name:r.querySelector('.author').textContent,delta:r.children[2].textContent})));
+ await table.getByRole('button',{name:'粉丝变化',exact:false}).click();await page.waitForFunction(()=>!new URL(location.href).searchParams.has('order'));
+ evidence.rankDesc=await table.locator('tbody tr').evaluateAll(rows=>rows.map(r=>({name:r.querySelector('.author').textContent,delta:r.children[2].textContent})));
+ await table.locator('.pager').first().getByRole('button',{name:'下一页',exact:true}).click();
+ assert.match(await table.locator('.pager').first().innerText(),/第 2\//);
+ const beforeUrl=page.url(),beforeTable=await table.innerText(),beforeCsv=await download(table.getByRole('button',{name:'导出全部结果',exact:true}),'matrix-before');
+ evidence.tablePage2={pager:await table.locator('.pager').first().innerText(),rows:await table.locator('tbody tr').count()};
+ const author=table.locator('button.author').first(),authorName=await author.innerText();await author.click();
+ await page.getByRole('heading',{name:'账号经营详情',exact:true}).waitFor();await page.getByRole('heading',{name:'已保存每日统计',exact:true}).waitFor();
+ const personal=page.getByRole('region',{name:'独立账号数据',exact:true});
+ assert.equal(await personal.getByLabel('比较起点',{exact:true}).inputValue(),'2026-09-14');assert.equal(await personal.getByLabel('比较终点',{exact:true}).inputValue(),'2026-09-28');
+ evidence.account={id:new URL(page.url()).searchParams.get('account'),name:authorName,url:page.url(),metrics:await personal.locator('.metric-ledger').innerText(),trend:await personal.locator('.growth-panel').innerText()};
+ await personal.locator('.growth-panel').scrollIntoViewIfNeeded();await shot('account-ab');
+ await download(personal.getByRole('button',{name:'导出所选区间与来源',exact:true}),'account-selected');
+ await personal.getByRole('button',{name:'全部已保存日',exact:true}).click();
+ evidence.account.savedRange={start:await personal.getByLabel('个人基准观察日',{exact:true}).inputValue(),end:await personal.getByLabel('个人截止观察日',{exact:true}).inputValue()};
+ await download(personal.getByRole('button',{name:'导出所选区间与来源',exact:true}),'account-all-days');
+ await personal.getByRole('button',{name:'查看全部每日、作品与指标历史',exact:true}).click();
+ const dialog=page.getByRole('dialog');await dialog.getByRole('button',{name:'导出全部历史',exact:true}).waitFor();
+ evidence.dailyHistory={text:await dialog.innerText()};await download(dialog.getByRole('button',{name:'导出全部历史',exact:true}),'history-daily');await shot('all-history-daily');
+ await dialog.getByRole('button',{name:'全部保存作品',exact:true}).click();await dialog.getByRole('button',{name:'导出全部历史',exact:true}).waitFor();
+ evidence.worksHistory={text:await dialog.innerText()};await download(dialog.getByRole('button',{name:'导出全部历史',exact:true}),'history-works');await shot('all-history-works');
+ await page.keyboard.press('Escape');await personal.getByRole('button',{name:'返回原核对页',exact:true}).click();await table.waitFor();
+ assert.equal(page.url(),beforeUrl);assert.equal(await table.innerText(),beforeTable);assert.deepEqual(await download(table.getByRole('button',{name:'导出全部结果',exact:true}),'matrix-after-return'),beforeCsv);
+ await author.click();await page.getByRole('heading',{name:'已保存每日统计',exact:true}).waitFor();await page.goBack();await table.waitFor();assert.equal(page.url(),beforeUrl);assert.equal(await table.innerText(),beforeTable);evidence.returnVerified=true;await shot('return-page2');
+ await page.getByRole('button',{name:'话题观察',exact:true}).click();await page.getByRole('heading',{name:'话题观察',exact:true}).waitFor();await page.locator('.topics h2').first().waitFor();
+ evidence.topics={count:await page.locator('.topics h2').count(),text:await page.locator('.topics').innerText()};assert.equal(evidence.topics.count,4);await shot('topics');
+ evidence.topicSource={items:bodies.get('topics.json')?.items?.length,sha256:evidence.requests.find(r=>r.part==='topics.json')?.sha256};
+ const pub=bodies.get('manifest').manifest,catalog=bodies.get('catalog.json'),topicSource=bodies.get('topics.json');
+ const selected=catalog.accounts.filter(a=>a.enabled&&a.classification.theme.key==='tuantuan'&&a.classification.labels.some(t=>t.key==='slice'));
+ const rawPoints=[...bodies].filter(([k])=>k.startsWith('date-summary/')).flatMap(([,v])=>v.items),index=new Map(rawPoints.map(p=>[p.targetId+'/'+p.date,p]));
+ const values=csvRecords(beforeCsv);assert.equal(values.length,selected.length);
+ const uiScope=new URL(evidence.scope.url).searchParams,A=uiScope.get('start'),Z=uiScope.get('end');let checked=0;
+ for(const a of selected){const record=values.find(x=>+x.targetId===a.id);assert.ok(record);assert.equal(record.asOf,pub.asOf);assert.equal(record['起点采样日'],A);assert.equal(record['终点采样日'],Z);for(const [field,name] of [['followers','粉丝'],['likes','点赞'],['posts','作品存量']]){const s=index.get(a.id+'/'+A)?.[field]??null,e=index.get(a.id+'/'+Z)?.[field]??null;assert.equal(record[name+'基准'],s===null?'':String(s));assert.equal(record[name],e===null?'':String(e));assert.equal(record[name+'净变'],s===null||e===null?'':String(e-s));checked+=3;}}
+ evidence.matrixSourceComparison={accounts:selected.length,independentEndpointAssertions:checked,matched:true};
+ const topicCards=page.locator('.topics>div'),topicDetails=page.locator('.topics details');
+ for(let n=0;n<await topicDetails.count();n++)await topicDetails.nth(n).locator('summary').click();
+ evidence.topicHistoryProof={visibleRows:await page.locator('.topics tbody tr').count(),headers:await page.locator('.topics thead').allTextContents(),exportButtons:await page.locator('.topics').getByRole('button',{name:/导出/}).count(),sourceDisclosures:await page.locator('.topics').getByText(/SHA256|来源指纹|采样时间/).count(),publicItemKeys:Object.keys(topicSource.items[0]).sort(),publicRowsWithCapturedAt:topicSource.items.filter(x=>x.capturedAt).length,publicRowsWithSourceHash:topicSource.items.filter(x=>/^[a-f0-9]{64}$/.test(x.sourceChecksum||'')).length,publicRowsWithBothCounters:topicSource.items.filter(x=>x.participants!==null&&x.views!==null).length};
+ for(const t of topicSource.topics){const list=topicSource.items.filter(x=>x.targetId===t.id).sort((a,b)=>a.date.localeCompare(b.date)),last=list.at(-1),heading=page.getByRole('heading',{name:t.label,exact:true}),card=heading.locator('..');assert.match(await card.innerText(),new RegExp(last.participants.toLocaleString('zh-CN')));assert.match(await card.innerText(),new RegExp(last.views.toLocaleString('zh-CN')));}
+ await page.locator('.topics').scrollIntoViewIfNeeded();await shot('topics-history-open');
+ const now=Date.now(),fresh=t=>t&&now-Date.parse(t)>=0&&now-Date.parse(t)<=8*3600000,enabled=catalog.accounts.filter(a=>a.enabled);
+ evidence.currentClock={observedAt:new Date(now).toISOString(),profileFresh:enabled.filter(a=>fresh(a.coverage?.profileObservedAt)).length,worksComplete:enabled.filter(a=>a.coverage?.works.status==='complete'&&fresh(a.coverage?.works.observedAt)).length,topicFresh:topicSource.topics.filter(t=>fresh(topicSource.items.filter(x=>x.targetId===t.id).sort((a,b)=>b.capturedAt.localeCompare(a.capturedAt))[0]?.capturedAt)).length,rendered:await page.getByLabel('采样覆盖与新鲜度',{exact:true}).innerText(),usesRealClock:true};
+ await page.goto(origin+'/?theme=tuantuan&classification=slice&period=custom&start=2026-09-18&end=2026-09-19#overview',{waitUntil:'domcontentloaded'});await ready();
+ evidence.missingEnd={metrics:await page.locator('.metric-ledger').innerText(),values:await page.locator('.metric-cell__value').allTextContents(),emptyCurve:await page.locator('.growth-panel').innerText()};assert.deepEqual(evidence.missingEnd.values,['—','—','—','—','—','—','—']);await shot('missing-endpoint');
+ await page.setViewportSize({width:390,height:900});await page.getByLabel('当前生效范围',{exact:true}).scrollIntoViewIfNeeded();evidence.mobile={viewport:390,documentWidth:await page.evaluate(()=>document.documentElement.scrollWidth)};assert.ok(evidence.mobile.documentWidth<=391);await shot('mobile-missing-endpoint');
+ await page.setViewportSize({width:1440,height:1000});
+ const longHistory=pub.files.find(f=>f.kind==='daily'&&f.count>20&&pub.files.some(w=>w.kind==='works'&&w.targetId===f.targetId&&w.count>40));assert.ok(longHistory);
+ await page.goto(origin+'/?account='+longHistory.targetId+'&generation='+encodeURIComponent(pub.asOf),{waitUntil:'domcontentloaded'});await page.getByRole('heading',{name:'已保存每日统计',exact:true}).waitFor();
+ await page.getByRole('button',{name:'查看全部每日、作品与指标历史',exact:true}).click();const longDialog=page.getByRole('dialog');await longDialog.getByRole('button',{name:'导出全部历史',exact:true}).waitFor();
+ await longDialog.locator('.pager').first().getByRole('button',{name:'下一页',exact:true}).click();assert.match(await longDialog.locator('.pager').first().innerText(),/第 2\//);
+ const allDays=csvRecords(await download(longDialog.getByRole('button',{name:'导出全部历史',exact:true}),'long-history-daily'));assert.equal(allDays.length,longHistory.count);
+ evidence.longHistory={accountId:longHistory.targetId,dailyCount:allDays.length,page2Rows:await longDialog.locator('tbody tr').count()};await shot('history-daily-page2');
+ await longDialog.getByRole('button',{name:'观察日',exact:false}).click();assert.match(await longDialog.locator('.pager').first().innerText(),/第 1\//);evidence.longHistory.ascendingFirstDay=await longDialog.locator('tbody tr td').first().innerText();
+ await longDialog.getByRole('button',{name:'全部保存作品',exact:true}).click();await longDialog.getByRole('button',{name:'导出全部历史',exact:true}).waitFor();await longDialog.locator('.pager').first().getByRole('button',{name:'下一页',exact:true}).click();
+ const allWorks=csvRecords(await download(longDialog.getByRole('button',{name:'导出全部历史',exact:true}),'long-history-works'));assert.equal(allWorks.length,pub.files.find(f=>f.kind==='works'&&f.targetId===longHistory.targetId).count);evidence.longHistory.worksCount=allWorks.length;evidence.longHistory.worksPage2Rows=await longDialog.locator('tbody tr').count();await shot('history-works-page2');
+ await longDialog.getByRole('button',{name:'查看指标历史',exact:true}).first().click();await longDialog.getByRole('button',{name:'导出全部历史',exact:true}).waitFor();const metricRows=csvRecords(await download(longDialog.getByRole('button',{name:'导出全部历史',exact:true}),'work-metric-history'));assert.ok(metricRows.length>0);assert.equal(new Set(metricRows.map(r=>r.workId)).size,1);evidence.longHistory.workMetricCount=metricRows.length;await shot('work-metric-history');
+ assert.deepEqual(evidence.pageErrors,[]);evidence.completed=true;
+ console.log(JSON.stringify({completed:true,manifest:evidence.manifest,scope:evidence.scope,account:evidence.account,downloads:evidence.downloads,topics:evidence.topics,errors:evidence.pageErrors}));
+}catch(e){evidence.error=e.message;try{evidence.failureText=await page.locator('body').innerText();await shot('failure');}catch{};console.error(e.message);process.exitCode=1;
+}finally{await context.close();await browser.close();evidence.closedFreshContext=true;evidence.finishedAt=new Date().toISOString();writeFileSync(out+'/'+label+'.json',JSON.stringify(evidence,null,2)+'\n',{flag:'wx'});}

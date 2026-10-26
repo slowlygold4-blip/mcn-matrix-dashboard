@@ -1,0 +1,29 @@
+/* Controls sit outside the existing scroll surface; table sizing and sticky cells stay intact. */
+.table-scroll-shell>.table-scroll-controls {
+ display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 16px;
+ padding:10px 16px;background:#151b2e;border-block:1px solid #303b57;
+}
+.table-scroll-shell .table-scroll-help {margin:0;color:#bdc7e2;font-size:12px;line-height:1.6;min-width:0;}
+.table-scroll-shell .table-scroll-help>span {display:block;color:#a2adca;font-size:11px;}
+.table-scroll-shell>.table-scroll-help--vertical {padding:10px 16px;background:#151b2e;border-block:1px solid #303b57;}
+.table-scroll-buttons {display:flex;gap:8px;flex:none;}
+.table-scroll-shell .table-scroll-buttons>button {
+ min-width:76px;min-height:44px;height:auto;padding:9px 12px;border:1px solid #6f6596;
+ background:#22253c;color:#e4dcff;font-size:12px;line-height:1.5;border-radius:8px;gap:6px;
+}
+.table-scroll-shell .table-scroll-buttons>button:is(:disabled,[aria-disabled="true"]) {opacity:.42;box-shadow:none;cursor:default;}
+.table-scroll-shell .table-scroll-buttons>button[data-slot="button"][data-variant="outline"][aria-disabled="true"]:is(:hover,:active) {background:#22253c;border-color:#6f6596;color:#e4dcff;transform:none;box-shadow:none;}
+.table-scroll-shell>.table-scroll-region:focus-visible,
+.workspace .table-scroll-shell>.table-scroll-region:focus-visible,
+.history-dialog .table-scroll-shell>.table-scroll-region:focus-visible {outline:2px solid #6be4e7;outline-offset:-3px;}
+@media (hover:hover) and (pointer:fine) {
+ .table-scroll-shell .table-scroll-buttons>button:not(:disabled):not([aria-disabled="true"]):hover {background:#302b49;border-color:#a99bff;color:#f5f0ff;transform:none;}
+}
+@media (max-width:480px) {
+ .table-scroll-shell>.table-scroll-controls {padding:10px 12px;gap:8px;}
+ .table-scroll-shell .table-scroll-help {flex:1 1 160px;}
+ .table-scroll-buttons {margin-left:auto;}
+}
+@media print {
+ .table-scroll-shell>.table-scroll-controls,.table-scroll-shell>.table-scroll-help--vertical {display:none;}
+}

@@ -1,0 +1,294 @@
+{
+  "meta": {
+    "extractedAt": "2026-10-01T16:44:00Z",
+    "scope": "Explicit current MCN Site CSS declarations; not private OKX source or exact screenshot pixel extraction",
+    "canonicalExistingFilePreserved": "code/tokens.json",
+    "cascade": [
+      "../mcn-public-site/app/globals.css",
+      "../mcn-public-site/app/replica.css"
+    ]
+  },
+  "colors": [
+    {
+      "kind": "color",
+      "name": "canvas",
+      "value": "#000000",
+      "sources": [
+        "../mcn-public-site/app/replica.css:4",
+        "../mcn-public-site/app/replica.css:16"
+      ],
+      "usage": [
+        "../mcn-public-site/app/page.tsx:141"
+      ]
+    },
+    {
+      "kind": "color",
+      "name": "surface",
+      "value": "#111111",
+      "sources": [
+        "../mcn-public-site/app/replica.css:5",
+        "../mcn-public-site/app/replica.css:16"
+      ],
+      "usage": [
+        "../mcn-public-site/components/growth-panel.tsx:24",
+        "../mcn-public-site/app/page.tsx:147"
+      ]
+    },
+    {
+      "kind": "color",
+      "name": "foreground",
+      "value": "#f5f5f5",
+      "sources": [
+        "../mcn-public-site/app/replica.css:4",
+        "../mcn-public-site/app/replica.css:16"
+      ],
+      "usage": [
+        "../mcn-public-site/app/page.tsx:158"
+      ]
+    },
+    {
+      "kind": "color",
+      "name": "primary-positive-ring",
+      "value": "#bdff29",
+      "sources": [
+        "../mcn-public-site/app/replica.css:7",
+        "../mcn-public-site/app/replica.css:11",
+        "../mcn-public-site/app/replica.css:17"
+      ],
+      "usage": [
+        "../mcn-public-site/app/replica.css:225",
+        "../mcn-public-site/app/replica.css:233",
+        "../mcn-public-site/components/growth-panel.tsx:31"
+      ]
+    },
+    {
+      "kind": "color",
+      "name": "muted",
+      "value": "#aaaaaa",
+      "sources": [
+        "../mcn-public-site/app/replica.css:9",
+        "../mcn-public-site/app/replica.css:17"
+      ],
+      "usage": [
+        "../mcn-public-site/app/replica.css:38",
+        "../mcn-public-site/app/replica.css:230"
+      ]
+    },
+    {
+      "kind": "color",
+      "name": "border",
+      "value": "#303030",
+      "sources": [
+        "../mcn-public-site/app/replica.css:11",
+        "../mcn-public-site/app/replica.css:17"
+      ],
+      "usage": [
+        "../mcn-public-site/app/replica.css:71",
+        "../mcn-public-site/components/growth-panel.tsx:31"
+      ]
+    },
+    {
+      "kind": "color",
+      "name": "selected-surface",
+      "value": "#242424",
+      "sources": [
+        "../mcn-public-site/app/replica.css:8",
+        "../mcn-public-site/app/replica.css:225"
+      ],
+      "usage": [
+        "../mcn-public-site/app/replica.css:242",
+        "../mcn-public-site/app/page.tsx:147"
+      ]
+    },
+    {
+      "kind": "color",
+      "name": "negative",
+      "value": "#ff8585",
+      "sources": [
+        "../mcn-public-site/app/replica.css:11",
+        "../mcn-public-site/app/replica.css:17"
+      ],
+      "usage": [
+        "../mcn-public-site/app/replica.css:70",
+        "../mcn-public-site/components/growth-panel.tsx:26"
+      ]
+    }
+  ],
+  "typography": [
+    {
+      "kind": "typography",
+      "name": "system-cjk",
+      "value": "-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,Microsoft YaHei,sans-serif",
+      "sources": [
+        "../mcn-public-site/app/replica.css:19"
+      ],
+      "usage": [
+        "../mcn-public-site/app/layout.tsx"
+      ]
+    },
+    {
+      "kind": "typography",
+      "name": "workspace-body",
+      "value": "14px; line-height 1.6",
+      "sources": [
+        "../mcn-public-site/app/replica.css:20"
+      ],
+      "usage": [
+        "../mcn-public-site/app/page.tsx"
+      ]
+    },
+    {
+      "kind": "typography",
+      "name": "page-heading",
+      "value": "28px; weight 650; letter-spacing -0.035em",
+      "sources": [
+        "../mcn-public-site/app/replica.css:36"
+      ],
+      "usage": [
+        "../mcn-public-site/app/page.tsx:155"
+      ]
+    },
+    {
+      "kind": "typography",
+      "name": "net-metric-numerals",
+      "value": "clamp(24px,2.15vw,32px); weight 650; tabular-nums lining-nums; nowrap",
+      "sources": [
+        "../mcn-public-site/app/replica.css:65",
+        "../mcn-public-site/app/replica.css:197"
+      ],
+      "usage": [
+        "../mcn-public-site/components/metric-ledger.tsx"
+      ]
+    },
+    {
+      "kind": "typography",
+      "name": "trend-endpoint",
+      "value": "clamp(26px,2.2vw,36px); weight 650; tabular-nums; nowrap",
+      "sources": [
+        "../mcn-public-site/app/replica.css:246"
+      ],
+      "usage": [
+        "../mcn-public-site/components/growth-panel.tsx:26"
+      ]
+    }
+  ],
+  "spacing": [
+    {
+      "kind": "spacing",
+      "name": "desktop-content-padding",
+      "value": "24px 30px 48px",
+      "sources": [
+        "../mcn-public-site/app/replica.css:33"
+      ],
+      "usage": [
+        "../mcn-public-site/app/page.tsx"
+      ]
+    },
+    {
+      "kind": "spacing",
+      "name": "panel-heading-padding",
+      "value": "18px 20px",
+      "sources": [
+        "../mcn-public-site/app/replica.css:72"
+      ],
+      "usage": [
+        "../mcn-public-site/app/page.tsx:147",
+        "../mcn-public-site/components/growth-panel.tsx:24"
+      ]
+    },
+    {
+      "kind": "spacing",
+      "name": "mobile-panel-padding",
+      "value": "16px",
+      "sources": [
+        "../mcn-public-site/app/replica.css:184"
+      ],
+      "usage": [
+        "../mcn-public-site/app/page.tsx:147"
+      ]
+    },
+    {
+      "kind": "spacing",
+      "name": "trend-readings-gap",
+      "value": "16px 36px",
+      "sources": [
+        "../mcn-public-site/app/replica.css:244"
+      ],
+      "usage": [
+        "../mcn-public-site/components/growth-panel.tsx:26"
+      ]
+    },
+    {
+      "kind": "spacing",
+      "name": "trend-minimum-target",
+      "value": "44px",
+      "sources": [
+        "../mcn-public-site/app/replica.css:241"
+      ],
+      "usage": [
+        "../mcn-public-site/components/growth-panel.tsx:25"
+      ]
+    }
+  ],
+  "radius": [
+    {
+      "kind": "radius",
+      "name": "base",
+      "value": "0.625rem",
+      "sources": [
+        "../mcn-public-site/app/globals.css:45"
+      ],
+      "usage": [
+        "../mcn-public-site/app/globals.css:88",
+        "../mcn-public-site/app/globals.css:91"
+      ]
+    },
+    {
+      "kind": "radius",
+      "name": "panel",
+      "value": "12px",
+      "sources": [
+        "../mcn-public-site/app/replica.css:71"
+      ],
+      "usage": [
+        "../mcn-public-site/app/page.tsx:147",
+        "../mcn-public-site/components/growth-panel.tsx:24"
+      ]
+    },
+    {
+      "kind": "radius",
+      "name": "trend-control",
+      "value": "7px",
+      "sources": [
+        "../mcn-public-site/app/replica.css:241"
+      ],
+      "usage": [
+        "../mcn-public-site/components/growth-panel.tsx:25"
+      ]
+    }
+  ],
+  "shadow": [
+    {
+      "kind": "shadow",
+      "name": "tooltip-effective",
+      "value": "0 8px 24px #0008",
+      "sources": [
+        "../mcn-public-site/app/replica.css:232"
+      ],
+      "usage": [
+        "../mcn-public-site/components/growth-panel.tsx:31"
+      ]
+    },
+    {
+      "kind": "shadow",
+      "name": "active-trend",
+      "value": "inset 0 -2px 0 var(--primary)",
+      "sources": [
+        "../mcn-public-site/app/replica.css:242"
+      ],
+      "usage": [
+        "../mcn-public-site/components/growth-panel.tsx:25"
+      ]
+    }
+  ]
+}

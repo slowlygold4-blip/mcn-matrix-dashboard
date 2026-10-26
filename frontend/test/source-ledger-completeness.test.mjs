@@ -1,0 +1,57 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {createRequire} from 'node:module';
+import {fileURLToPath} from 'node:url';
+import {build} from 'esbuild';
+
+test('source ledger clearly separates available main rows from pending supplements, gates full exports and invalid observations, and revalidates same-revision bytes',async()=>{
+ const root=fileURLToPath(new URL('../',import.meta.url)),main=process.env.MCN_MAIN_ROOT||fileURLToPath(new URL('../../douyin-monitor-workbench/',import.meta.url));
+ const {chromium}=createRequire(main+'package.json')('playwright-core');
+ const makeWork=(i,variant='A')=>({row:i+1,contentId:'73000000000000000'+String(i).padStart(3,'0'),author:'测试作者',douyinId:'00123',publishDate:'2026-10-01',track:'切片激励',title:`主表${variant}作品${i}`,plays:1000-i,likes:i===0?null:0,url:null});
+ const bodies=Object.fromEntries(['A','B'].map(variant=>[variant,JSON.stringify({revision:'same-revision',items:[makeWork(0,variant),makeWork(1,variant)]})]));
+ const source=variant=>({revision:'same-revision',importedAt:'2026-10-23T00:00:00Z',stats:{authors:0,works:2},tracks:[{name:'切片激励'}],semantics:{plays:'表格累计播放',likes:'表格累计点赞'},files:[{path:'works-001.json',bytes:Buffer.byteLength(bodies[variant]),sha256:createHash('sha256').update(bodies[variant]).digest('hex'),count:2}]});
+ const supplement={authors:[],works:Array.from({length:31},(_,i)=>({...makeWork(i+2),title:`补充作品${i}`,plays:null,likes:null,evidenceRows:1,sourceTitles:['补充登记']})),observations:[{contentId:makeWork(0).contentId,sourceRow:2,observedAt:'2026-10-23T00:00:00Z',likes:0,plays:1000}],index:{stats:{sheets:10,sourceDocuments:1,additionalAuthors:0,additionalWorks:31,unkeyedRows:0,sourceMetricObservations:1,sourceMetricWorkIds:1}}};
+ const fixture=`import React,{useState} from 'react';import {createRoot} from 'react-dom/client';import {CreatorSourceLedger} from './components/creator-source-panel';const sources=${JSON.stringify({A:source('A'),B:source('B')})},foundation=${JSON.stringify(supplement)};function Fixture(){const [state,setState]=useState('loading'),[variant,setVariant]=useState('A'),[focus,setFocus]=useState(null),[legacy,setLegacy]=useState(false),[sourceMissing,setSourceMissing]=useState(false);window.completeness={setState,setVariant,setFocus,setLegacy,setSourceMissing};return <CreatorSourceLedger source={sourceMissing?null:sources[variant]} sourceError={sourceMissing?'总表索引未通过校验':''} onRetrySource={()=>{window.sourceRetryCount=(window.sourceRetryCount||0)+1;setSourceMissing(false);}} foundation={legacy?null:foundation} foundationState={legacy?undefined:state} foundationError={state==='error'?'补充文件校验未通过':''} onRetryFoundation={()=>{window.retryCount=(window.retryCount||0)+1;setState('loading');}} accounts={[]} addressMode focus={focus} onOpenAccount={()=>{}}/>};createRoot(document.getElementById('root')).render(<Fixture/>);`;
+ const bundle=await build({stdin:{contents:fixture,resolveDir:root,sourcefile:'source-completeness-fixture.tsx',loader:'tsx'},absWorkingDir:root,bundle:true,write:false,outfile:'source-completeness-fixture.js',format:'iife',platform:'browser',jsx:'automatic',tsconfig:root+'tsconfig.json',define:{'process.env.NODE_ENV':'"test"'}});
+ const script=bundle.outputFiles.find(file=>file.path.endsWith('.js')).text;
+ let variant='A',requests=0;
+ const browser=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',args:['--disable-background-networking']});
+ try{const context=await browser.newContext({viewport:{width:1280,height:900},reducedMotion:'reduce'});try{
+  await context.addInitScript(()=>{window.downloads=[];URL.createObjectURL=blob=>{window.downloads.push(blob);return 'blob:fixture';};HTMLAnchorElement.prototype.click=function(){};});
+  await context.route('**/*',async route=>{const url=new URL(route.request().url());if(url.pathname==='/')return route.fulfill({contentType:'text/html',body:'<!doctype html><div id="root"></div><script src="/fixture.js"></script>'});if(url.pathname==='/fixture.js')return route.fulfill({contentType:'text/javascript',body:script});if(url.pathname.endsWith('/works-001.json')){requests++;return route.fulfill({status:variant==='FAIL'?503:200,contentType:'application/json',body:variant==='FAIL'?'unavailable':bodies[variant]});}return route.abort();});
+  const page=await context.newPage();await page.goto('http://127.0.0.1:9999/?sourceView=works&sourcePage=2#source');
+  await page.getByText('正在等待补充表，暂时不能确认第 2 页的完整记录。',{exact:true}).waitFor();
+  assert.equal(new URL(page.url()).searchParams.get('sourcePage'),'2');assert.equal(await page.getByRole('alert').count(),0,'pending supplements must not invalidate a possibly valid page');
+  assert.equal(await page.getByRole('button',{name:'导出全部筛选结果'}).isDisabled(),true);
+  await page.evaluate(()=>{history.replaceState(null,'','/?sourceView=works#source');window.dispatchEvent(new PopStateEvent('popstate'));});
+  await page.getByText('已读总表符合条件 2 条 · 第 1/1 页',{exact:true}).waitFor();
+  assert.equal(await page.locator('.source-table tbody tr').count(),2,'verified main rows remain readable');
+  assert.equal(await page.getByText('补充作品0',{exact:true}).count(),0,'old supplement props cannot appear while their verification is pending');
+  assert.equal(await page.locator('.source-observations').count(),0);
+  await page.getByLabel('搜索来源作者或作品').fill('补充作品');await page.getByText('已读总表中没有符合条件的记录；补充表尚未合并，暂不能判断全部来源是否有匹配。',{exact:true}).waitFor();
+  await page.getByLabel('搜索来源作者或作品').fill('');
+  await page.evaluate(()=>window.completeness.setState('error'));await page.getByRole('alert').filter({hasText:'补充表暂未读到'}).waitFor();
+  assert.equal(await page.locator('.source-table tbody tr').count(),2);assert.equal(await page.getByRole('button',{name:'导出全部筛选结果'}).isDisabled(),true);
+  await page.getByRole('button',{name:'重新读取补充表'}).click();await page.getByLabel('补充表读取状态').filter({hasText:'正在读取'}).waitFor();assert.equal(await page.evaluate(()=>window.retryCount),1);
+  await page.evaluate(()=>window.completeness.setFocus({view:'works',mainTableOnly:true}));
+  const mainExport=page.getByRole('button',{name:'导出总表筛选结果',exact:true});await mainExport.waitFor();assert.equal(await mainExport.isDisabled(),false);await mainExport.click();
+  assert.equal((await page.evaluate(async()=>window.downloads.at(-1).text())).split('\r\n').length,3);
+  await page.getByRole('button',{name:'仅总表作品 ×',exact:true}).click();assert.equal(await page.getByRole('button',{name:'导出全部筛选结果'}).isDisabled(),true);
+  await page.evaluate(()=>{history.replaceState(null,'','/?sourceView=works&sourcePage=2#source');window.dispatchEvent(new PopStateEvent('popstate'));window.completeness.setState('ready');});
+  await page.getByText('符合条件 33 条 · 第 2/2 页',{exact:true}).waitFor();assert.equal(new URL(page.url()).searchParams.get('sourcePage'),'2');assert.equal(await page.locator('.source-table tbody tr').count(),3);
+  await page.getByRole('button',{name:'导出全部筛选结果'}).click();const allCsv=await page.evaluate(async()=>window.downloads.at(-1).text());assert.equal(allCsv.split('\r\n').length,34);assert.ok(allCsv.includes('补充作品30'));
+  await page.getByRole('button',{name:'上一页',exact:true}).first().click();await page.locator('.source-observations').waitFor();
+  await page.getByLabel('作品发布日期开始').fill('2026-10-02');await page.getByLabel('作品发布日期结束').fill('2026-10-01');await page.getByRole('alert').filter({hasText:'开始日期不能晚于结束日期'}).waitFor();assert.equal(await page.locator('.source-observations').count(),0);
+  await page.getByRole('button',{name:'清除日期',exact:true}).click();await page.locator('.source-observations').waitFor();
+  await page.getByLabel('搜索来源作者或作品').fill('未匹配');assert.equal(await page.locator('.source-observations').count(),0);await page.getByLabel('搜索来源作者或作品').fill('');await page.locator('.source-observations').waitFor();
+  await page.getByRole('button',{name:'导出全部筛选结果'}).click();await page.getByText(/已生成全部 33 条筛选结果的 CSV/).waitFor();
+  const beforeRequests=requests;variant='B';await page.evaluate(()=>window.completeness.setVariant('B'));await page.getByText('主表B作品0',{exact:true}).waitFor();assert.ok(requests>beforeRequests,'changed digest must reload despite unchanged revision');assert.equal(await page.getByText('主表A作品0',{exact:true}).count(),0);assert.equal(await page.getByText(/已生成全部 33 条筛选结果的 CSV/).count(),0,'old export status disappears after source bytes change');
+  variant='FAIL';await page.evaluate(()=>window.completeness.setVariant('A'));await page.getByRole('alert').filter({hasText:'来源分区读取失败'}).waitFor();assert.equal(await page.locator('.source-observations').count(),0,'failed main read must not leave a supplement-observation section');
+  variant='A';await page.getByRole('button',{name:'重试',exact:true}).click();await page.getByText('主表A作品0',{exact:true}).waitFor();
+  await page.evaluate(()=>window.completeness.setLegacy(true));await page.getByText('符合条件 2 条 · 第 1/1 页',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'导出全部筛选结果'}).isDisabled(),false,'legacy independent calls still work without a foundation status');
+  await page.getByLabel('搜索来源作者或作品').fill('主表A作品1');await page.getByText('符合条件 1 条 · 第 1/1 页',{exact:true}).waitFor();
+  await page.evaluate(()=>window.completeness.setSourceMissing(true));await page.getByRole('alert').filter({hasText:'总表读取失败'}).waitFor();assert.equal(await page.getByText('正在读取来源索引…',{exact:true}).count(),0,'index failure must not claim it is still loading');
+  await page.getByRole('button',{name:'重新读取总表'}).click();await page.getByText('符合条件 1 条 · 第 1/1 页',{exact:true}).waitFor();assert.equal(await page.getByLabel('搜索来源作者或作品').inputValue(),'主表A作品1');assert.equal(await page.evaluate(()=>window.sourceRetryCount),1);
+ }finally{await context.close();}}finally{await browser.close();}
+});

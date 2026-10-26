@@ -837,7 +837,7 @@ class ABogus:
         )
 
         abogus = self.crypto_utility.abogus_encode(abogus_bytes_str, 0)
-        params = "%s&a_bogus=%s" % (params, abogus)
+        params = "%s&a_bogus=[REDACTED]" % (params, abogus)
         return (params, abogus, self.user_agent, body)
 
 

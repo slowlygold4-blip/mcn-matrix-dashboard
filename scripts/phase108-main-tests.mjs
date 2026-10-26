@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {readdir,readFile,open,writeFile,chmod} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {spawn} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+import {join} from 'node:path';
+const root=fileURLToPath(new URL('../',import.meta.url)),sha=b=>createHash('sha256').update(b).digest('hex');
+assert.ok(Date.now()<Date.parse('2026-10-02T08:12:00Z'));
+const files=(await readdir(join(root,'test'))).filter(f=>f.endsWith('.test.mjs')).sort().map(f=>'test/'+f);
+const logPath=join(root,'data/maintenance-journal/2026-10-02-phase108-main-full-tests.log'),fd=await open(logPath,'wx',0o600),startedAt=new Date().toISOString();
+console.log(JSON.stringify({startedAt,files:files.length,logPath}));
+const child=spawn(process.execPath,['--test','--test-concurrency=2',...files],{cwd:root,env:{...process.env,PHASE84_REAL45:'1'},stdio:['ignore',fd.fd,fd.fd]});
+const guard=setTimeout(()=>child.kill('SIGTERM'),Math.max(1,Date.parse('2026-10-02T08:12:00Z')-Date.now()));
+const outcome=await new Promise((resolve,reject)=>{child.once('error',reject);child.once('exit',(code,signal)=>resolve({code,signal}));});clearTimeout(guard);await fd.close();
+const bytes=await readFile(logPath),text=bytes.toString('utf8'),result={startedAt,finishedAt:new Date().toISOString(),outcome,logPath,sha256:sha(bytes),tests:Number(text.match(/(?:#|ℹ) tests (\d+)/)?.[1]),pass:Number(text.match(/(?:#|ℹ) pass (\d+)/)?.[1]),fail:Number(text.match(/(?:#|ℹ) fail (\d+)/)?.[1]),cancelled:Number(text.match(/(?:#|ℹ) cancelled (\d+)/)?.[1]),skipped:Number(text.match(/(?:#|ℹ) skipped (\d+)/)?.[1]),sourceSHA256:await Promise.all(['public/rebuild.js','public/rebuild.css','public/rebuild.html','scripts/douyin_browser_collector.mjs'].map(async file=>({file,sha256:sha(await readFile(join(root,file)))}))),meaning:'Root full existing Main suite after Site reading integration; no collection or production source modification.'};
+await writeFile(join(root,'data/maintenance-journal/2026-10-02-phase108-main-tests-result.json'),JSON.stringify(result,null,2)+'\n',{flag:'wx',mode:0o400});await chmod(logPath,0o400);console.log(JSON.stringify(result));
+assert.equal(outcome.code,0);assert.equal(outcome.signal,null);assert.equal(result.tests,4290);assert.equal(result.pass,4290);assert.equal(result.fail,0);assert.equal(result.cancelled,0);assert.equal(result.skipped,0);

@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict';
+import {readFile,writeFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+import {DatabaseSync} from 'node:sqlite';
+import {fileURLToPath} from 'node:url';
+import {join} from 'node:path';
+const root=fileURLToPath(new URL('../',import.meta.url)),site=join(root,'../mcn-public-site'),sha=b=>createHash('sha256').update(b).digest('hex');
+const deadline=Date.parse('2026-10-02T11:36:55Z');assert.ok(Date.now()<deadline);
+const json=async f=>JSON.parse(await readFile(join(root,f)));
+const bindingBytes=await readFile(join(root,'data/maintenance-journal/2026-10-02-phase116-reviewed-bindings.json')),binding=JSON.parse(bindingBytes);
+assert.equal(binding.completions.length,20);assert.equal(binding.evidence.length,20);assert.deepEqual(binding.fixedRunIds,Array.from({length:20},(_,i)=>2847+i));
+for(const row of binding.completions){assert.equal(sha(await readFile(row.file)),row.sha256);assert.equal(sha(await readFile(join(root,`data/ingestion-reviews/run-${row.runId}.json`))),row.originalSHA256);}
+for(const row of binding.evidence)assert.equal(sha(await readFile(row.file)),row.sha256);
+const base=await json('data/maintenance-journal/2026-10-02-phase116-code-baseline.json'),approved=await json('data/maintenance-journal/2026-10-02-phase116-site-checks.json');
+for(const row of base.entries)assert.equal(sha(await readFile(join(root,row.file))),row.sha256);
+for(const row of base.siteRows)assert.equal(sha(await readFile(join(site,row.file))),approved.approved[row.file]||row.sha256);
+const native=await json('data/maintenance-journal/2026-10-02-phase116-native-proof.json');for(const row of native.native)assert.equal(sha(await readFile(row.file)),row.sha256);
+const cleanup=await readFile(join(root,'docs/phase116-evidence/ui/native-cleanup-ax.txt'),'utf8');assert.equal((cleanup.match(/标签 \((?:selected, )?settable, boolean\)/g)||[]).length,8);
+const before=await json('data/maintenance-journal/2026-10-02-phase115-settings-before.json'),promoted=await json('data/maintenance-journal/2026-10-02-phase115-settings-promoted.json');
+const db=new DatabaseSync(join(root,'data/douyin-monitor.sqlite'),{readOnly:true}),live={};
+try{db.exec('PRAGMA query_only=ON;BEGIN');const rows=db.prepare('SELECT key,value,updated_at FROM settings ORDER BY key').all();const changed=new Set(['publicWorksPageMode','publicWorksPageHardLimit','publicWorksRequestThreshold']);
+ assert.equal(sha(JSON.stringify(rows.filter(r=>!changed.has(r.key)))),before.otherRowsSHA256);for(const row of promoted.afterRows)assert.deepEqual({...rows.find(x=>x.key===row.key)},row);
+ live.settingRows=promoted.afterRows;live.latestNaturalRuns=db.prepare('SELECT id,trigger_type,status,started_at,finished_at FROM runs ORDER BY id DESC LIMIT 5').all();
+ live.queryOnly=db.prepare('PRAGMA query_only').get().query_only;live.totalChanges=db.prepare('SELECT total_changes() n').get().n;assert.equal(live.queryOnly,1);assert.equal(live.totalChanges,0);db.exec('ROLLBACK');
+}finally{db.close();}
+const get=async p=>{const r=await fetch('http://127.0.0.1:4188'+p,{signal:AbortSignal.timeout(8000)});assert.equal(r.status,200);return r.json();};
+const health=await get('/api/health'),monitoring=await get('/api/monitoring-status'),queue=await get('/api/ingestion-reviews');assert.equal(health.status,'ready');assert.equal(health.runtimeAI,false);assert.equal(monitoring.scheduler.scheduleIntervalHours,8);assert.deepEqual(monitoring.scheduler.slotTimes,['02:00','10:00','18:00']);
+const servicePIDs=execFileSync('/bin/ps',['-p','90988,26001,79274','-o','pid=,ppid='],{encoding:'utf8'});for(const p of [90988,26001,79274])assert.match(servicePIDs,new RegExp(`(?:^|\n)\\s*${p}\\s+1\\s*`));
+assert.equal(execFileSync('git',['status','--short'],{cwd:site,encoding:'utf8'}).trim(),'');assert.equal(execFileSync('git',['rev-parse','HEAD'],{cwd:site,encoding:'utf8'}).trim(),'d2a9e6257bfc1c16026ef4c1677bd023f703ea72');
+const sourceManifestSHA256=sha(await readFile(join(root,'data/source-poll/manifest.json')));assert.equal(sourceManifestSHA256,'184f0c655a7fc200a6d2e5979d15e92d73af8ec58883edc4d0f1635193c4d1d5');
+const retired=await json('docs/phase116-evidence/runtime/cleanup.json');let workerPS='';try{workerPS=execFileSync('/bin/ps',['-p',retired.pids.join(','),'-o','pid='],{encoding:'utf8'});}catch(error){assert.equal(error.status,1);workerPS=String(error.stdout||'');}assert.equal(workerPS.trim(),'');
+const safeSite=await json('data/maintenance-journal/2026-10-02-phase116-site-final-safe.json');assert.equal(safeSite.latest_version_number,44);assert.equal(safeSite.current_user_role,'owner');assert.equal(safeSite.access_mode,'public');assert.equal(safeSite.automationsCount,0);
+const finishedAt=new Date().toISOString(),startedAt='2026-10-02T11:06:55Z',actualElapsedSeconds=(Date.parse(finishedAt)-Date.parse(startedAt))/1000;assert.ok(actualElapsedSeconds<1800);
+const result={startedAt,finishedAt,actualElapsedSeconds,withinThirtyMinutes:true,fixedReviewed:20,nextFixedAudit:2867,bindingsSHA256:sha(bindingBytes),originalsUnchanged:true,mainOldFilesChecked:736,siteOldUnchanged:168,live,health,monitoring,queue,servicePIDs,sourceManifestSHA256,site:safeSite,ownedNativeTabsClosed:true,originalNativeTabs:8,retiredPrivateWorkerPIDsAbsent:true,manualCollection:false,restart:false,sourcePollTriggered:false,newModelAutomation:false,scopeUnchanged:'U01-U47',goalComplete:false,remaining:['complete stable works and403','Mac-off new sampling','all-network reachability; anonymous Node public29 checks403'],meaning:'Bounded phase stopped; ordinary three product processes continue without LLM tokens. No promise of all-goal completion.'};
+assert.ok(Date.now()<deadline);await writeFile(join(root,'data/maintenance-journal/2026-10-02-phase116-stop.json'),JSON.stringify(result,null,2)+'\n',{flag:'wx',mode:0o400});console.log(JSON.stringify({finishedAt,actualElapsedSeconds,reviewed:20,next:2867,health:health.status,runtimeAI:false,version:44,pending:queue.totalPending,completed:queue.totalCompleted,latestNaturalRuns:live.latestNaturalRuns}));

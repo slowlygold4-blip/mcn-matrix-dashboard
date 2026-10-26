@@ -1,0 +1,46 @@
+import assert from 'node:assert/strict';
+import { readFile, writeFile, stat } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import { DatabaseSync } from 'node:sqlite';
+import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { validateSQLiteSnapshot, validationCountsMatch } from '../lib/backup-manager.mjs';
+const root=fileURLToPath(new URL('../',import.meta.url)),site=join(root,'../mcn-public-site');
+assert.ok(Date.now()<Date.parse('2026-10-02T05:38:00Z'));
+const sha=async path=>{const h=createHash('sha256');for await(const chunk of createReadStream(path))h.update(chunk);return h.digest('hex');};
+const json=async path=>JSON.parse(await readFile(join(root,path),'utf8'));
+const backup=await json('data/maintenance-journal/2026-10-02-phase101-backup.json');
+assert.equal(await sha(backup.backupPath),backup.sha256);assert.equal(await sha(backup.restoredPath),backup.sha256);
+const restoredValidation=validateSQLiteSnapshot(backup.restoredPath);
+assert.ok(validationCountsMatch(backup.validation.counts,restoredValidation.counts));
+const manifest=await json('docs/phase100-candidate-manifest.json');
+for(const f of manifest.files)assert.equal(await sha(join(root,f.file)),f.candidate,f.file);
+for(const f of manifest.preserved)if(f.file!=='lib/utils.mjs')assert.equal(await sha(join(root,f.file)),f.sha256,f.file);
+assert.equal(await sha(join(root,'lib/utils.mjs')),'321493636571d99fce8fc51554dde108cc7b0b24a2bd945d2e9e1d2123099347');
+assert.equal(await sha(join(root,'test/phase101-business-date-formatter.test.mjs')),'28b2001550a1cc8f555d5b1b9ae210fde4e51c869894559b5c9f981f0c7619d2');
+assert.equal(await sha(join(root,'data/code-candidates/phase101/formatter-candidate.tar.gz')),'397e76082538a870336d910ea5673fb35e58c6ed5cc32d22f50ba551aad1785d');
+assert.equal(execFileSync('/usr/bin/git',['status','--short'],{cwd:site,encoding:'utf8'}).trim(),'');
+const siteHead=execFileSync('/usr/bin/git',['rev-parse','HEAD'],{cwd:site,encoding:'utf8'}).trim();assert.equal(siteHead,'f8589092b3f2a947bede2a48d64ddabc709fb2f6');
+const db=new DatabaseSync(join(root,'data/douyin-monitor.sqlite'),{readOnly:true});let current;
+try{
+ db.exec('PRAGMA query_only=ON;BEGIN');
+ const counts={};for(const table of Object.keys(backup.validation.counts))counts[table]=db.prepare(`SELECT count(*) n FROM ${table}`).get().n;
+ const appendedSinceBackup={};for(const key of Object.keys(counts))appendedSinceBackup[key]=counts[key]-backup.validation.counts[key];
+ current={checkedAt:new Date().toISOString(),counts,appendedSinceBackup,latestRun:db.prepare('SELECT id,trigger_type,status,started_at,finished_at FROM runs ORDER BY id DESC LIMIT 1').get(),maxTerminalRun:db.prepare("SELECT MAX(id) n FROM runs WHERE status<>'running' AND finished_at IS NOT NULL").get().n,newInterrupted:db.prepare("SELECT count(*) n FROM runs WHERE id>2587 AND status='interrupted'").get().n,recentSnapshot:db.prepare('SELECT max(captured_at) at FROM snapshots').get().at,queryOnly:db.prepare('PRAGMA query_only').get().query_only,changes:db.prepare('SELECT total_changes() n').get().n};
+ assert.equal(current.newInterrupted,0);assert.equal(current.changes,0);assert.equal(current.queryOnly,1);db.exec('ROLLBACK');
+}finally{db.close();}
+const source=await json('data/source-poll/manifest.json');assert.equal(await sha(join(root,'data/source-poll/manifest.json')),'184f0c655a7fc200a6d2e5979d15e92d73af8ec58883edc4d0f1635193c4d1d5');
+const publisher=await json('data/public-replica-publisher/state.json');
+const healthResponse=await fetch('http://127.0.0.1:4188/api/health',{signal:AbortSignal.timeout(10000)}),health=await healthResponse.json();assert.equal(healthResponse.status,200);assert.equal(health.runtimeAI,false);assert.equal(health.status,'ready');
+const statusResponse=await fetch('http://127.0.0.1:4188/api/monitoring-status',{signal:AbortSignal.timeout(15000)}),status=await statusResponse.json();assert.equal(statusResponse.status,200);
+assert.deepEqual(status.scheduler.slotTimes,['02:00','10:00','18:00']);assert.equal(status.scheduler.scheduleIntervalHours,8);
+const previews=[];for(const port of[4336,4337]){try{await fetch(`http://127.0.0.1:${port}/`,{signal:AbortSignal.timeout(1500)});throw Error(`private preview ${port} still responds`);}catch(e){if(e.message.includes('still responds'))throw e;previews.push({port,closed:true,reason:e.cause?.code??e.name});}}
+const intakeResponse=await fetch('http://127.0.0.1:4188/api/ingestion-reviews',{signal:AbortSignal.timeout(10000)}),intake=await intakeResponse.json();assert.equal(intakeResponse.status,200);
+const files=['docs/phase101-performance-final.json','docs/phase101-performance-manifest.json','docs/phase101-integrity-signed.md','docs/phase101-runtime-review.md','docs/phase101-runtime-after-root-handoff.json','data/maintenance-journal/phase101-integrity-offline/signed-comparison.json','data/maintenance-journal/2026-10-02-phase101-main-full.log','data/maintenance-journal/2026-10-02-phase101-http-readback-v2.json'];
+const evidence=[];for(const file of files)evidence.push({file,sha256:await sha(join(root,file)),bytes:(await stat(join(root,file))).size});
+const finishedAt=new Date().toISOString();
+const receipt={phase:101,startedAt:'2026-10-02T05:08:00Z',finishedAt,elapsedMinutes:(Date.parse(finishedAt)-Date.parse('2026-10-02T05:08:00Z'))/60000,classification:'progress',fullGoal:'U01-U47 remains active',onlyProductSourceChanged:'lib/utils.mjs',tests:{main:4239,mainPassed:4239,mainFailed:0,mainSkipped:0,mainCancelled:0,independentCases:16,independentBytes:40573282},runtime:{pids:[84545,26001,79274],health,runtimeAI:false,slotsBeijing:status.scheduler.slotTimes,currentRun:status.scheduler.currentRun?.runId??null,mainSignalAt:'2026-10-02T05:20:37.875Z',atomicDrain:false,newTimer:false,manualCollection:false},current,backup:{path:backup.backupPath,bytes:backup.bytes,sha256:backup.sha256,restoredReadable:true,cutoff:backup.cutoff},source:{sha256:'184f0c655a7fc200a6d2e5979d15e92d73af8ec58883edc4d0f1635193c4d1d5',lastFinishedAt:source.lastFinishedAt,sourceCount:Object.keys(source.sources??{}).length,unchanged:true},intake:{status:intake.status,totalPending:intake.totalPending,totalCompleted:intake.totalCompleted,queueStatus:intake.queue?.status,fromRunId:intake.queue?.fromRunId,createdRunIds:intake.queue?.createdRunIds,pendingCount:intake.queue?.pendingCount,failedCount:intake.queue?.failedCount,ordinaryEndpointReconciliation:true,newProductReviewedRunIds:[]},publisher:{status:publisher.status,activeAsOf:publisher.active?.asOf??null,publishedAsOf:publisher.publishedAsOf,lastConfirmedPublishedAt:publisher.lastConfirmedPublishedAt,syncStatus:publisher.sync?.status},site:{head:siteHead,clean:true,newUiDeployment:false},previews,privateExecSessionsCompleted:[34887,85333,43478,55499,63510,13641],evidence,knownUnfixed:['superseded UI fetch cancellation not propagated to insights worker','legacy bootstrap early disconnect before audit listener attachment','legacy bootstrap query cost','full works coverage','Mac-off new sampling','all network accessibility']};
+await writeFile(join(root,'data/maintenance-journal/2026-10-02-phase101-final-handoff.json'),JSON.stringify(receipt,null,2)+'\n',{flag:'wx',mode:0o600});
+console.log(JSON.stringify({finishedAt,elapsedMinutes:receipt.elapsedMinutes,current,publisher:receipt.publisher,intake:receipt.intake,allPassed:true},null,2));

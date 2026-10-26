@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f7fb">
+  <title>小团团创作者库 · 矩阵数据台</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/creator-library.css?v=20261022-2">
+</head>
+<body>
+  <a class="skip" href="#main">跳到主要内容</a>
+  <header class="topbar">
+    <a class="brand" href="/">M <span>矩阵数据台</span></a>
+    <nav aria-label="页面导航"><a href="/#overview">经营总览</a><a href="/#accounts">账号管理</a><a class="current" href="/creator-library.html" aria-current="page">小团团创作者库</a></nav>
+    <span class="source-pill">飞书来源快照</span>
+  </header>
+  <main id="main" class="layout">
+    <section class="hero" aria-labelledby="title">
+      <div><p class="eyebrow">SOURCE LIBRARY · TUANTUAN</p><h1 id="title">小团团创作者库</h1><p class="intro">把作者、作品、赛道、登记、公示与核验记录放在一个可查的入口。来源表的累计值与经营台的每日净变化严格分开。</p></div>
+      <a id="sourceLink" class="source-link" href="https://my.feishu.cn/sheets/VQQ3sbwPlh5o39tdqyocXzTYnLg" target="_blank" rel="noopener noreferrer">查看飞书原表 ↗</a>
+    </section>
+    <p id="status" class="status" role="status" aria-live="polite">正在读取创作者库…</p>
+    <section id="summary" hidden aria-label="来源总览">
+      <div class="source-meta" id="sourceMeta"></div>
+      <div class="kpis" id="kpis"></div>
+      <div class="boundary" id="boundary"></div>
+      <div class="section-title"><div><p class="eyebrow">CONTENT TRACKS</p><h2>四个内容赛道</h2></div><p>作品按全局唯一主赛道归属，跨赛道重复不重复相加。</p></div>
+      <div class="tracks" id="tracks"></div>
+    </section>
+    <section class="workspace" aria-labelledby="workspaceTitle">
+      <div class="section-title"><div><p class="eyebrow">SOURCE EXPLORER</p><h2 id="workspaceTitle">查找所有来源记录</h2></div><p id="sheetCount">20 张工作表 · 来源行可追溯</p></div>
+      <form id="globalSearchForm" class="global-search" role="search"><label for="globalSearch">跨可访问的工作表搜索</label><div><input id="globalSearch" type="search" minlength="2" maxlength="120" placeholder="输入作者、抖音号、视频 ID、来源记录 ID…" autocomplete="off"><button type="submit">搜索全部</button></div></form>
+      <div id="globalResults" class="global-results" hidden></div>
+      <div class="explorer">
+        <aside class="sheet-sidebar" aria-label="来源工作表"><div class="sheet-sidebar-title">来源目录 <span id="sourceSheetTotal"></span></div><div id="sheetList"></div></aside>
+        <section class="sheet-panel" aria-labelledby="activeSheetTitle">
+          <div class="sheet-head"><div><p id="sheetGroup" class="eyebrow">作者与作品</p><h3 id="activeSheetTitle">作者总表</h3><p id="sheetDescription">逐行保留原表字段和原始行号。</p></div><span id="sheetTotal" class="row-pill">—</span></div>
+          <div class="sheet-tools"><label for="sheetSearch">在此表内筛选</label><input id="sheetSearch" type="search" maxlength="120" placeholder="关键词、账号 ID 或作品 ID"><select id="linkStatus" aria-label="监控关联状态"><option value="all">全部作者</option><option value="linked">已关联监控</option><option value="unlinked">未确定关联</option></select><button id="applySheetSearch" type="button">筛选</button><button id="clearSheetSearch" type="button" class="text-button">清空</button></div>
+          <div id="tableStatus" class="table-status" role="status" aria-live="polite"></div>
+          <div class="table-scroll" tabindex="0" role="region" aria-label="来源数据表，可左右滚动"><table><thead id="tableHead"></thead><tbody id="tableBody"></tbody></table></div>
+          <div class="pager"><span id="pageStatus">—</span><div><button id="previousPage" type="button">上一页</button><button id="nextPage" type="button">下一页</button></div></div>
+        </section>
+      </div>
+    </section>
+    <footer>来源数据保留原表口径与行号。缺测不补零；公示金额、候选金额均非实付。采集程序不调用 AI。</footer>
+  </main>
+  <script type="module" src="/creator-library.js?v=20261022-2"></script>
+</body>
+</html>

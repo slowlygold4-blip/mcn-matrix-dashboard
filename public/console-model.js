@@ -1,11 +1,12 @@
 export const METRICS = { followers: '粉丝', likes: '点赞', estimatedPlays: '估算播放', posts: '作品存量' };
+export { sourceColumns, accountStateLabel, unifiedRosterCaption, sourceMetricCell, sourceFactsMarkup, sourceWorksMarkup } from './unified-account-ui.js';
 export { getWorkflowMetric, createWorkflowSummary, filterWorkflowAccounts } from './console-workflow.js?v=20261005-daily-workflow-1';
 const NAV_PERIODS = new Set(['day', 'week', 'month', '30d', 'since', 'custom']);
 const NAV_PLATFORMS = new Set(['all', 'douyin', 'bilibili', 'xiaohongshu', 'kuaishou']);
-const NAV_ENABLED = new Set(['active', 'all', 'paused']);
+const NAV_ENABLED = new Set(['active', 'all', 'paused', 'source']);
 const NAV_COLLECTION = new Set(['all', 'missing-profile', 'incomplete-works']);
 const NAV_ACCOUNT_MODES = new Set(['operating', 'roster']);
-const NAV_SORTS = new Set(['label', 'followers.value', 'followers.delta', 'likes.value', 'likes.delta', 'estimatedPlays.delta', 'posts.value', 'posts.delta']);
+const NAV_SORTS = new Set(['label', 'followers.value', 'followers.delta', 'likes.value', 'likes.delta', 'estimatedPlays.delta', 'posts.value', 'posts.delta', 'sourceSummary.works', 'sourceSummary.cumulativePlays', 'sourceSummary.cumulativeLikes']);
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 function validDate(value) {
   const text = String(value || '');
@@ -27,7 +28,7 @@ export function readNavigationState(input, options = {}) {
   const compare = p.get('compare') === '1' && validDate(compareStart) && validDate(compareEnd) && compareStart <= compareEnd && dateDistance(compareStart, compareEnd) <= 366 && (!today || compareEnd <= today);
   return { board: p.get('board') || '', theme: p.get('theme') || 'all', classification: p.get('classification') || 'all', period, start, end,
     query: p.get('q') || '', platform: NAV_PLATFORMS.has(p.get('platform')) ? p.get('platform') : 'all',
-    enabled: NAV_ENABLED.has(p.get('enabled')) ? p.get('enabled') : 'active', collectionFilter: NAV_COLLECTION.has(p.get('collectionFilter')) ? p.get('collectionFilter') : 'all',
+    enabled: NAV_ENABLED.has(p.get('enabled')) ? p.get('enabled') : 'all', collectionFilter: NAV_COLLECTION.has(p.get('collectionFilter')) ? p.get('collectionFilter') : 'all',
     sort: NAV_SORTS.has(p.get('sort')) ? p.get('sort') : 'followers.delta', direction: p.get('direction') === 'asc' ? 'asc' : 'desc', page,
     accountMode: NAV_ACCOUNT_MODES.has(p.get('accountMode')) ? p.get('accountMode') : 'operating',
     compare, compareStart: compare ? compareStart : '', compareEnd: compare ? compareEnd : '',
@@ -37,7 +38,7 @@ export function writeNavigationState(input, state = {}) {
   const url = input instanceof URL ? new URL(input.href) : new URL(String(input || 'http://127.0.0.1/'), 'http://127.0.0.1/');
   const values = { board: state.board, theme: state.theme !== 'all' ? state.theme : '', classification: state.classification !== 'all' ? state.classification : '',
     period: state.period !== 'day' ? state.period : '', start: state.period === 'custom' ? state.start : '', end: state.period === 'custom' ? state.end : '',
-    q: state.query, platform: state.platform !== 'all' ? state.platform : '', enabled: state.enabled !== 'active' ? state.enabled : '',
+    q: state.query, platform: state.platform !== 'all' ? state.platform : '', enabled: state.enabled !== 'all' ? state.enabled : '',
     collectionFilter: state.collectionFilter !== 'all' ? state.collectionFilter : '', sort: state.sort !== 'followers.delta' ? state.sort : '', direction: state.direction !== 'desc' ? state.direction : '',
     page: Number(state.page) > 1 ? String(Math.floor(state.page)) : '', accountMode: state.accountMode === 'roster' ? 'roster' : '',
     compare: state.compare ? '1' : '', compareStart: state.compare ? state.compareStart : '', compareEnd: state.compare ? state.compareEnd : '',
@@ -210,11 +211,12 @@ export function compareNumbers(a, b, direction = 'desc') {
 }
 export function sortAccounts(rows, key, direction, period) {
   const [metric, field = 'value'] = key.split('.');
-  const value = account => field === 'delta' ? periodDelta(account.metrics?.[metric], period) : account.metrics?.[metric]?.[field];
+  const value = account => metric === 'sourceSummary' ? account.sourceSummary?.[field]
+    : field === 'delta' ? periodDelta(account.metrics?.[metric], period) : account.metrics?.[metric]?.[field];
   return [...rows].sort((a, b) => {
     const result = key === 'label' ? String(a.label).localeCompare(String(b.label), 'zh-CN') * (direction === 'asc' ? 1 : -1)
       : compareNumbers(value(a), value(b), direction);
-    return result || a.id - b.id;
+    return result || (typeof a.id === 'number' && typeof b.id === 'number' ? a.id - b.id : String(a.id).localeCompare(String(b.id)));
   });
 }
 export function periodDelta(metric, period) {

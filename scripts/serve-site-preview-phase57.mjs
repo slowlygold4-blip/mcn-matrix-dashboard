@@ -1,0 +1,6 @@
+// Local-only acceptance proxy: public immutable GET data, no database or credentials.
+import {createServer} from 'node:http';
+const server=createServer(async(req,res)=>{try{if(req.method!=='GET') {res.writeHead(405);return res.end('只读预览');}const local=new URL(req.url,'http://127.0.0.1:4192');const target=local.pathname==='/api/replica'?'https://mcn-matrix-observatory.slowlygold4.chatgpt.site'+local.pathname+local.search:'http://127.0.0.1:4191'+local.pathname+local.search;const r=await fetch(target,{signal:AbortSignal.timeout(20000),headers:{accept:req.headers.accept||'*/*'}});const body=Buffer.from(await r.arrayBuffer());const headers={'content-type':r.headers.get('content-type')||'application/octet-stream','cache-control':'no-store'};for(const name of ['X-Data-SHA256','X-Data-Cutoff']){const value=r.headers.get(name);if(value)headers[name]=value;}res.writeHead(r.status,headers);res.end(body);}catch{res.writeHead(502);res.end('预览读取失败，未修改原数据');}});
+let stopping=false;function stop(){if(stopping)return;stopping=true;server.closeAllConnections();server.close(()=>process.exit(0));}
+process.once('SIGTERM',stop);process.once('SIGINT',stop);setTimeout(stop,20*60_000).unref();
+server.listen(4192,'127.0.0.1',()=>console.log('Phase57 readonly preview http://127.0.0.1:4192/'));

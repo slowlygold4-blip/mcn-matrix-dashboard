@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import {readdir,readFile,open,writeFile,chmod} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {spawn} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+import {join} from 'node:path';
+const root=fileURLToPath(new URL('../',import.meta.url));
+const sha=b=>createHash('sha256').update(b).digest('hex');
+assert.ok(Date.now()<Date.parse('2026-10-02T10:05:00Z'));
+const approved=JSON.parse(await readFile(join(root,'data/maintenance-journal/2026-10-02-phase113-approved-files.json')));
+const byFile=Object.fromEntries(approved.rows.map(row=>[row.file,row.afterSHA256]));
+const baseline=JSON.parse(await readFile(join(root,'data/maintenance-journal/2026-10-02-phase113-code-baseline.json')));
+for(const row of baseline.entries) assert.equal(sha(await readFile(join(root,row.file))),byFile[row.file]||row.sha256,row.file);
+for(const[file,hash]of Object.entries(byFile)) assert.equal(sha(await readFile(join(root,file))),hash,file);
+const files=(await readdir(join(root,'test'))).filter(f=>f.endsWith('.test.mjs')).sort().map(f=>'test/'+f);
+const startedAt=new Date().toISOString();
+const logPath=join(root,'data/maintenance-journal/2026-10-02-phase113-main-full-tests.log');
+const fd=await open(logPath,'wx',0o600);
+const child=spawn(process.execPath,['--test','--test-concurrency=2',...files],{
+  cwd:root,env:{...process.env,PHASE84_REAL45:'1'},stdio:['ignore',fd.fd,fd.fd]});
+console.log(JSON.stringify({startedAt,pid:child.pid,files:files.length,logPath}));
+const guard=setTimeout(()=>child.kill('SIGTERM'),Math.max(1,Date.parse('2026-10-02T10:09:15Z')-Date.now()));
+const outcome=await new Promise((resolve,reject)=>{child.once('error',reject);child.once('exit',(code,signal)=>resolve({code,signal}));});
+clearTimeout(guard);await fd.close();
+const bytes=await readFile(logPath),text=bytes.toString('utf8');
+const result={startedAt,finishedAt:new Date().toISOString(),outcome,logPath,sha256:sha(bytes),
+  testFiles:files.length,oldFilesChecked:baseline.entries.length,approvedSources:byFile};
+for(const key of ['tests','pass','fail','cancelled','skipped']) result[key]=Number(text.match(new RegExp('(?:#|ℹ) '+key+' (\\d+)'))?.[1]);
+await writeFile(join(root,'data/maintenance-journal/2026-10-02-phase113-main-tests-result.json'),JSON.stringify(result,null,2)+'\n',{flag:'wx',mode:0o400});
+await chmod(logPath,0o400);console.log(JSON.stringify(result));
+assert.equal(outcome.code,0);assert.equal(outcome.signal,null);assert.ok(result.tests>=4299);
+assert.equal(result.pass,result.tests);assert.equal(result.fail,0);assert.equal(result.cancelled,0);assert.equal(result.skipped,0);

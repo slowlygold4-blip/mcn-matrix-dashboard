@@ -1,0 +1,55 @@
+/* Decorative motion is progressive enhancement: no pending-content opacity. */
+html{scroll-behavior:smooth;scroll-padding-top:var(--dashboard-sticky-offset,88px);}
+.dashboard-reading-progress{position:fixed;inset:0 0 auto;height:3px;z-index:60;pointer-events:none;user-select:none;overflow:hidden;contain:strict;}
+.dashboard-reading-progress__bar{display:block;width:100%;height:100%;transform:scaleX(0);transform-origin:left center;background:linear-gradient(90deg,var(--visual-violet,#9f88ff),var(--visual-cyan,#79d7dd));opacity:.85;}
+
+.dashboard-entering{animation:dashboard-enter .8s cubic-bezier(.16,1,.3,1) var(--dashboard-stagger,0ms) both;will-change:transform,opacity;}
+@keyframes dashboard-enter{
+ from{opacity:.12;transform:translate3d(0,30px,0);filter:blur(2px);}
+ 65%{filter:blur(0);}
+ to{opacity:1;transform:translate3d(0,0,0);filter:blur(0);}
+}
+/* Trace observed segments only. Gaps remain gaps; numeric labels never animate. */
+.dashboard-entering .overview-trend-preview__line{stroke-dasharray:1;stroke-dashoffset:1;animation:dashboard-trace 900ms cubic-bezier(.16,1,.3,1) 160ms forwards;}
+@keyframes dashboard-trace{to{stroke-dashoffset:0;}}
+/* Phone GPUs can repaint a long data page for blur; keep motion composited. */
+@media(max-width:680px){
+ .dashboard-entering{animation-name:dashboard-enter-mobile;}
+ @keyframes dashboard-enter-mobile{
+  from{opacity:.12;transform:translate3d(0,24px,0);}
+  to{opacity:1;transform:translate3d(0,0,0);}
+ }
+}
+/* Keyboard access wins over a delayed entrance, even before JS focus handling. */
+.dashboard-entering:focus-within{animation:none!important;opacity:1!important;transform:none!important;filter:none!important;will-change:auto;}
+
+.source-ops-hero-action{position:relative;isolation:isolate;}
+.source-ops-hero-action>:not(.dashboard-orbits){position:relative;z-index:1;}
+.dashboard-orbits{position:absolute;inset:-4rem -2rem;z-index:0;pointer-events:none;user-select:none;overflow:hidden;contain:layout paint;perspective:800px;/* Leave the central figure visually clear, even as the rings rotate. */-webkit-mask-image:radial-gradient(ellipse 36% 45% at 50% 50%,transparent 64%,#000 125%);mask-image:radial-gradient(ellipse 36% 45% at 50% 50%,transparent 64%,#000 125%);}
+.dashboard-orbits>span{position:absolute;display:block;width:88%;height:68%;left:6%;top:16%;margin:0!important;border:1px solid var(--visual-violet,#9f88ff);border-radius:50%;opacity:.22;transform:rotateX(61deg) rotateZ(-28deg);animation:dashboard-orbit-a 36s linear infinite paused;}
+.dashboard-orbits>span:nth-child(2){width:76%;height:83%;left:12%;top:8.5%;border-color:var(--visual-cyan,#79d7dd);opacity:.17;transform:rotateY(56deg) rotateZ(32deg);animation:dashboard-orbit-b 48s linear infinite paused;}
+.dashboard-orbits[data-dashboard-orbit-active="true"]>span{animation-play-state:running;}
+@keyframes dashboard-orbit-a{from{transform:rotateX(61deg) rotateZ(-28deg);}to{transform:rotateX(61deg) rotateZ(332deg);}}
+@keyframes dashboard-orbit-b{from{transform:rotateY(56deg) rotateZ(32deg);}to{transform:rotateY(56deg) rotateZ(-328deg);}}
+
+html[data-dashboard-motion-page="hidden"] .dashboard-orbits>span{animation-play-state:paused;}
+@media(prefers-reduced-motion:reduce){
+ html{scroll-behavior:auto!important;}
+ .dashboard-entering{animation:none!important;opacity:1!important;transform:none!important;filter:none!important;will-change:auto;}
+ .dashboard-orbits>span{animation:none!important;}
+ .dashboard-entering .overview-trend-preview__line{animation:none!important;stroke-dasharray:none!important;stroke-dashoffset:0!important;}
+ /* The reading-progress line conveys location, not decorative motion. */
+}
+@media(max-width:680px){.dashboard-orbits{inset:-2rem 0;max-width:24rem;}.dashboard-orbits>span{opacity:.16;}.dashboard-orbits>span:nth-child(2){opacity:.12;}}
+/* The primary account-change card gets the same restrained orbital language.
+   Its figure and copy always sit above the decoration; the card clips the rings. */
+.overview-account-preview__card:first-child{isolation:isolate;}
+.overview-account-preview__card:first-child>:not(.dashboard-orbits){position:relative;z-index:1;}
+.overview-account-preview__card:first-child .dashboard-orbits{inset:0;max-width:none;}
+.overview-account-preview__card:first-child .dashboard-orbits>span{opacity:.26;animation-duration:32s;box-shadow:0 0 15px #a99bff2d;}
+.overview-account-preview__card:first-child .dashboard-orbits>span:nth-child(2){opacity:.18;animation-duration:42s;box-shadow:0 0 15px #6be4e726;}
+@media(max-width:680px){
+ .overview-account-preview__card:first-child .dashboard-orbits>span{opacity:.19;}
+ .overview-account-preview__card:first-child .dashboard-orbits>span:nth-child(2){opacity:.13;}
+}
+@media print{.dashboard-reading-progress,.dashboard-orbits{display:none!important;}.dashboard-entering{animation:none!important;opacity:1!important;transform:none!important;filter:none!important;}.dashboard-entering .overview-trend-preview__line{animation:none!important;stroke-dasharray:none!important;stroke-dashoffset:0!important;}}

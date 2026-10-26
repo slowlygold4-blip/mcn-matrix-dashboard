@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import {readFile,writeFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+import {DatabaseSync} from 'node:sqlite';
+import {fileURLToPath} from 'node:url';
+import {join} from 'node:path';
+const root=fileURLToPath(new URL('../',import.meta.url)),label=process.argv[2],startedAt=new Date().toISOString();
+assert.ok(['before','final'].includes(label));assert.ok(Date.now()<Date.parse('2026-10-02T08:22:06Z'));
+const sha=b=>createHash('sha256').update(b).digest('hex');
+const get=async url=>{const r=await fetch('http://127.0.0.1:4188'+url,{signal:AbortSignal.timeout(15000)});assert.equal(r.status,200);return r.json();};
+const health=await get('/api/health');assert.equal(health.status,'ready');assert.equal(health.runtimeAI,false);
+const monitoring=await get('/api/monitoring-status'),scheduler=monitoring.scheduler;
+assert.equal(scheduler.scheduleIntervalHours,8);assert.deepEqual(scheduler.slotTimes,['02:00','10:00','18:00']);assert.equal(scheduler.timeZone,'Asia/Shanghai');
+const queue=await get('/api/ingestion-reviews');
+assert.equal(queue.queue.fromRunId,755);assert.equal(queue.queue.pendingCount,0);assert.equal(queue.queue.failedCount,0);
+const topics=await get('/api/topics/history?startDate=2026-09-12&endDate=2026-10-02');assert.equal(topics.topics.length,4);
+const db=new DatabaseSync(join(root,'data/douyin-monitor.sqlite'),{readOnly:true});let terminal;
+try{db.exec('PRAGMA query_only=ON;BEGIN');terminal=db.prepare("SELECT max(id) maxRunId,max(CASE WHEN finished_at IS NOT NULL AND status<>'running' THEN id END) maxTerminalRunId,count(CASE WHEN status='running' THEN 1 END) running FROM runs").get();assert.equal(db.prepare('SELECT total_changes() n').get().n,0);db.exec('ROLLBACK');}finally{db.close();}
+const sourceBytes=await readFile(join(root,'data/source-poll/manifest.json')),source=JSON.parse(sourceBytes);const sourceManifestSHA256=sha(sourceBytes);assert.equal(sourceManifestSHA256,'184f0c655a7fc200a6d2e5979d15e92d73af8ec58883edc4d0f1635193c4d1d5');
+const ps=execFileSync('/bin/ps',['-p','90988,26001,79274','-o','pid=,ppid=,command='],{encoding:'utf8'});for(const pid of [90988,26001,79274])assert.match(ps,new RegExp('(?:^|\\n)\\s*'+pid+'\\s+1\\s+'));
+const site=join(root,'../mcn-public-site'),siteSourceSHA=execFileSync('git',['rev-parse','HEAD'],{cwd:site,encoding:'utf8'}).trim();assert.equal(execFileSync('git',['status','--short'],{cwd:site,encoding:'utf8'}).trim(),'');
+const evidence={startedAt,finishedAt:new Date().toISOString(),health,monitoring,queueSummary:{status:queue.status,totalPending:queue.totalPending,totalCompleted:queue.totalCompleted,fromRunId:queue.queue.fromRunId,createdRuleRunIds:queue.queue.createdRunIds},terminal,sourceManifestSHA256,sourceLastFinishedAt:source.lastFinishedAt,ps,siteSourceSHA,siteSourceClean:true,topicObservations:topics.topics.map(t=>({id:t.id,label:t.label,last:t.points.at(-1)})),collectorSHA256:sha(await readFile(join(root,'scripts/douyin_browser_collector.mjs'))),noManualCollection:true,noNewTimer:true,noRestart:true,totalChanges:0,completeGoal:false,macOffNewSamplingImplemented:false};
+await writeFile(join(root,`data/maintenance-journal/2026-10-02-phase108-runtime-${label}.json`),JSON.stringify(evidence,null,2)+'\n',{flag:'wx',mode:0o400});
+console.log(JSON.stringify({at:evidence.finishedAt,health,terminal,queue:evidence.queueSummary,siteSourceSHA,nextRunAt:scheduler.nextRunAt}));

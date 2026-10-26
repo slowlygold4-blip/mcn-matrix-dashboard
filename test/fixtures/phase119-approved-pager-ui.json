@@ -1,0 +1,18 @@
+{
+  "pageBeforeSha": "48e05c111d492b31b7a80d4e2adb9ef8a9df932411f5498f805bf2d46a0a6df5",
+  "pageAfterSha": "3c01021bc26a8c0b4bcca4ed44c29ac9e28d66cb9c4c3472c8ba523f8d6b1e95",
+  "pageDeltas": [
+    {
+      "before": "import {useEffect,useMemo,useRef,useState} from 'react';",
+      "after": "import {useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';"
+    },
+    {
+      "before": "export default function Home(){",
+      "after": "// Keep a user's own paging control reachable when that action disables it.\nfunction Pager({count,page,change,scope}:{count:number;page:number;change:(page:number)=>void;scope:string}){\n const region=useRef<HTMLDivElement|null>(null),pending=useRef<{button:HTMLButtonElement;page:number;scope:string}|null>(null);\n useLayoutEffect(()=>{\n  const request=pending.current;pending.current=null;\n  if(!request||request.page!==page||request.scope!==scope||!request.button.disabled\n   ||!region.current?.isConnected||region.current.closest('[hidden]')\n   ||!region.current.contains(request.button)\n   ||document.activeElement!==request.button&&document.activeElement!==document.body)return;\n  // Chromium may blur a newly disabled button only after the event completes.\n  let moved=false;\n  const watch=(event:FocusEvent)=>{if(event.target!==request.button)moved=true;};\n  document.addEventListener('focusin',watch);\n  const frame=requestAnimationFrame(()=>{\n   document.removeEventListener('focusin',watch);\n   if(moved||document.activeElement!==document.body&&document.activeElement!==request.button||!request.button.disabled\n    ||!region.current?.isConnected||region.current.closest('[hidden]')\n    ||!region.current.contains(request.button))return;\n   region.current.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus({preventScroll:true});\n  });\n  return()=>{cancelAnimationFrame(frame);document.removeEventListener('focusin',watch);};\n },[count,page,scope]);\n function move(button:HTMLButtonElement,next:number){\n  pending.current=document.activeElement===button?{button,page:next,scope}:null;\n  change(next);\n }\n return <div className=\"pager\" ref={region}><span>共 {count} 条 · 第 {page}/{Math.max(1,Math.ceil(count/20))} 页</span><Button variant=\"outline\" disabled={page<=1} onClick={event=>move(event.currentTarget,page-1)}>上一页</Button><Button variant=\"outline\" disabled={page*20>=count} onClick={event=>move(event.currentTarget,page+1)}>下一页</Button></div>;\n}\nexport default function Home(){"
+    },
+    {
+      "before": " const pager=(n:number,p:number,change:(x:number)=>void)=><div className=\"pager\"><span>共 {n} 条 · 第 {p}/{Math.max(1,Math.ceil(n/20))} 页</span><Button variant=\"outline\" disabled={p<=1} onClick={()=>change(p-1)}>上一页</Button><Button variant=\"outline\" disabled={p*20>=n} onClick={()=>change(p+1)}>下一页</Button></div>;",
+      "after": " const pager=(n:number,p:number,change:(x:number)=>void)=><Pager count={n} page={p} change={change} scope={JSON.stringify([navigationEpoch.current,tab,personal?.id,account?.id,kind,work,data?.manifest.asOf,loading,board,theme,tag,query,rosterStatus,start,end,sort,order,hSort,hOrder])}/>;"
+    }
+  ]
+}

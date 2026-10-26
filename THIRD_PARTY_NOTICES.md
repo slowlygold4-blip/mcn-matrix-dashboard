@@ -63,7 +63,7 @@ SM4 and PyCryptodome-dependent modules are not bundled.
 ## Bilibili public API route
 
 - API reference: https://github.com/SocialSisterYi/bilibili-API-collect
-- Implementation was reviewed against public API behavior; the local research checkout is not part of this repository.
+- Local proven implementation reviewed from: `/Users/tyke/skill-hub/backend/talent_radar.py`
 - Purpose: read public account cards, follower counts, submission counts, WBI-signed public video lists and public video details without an API key.
 - Runtime note: no third-party Bilibili package or credential is bundled; WBI signing is calculated locally and missing fields remain null.
 

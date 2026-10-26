@@ -232,7 +232,7 @@ export function filterMasterRoster(items, { query = '', status = 'all', theme = 
     && (classification === 'all'
       || classification === '__roster_unclassified__' && !item.classifications.some(label => label.key && label.label)
       || classification.startsWith('label:') && item.classifications.some(label => label.key === classification.slice(6)))
-    && (!search || [item.name, ...list(item.originalNames), ...item.accountIds, text(item.identityCorrection?.correctedAccountId), item.theme.label, ...item.sourceTitles,
+    && (!search || [item.name, ...list(item.originalNames), ...item.accountIds, ...list(item.creatorSourceAccountIds), text(item.identityCorrection?.correctedAccountId), item.theme.label, ...item.sourceTitles,
       ...list(item.sourceLinks), ...item.classifications.map(label => label.label)]
       .some(value => value.toLocaleLowerCase().includes(search))));
 }
@@ -246,9 +246,11 @@ export function masterRosterCsv(snapshot, items = snapshot.items) {
   const header = ['作者名称', '平台', '提交账号ID（文本）', '监控状态', '身份核对状态', '总表来源大主题（不覆盖经营归属）', '总表来源分类', '主页链接', '来源标题', '来源链接', '核对说明', '名册快照UTC', '原总表文件', '原总表SHA256', '资料层级', '原表名称 / 别名'];
   const rows = items.map(item => [item.name, item.platform, item.accountIds.join('；'), STATUS[item.monitorStatus], item.identityStatus,
     item.theme.label, item.classifications.map(label => label.label).join('；'), item.profileLinks.join('；'),
-    item.sourceTitles.join('；'), item.sourceLinks.join('；'), item.reviewReasons.join('；'), item.liveSource ? '' : snapshot.snapshotAt,
-    item.liveSource ? '' : snapshot.workbook.fileName, item.liveSource ? '' : snapshot.workbook.sha256,
-    item.liveSource ? `最新来源资料（非原总表行，${item.monitorStatus === 'pending' ? '待接入' : `已建档 / ${STATUS[item.monitorStatus]}`}）` : '原总表资料（含最新同ID别名 / 来源）', list(item.originalNames).join('；')]);
+    item.sourceTitles.join('；'), item.sourceLinks.join('；'), item.reviewReasons.join('；'), item.liveSource || item.creatorSource ? '' : snapshot.snapshotAt,
+    item.liveSource || item.creatorSource ? '' : snapshot.workbook.fileName, item.liveSource || item.creatorSource ? '' : snapshot.workbook.sha256,
+    item.creatorSource ? `团团全量来源（${item.monitorStatus === 'pending' ? '待严格对应监控账号' : `已对应 / ${STATUS[item.monitorStatus]}`}）`
+      : item.liveSource ? `最新来源资料（非原总表行，${item.monitorStatus === 'pending' ? '待接入' : `已建档 / ${STATUS[item.monitorStatus]}`}）`
+        : '原总表资料（含最新同ID别名 / 来源）', list(item.originalNames).join('；')]);
   return '\ufeff' + [header, ...rows].map((row, index) => row.map((value, column) => csvCell(value, index > 0 && column === 2)).join(',')).join('\r\n');
 }
 
@@ -529,7 +531,9 @@ export function mountMasterRoster({ host, endpoint = '/api/master-roster', fetch
         source.append(links);
       }
       if (item.reviewReasons.length) source.append(element('small', 'master-roster-reasons', item.reviewReasons.join('；')));
-      else if (item.monitorStatus === 'pending') source.append(element('small', '', '尚未核对，不表示已完成采集；以来源和身份审查结果为准。'));
+      else if (item.monitorStatus === 'pending') source.append(element('small', '', item.creatorSource
+        ? '团团全量来源已并入主数据库；账号身份尚未严格对应，来源累计量不进入每日监控。'
+        : '尚未核对，不表示已完成采集；以来源和身份审查结果为准。'));
       tr.append(account, identity, labels, source); body.append(tr);
     }
     if (!items.length) {

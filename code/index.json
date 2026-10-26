@@ -1,0 +1,11 @@
+{
+  "purpose": "Current MCN reference-led HTML design audit, not copied OKX source",
+  "sources": [
+    "../mcn-public-site/app/replica.css",
+    "../mcn-public-site/app/globals.css"
+  ],
+  "cascade": "replica.css overrides generic globals.css; record effective MCN values",
+  "publicVersion": 25,
+  "reference": "User-supplied OKX screenshot and official public frontend research",
+  "observedPublicBrowser": "Chrome, 2026-10-01 15:34-15:41 UTC"
+}

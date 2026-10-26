@@ -1,4 +1,4 @@
 #!/bin/sh
-# launchd entrypoint: set NODE_BIN to an absolute path when launchd has no Node in PATH.
-SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-exec "${NODE_BIN:-node}" "$SCRIPT_DIR/../server.mjs"
+# launchd entrypoint: keep the service independent of an interactive shell and
+# make the runtime path explicit on machines whose launchd PATH is minimal.
+exec /Users/tyke/.local/node-v24.16.0-darwin-arm64/bin/node /Users/tyke/Documents/Codex/2026-08-31/bi-a/outputs/douyin-monitor-workbench/server.mjs

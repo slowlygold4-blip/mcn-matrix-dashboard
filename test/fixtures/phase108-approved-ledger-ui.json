@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "approvedAt": "2026-10-02T08:10:00Z",
+  "sources": {
+    "app/page.tsx": {
+      "before": "0572e7e04a7041fe4bb3cdd9799aafbef27a3547563edecad00fe75d11a0c178",
+      "after": "9e3d17a4021d5fe0a796d832faba14e2ef5e05d8f076fc16d108c3d2f396e233"
+    },
+    "app/replica.css": {
+      "before": "9d9e25d0e2deb2ee52432b608b77c94048622833cd99f58e7334d5755056c431",
+      "after": "5af2fa1cf1593fe11a9381a9a713195d653850a81a5cc0f96066847564ca1817"
+    },
+    "components/scrollable-table.tsx": {
+      "before": "9fb49dc4e1a465088cc7bc7f79c1c78e45134d3f8ea6a5ef33a63fee4ddb4163",
+      "after": "74bfc18f8c025632b7cf32c020d4709aba4e1309b5538a53288ec8e19c45f3d0"
+    }
+  },
+  "pageProps": " bounded scrollResetKey={JSON.stringify([page,board,theme,tag,query,rosterStatus,start,end,sort,order])} scrollLabel=\"账号数据，方向键与 PageUp、PageDown 滚动当前页\"",
+  "addedCss": "table-scroll-shell--bounded .table-scroll-hint {display:block;}\n.account-ledger .table-scroll-shell--bounded [data-slot=table-container] {max-height:min(60dvh,42rem);overflow:auto;scroll-padding-top:3.5rem;}\n.account-ledger .table-scroll-shell--bounded .data-table th {position:sticky;top:0;z-index:2;}\n.account-ledger .table-scroll-shell--bounded .data-table th:first-child {z-index:3;}\n@media print {\n .account-ledger .table-scroll-shell--bounded [data-slot=table-container] {max-height:none;overflow:visible;}\n .account-ledger .table-scroll-shell--bounded .data-table th,.account-ledger .table-scroll-shell--bounded .data-table td:first-child {position:static;}\n .account-ledger .table-scroll-shell--bounded .table-scroll-hint {display:none;}\n}\n.account-ledger ."
+}

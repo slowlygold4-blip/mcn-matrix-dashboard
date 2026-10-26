@@ -1,0 +1,19 @@
+import {readFile,writeFile,stat} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {fileURLToPath} from 'node:url';
+import {join,resolve} from 'node:path';
+import assert from 'node:assert/strict';
+import {completePostIngestionProductReview} from '../lib/post-ingestion-review.mjs';
+const root=resolve(fileURLToPath(new URL('..',import.meta.url))),sha=b=>createHash('sha256').update(b).digest('hex');
+assert.ok(Date.now()<Date.parse('2026-10-02T08:51:59Z'));
+const bytes=await readFile(join(root,'docs/phase109-evidence/integrity/data-audit.json'));assert.equal(sha(bytes),'1e24ce8b10c55dae3c97a66195f16ef3f6a6da5a89d796ac6665c59dd92af18e');
+const audit=JSON.parse(bytes),fixedRunIds=Array.from({length:27},(_,i)=>2760+i);assert.deepEqual(audit.fixedRunIds,fixedRunIds);assert.equal(audit.originalEventsByteUnchanged,true);assert.equal(audit.changesBefore,0);assert.equal(audit.changesAfter,0);
+const evidence=['data/maintenance-journal/2026-10-02-phase109.md','docs/phase109-product-review.md','docs/phase109-native-acceptance.md','data/maintenance-journal/2026-10-02-phase109-main-retry-full-tests.log','data/maintenance-journal/2026-10-02-phase109-main-full-tests.log','docs/phase109-evidence/integrity/data-audit.json','docs/phase109-evidence/integrity/data-review.md','docs/phase109-evidence/integrity/frontend-review.md','docs/phase109-evidence/integrity/installed-review.md','docs/phase109-evidence/runtime/review.md','docs/phase109-evidence/candidate/final.json','data/maintenance-journal/2026-10-02-phase109-final-audit.json','data/maintenance-journal/2026-10-02-phase109-runtime-final.json','data/maintenance-journal/2026-10-02-phase109-native-image-boundary.json'];
+const evidenceChecks=[];for(const reference of evidence){const path=join(root,reference);assert.equal((await stat(path)).isFile(),true);assert.equal((await stat(path)).mode&0o777,0o400);const b=await readFile(path);assert.ok(b.length);evidenceChecks.push({reference,bytes:b.length,sha256:sha(b)});}
+const tests=await readFile(join(root,evidence[3]),'utf8');for(const re of[/ℹ pass 4294\b/,/ℹ fail 0\b/,/ℹ cancelled 0\b/,/ℹ skipped 0\b/])assert.match(tests,re);
+const final=JSON.parse(await readFile(join(root,evidence[11]),'utf8'));assert.equal(final.tests.pass,4294);assert.equal(final.changes.length,3);assert.equal(final.siteNotDeployedThisPhase,true);assert.equal(final.macOffNewSamplingImplemented,false);
+const originals=[];for(const runId of fixedRunIds){const proof=audit.proofs.find(p=>p.runId===runId);assert.ok(proof);assert.equal(proof.event.exactObjectEqual,true);assert.equal(proof.event.independentlyRebuiltFields,20);assert.equal(proof.event.reviewedAtTimeBoundOnly,true);assert.equal(sha(await readFile(join(root,`data/ingestion-reviews/run-${runId}.json`))),proof.event.sha256);originals.push({runId,sha256:proof.event.sha256});}
+const completions=[];for(const runId of fixedRunIds){const r=await completePostIngestionProductReview({ledgerDir:join(root,'data/ingestion-reviews'),runId,evidence});completions.push({runId,status:r.status,path:r.path,completedAt:r.completion.completedAt});}
+for(const row of originals)assert.equal(sha(await readFile(join(root,`data/ingestion-reviews/run-${row.runId}.json`))),row.sha256);
+const receipt={phase:109,finishedAt:new Date().toISOString(),fixedRunIds,count:completions.length,evidenceChecks,originals,originalEventsByteUnchanged:true,completions,meaning:'Fixed completed persisted-data and product audit only, not all issues fixed or real-user retention. Original warning/limited/403 remains; no run2787 or later reviewed here.'};
+await writeFile(join(root,'data/maintenance-journal/2026-10-02-phase109-product-completion.json'),JSON.stringify(receipt,null,2)+'\n',{flag:'wx',mode:0o400});console.log(JSON.stringify({count:receipt.count,created:completions.filter(row=>row.status==='created').length,finishedAt:receipt.finishedAt}));

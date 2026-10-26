@@ -1,0 +1,19 @@
+{
+  "sources": {
+    "app/page.tsx": {
+      "before": "9e3d17a4021d5fe0a796d832faba14e2ef5e05d8f076fc16d108c3d2f396e233",
+      "after": "48e05c111d492b31b7a80d4e2adb9ef8a9df932411f5498f805bf2d46a0a6df5"
+    },
+    "app/replica.css": {
+      "before": "5af2fa1cf1593fe11a9381a9a713195d653850a81a5cc0f96066847564ca1817",
+      "after": "09431a6fb9ae23cee0e1e887a45c43a3011bee85779ffb0b6bb0eea66439b5fa"
+    }
+  },
+  "pageDeltas": [
+    {
+      "before": " const workspaceGrowth=data&&<GrowthPanel key=\"workspace-growth\" accounts={scope} points={data.points} manifest={data.manifest} start={start} end={end} comparison={comparison} onComparison={setComparison} offset={curveOffset} onOffset={setCurveOffset} ready={rangeReady} pendingError={dateValidationError||rangeError} suspended={!!personal||!!linkError}/>;",
+      "after": " const workspaceGrowth=data&&<GrowthPanel key=\"workspace-growth\" accounts={scope} points={data.points} manifest={data.manifest} start={start} end={end} comparison={comparison} onComparison={setComparison} offset={curveOffset} onOffset={setCurveOffset} ready={rangeReady} pendingError={dateValidationError||rangeError} suspended={!!personal||!!linkError} scopeKey={JSON.stringify([board,theme,tag,globalTab])}/>;"
+    }
+  ],
+  "addedCss": ".trend-selected {margin:0 20px 16px;padding:14px;border:1px solid var(--mcn-line);border-radius:8px;background:var(--secondary);min-width:0;}\n.trend-selected-controls {display:flex;flex-wrap:wrap;align-items:center;gap:10px 20px;}\n.trend-selected-controls label {display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:14px;min-width:0;max-width:100%;}\n.trend-selected-controls select {min-height:44px;max-width:100%;margin-left:0;font-size:14px;}\n.trend-selected-reading {display:flex;flex-wrap:wrap;gap:12px 32px;padding-top:12px;}\n.trend-selected-reading>p {flex-basis:100%;margin:0;}\n.trend-selected-reading>div {min-width:0;max-width:100%;flex:1 1 220px;}\n.trend-selected-reading span,.trend-selected-reading small {display:block;font-size:13px;line-height:1.6;color:var(--mcn-muted);overflow-wrap:anywhere;}\n.trend-selected-reading strong {display:block;font-size:clamp(22px,2vw,30px);line-height:1.35;font-weight:650;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;margin:4px 0;}\n.trend-point-chart {min-width:0;}\n.trend-point-chart:focus-visible {outline:2px solid var(--ring);outline-offset:-3px;}\n@media(max-width:760px) {.trend-selected {margin-inline:16px;}.trend-selected-controls label,.trend-selected-controls select {width:100%;}.trend-selected-reading {gap:12px;}}\n"
+}

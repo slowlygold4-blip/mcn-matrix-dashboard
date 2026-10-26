@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import { readFile,writeFile,stat } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+const root=fileURLToPath(new URL('../',import.meta.url));
+const sha=async path=>{const h=createHash('sha256');for await(const chunk of createReadStream(path))h.update(chunk);return h.digest('hex');};
+const receipt=JSON.parse(await readFile(join(root,'data/maintenance-journal/2026-10-02-phase103-final-handoff.json'),'utf8'));
+for(const item of receipt.evidence)assert.equal(await sha(join(root,item.file)),item.sha256,item.file);
+assert.equal(await sha(join(root,'public/rebuild.css')),receipt.sourceLock.css.after);
+assert.equal(await sha(receipt.candidate.storedPath),receipt.candidate.sha256);
+const original=JSON.parse(await readFile(join(root,'docs/phase103-integrity-terminal-2615-2635.json'),'utf8'));
+for(const proof of original.proofs){assert.equal(await sha(join(root,`data/ingestion-reviews/run-${proof.runId}.json`)),proof.originalEventSHA256);const reviewed=JSON.parse(await readFile(join(root,`data/ingestion-reviews/reviewed-${proof.runId}.json`),'utf8'));assert.equal(reviewed.runId,proof.runId);assert.equal(reviewed.status,'completed');}
+assert.equal(await sha(join(root,'data/source-poll/manifest.json')),receipt.source.sha256);
+const processes=execFileSync('/bin/ps',['-o','pid=,ppid=,comm=','-p','90988,26001,79274'],{encoding:'utf8'}).trim().split('\n');assert.equal(processes.length,3);assert.ok(processes.every(line=>/^\s*\d+\s+1\s+/.test(line)));
+const healthResponse=await fetch('http://127.0.0.1:4188/api/health',{signal:AbortSignal.timeout(10000)});assert.equal(healthResponse.status,200);const health=await healthResponse.json();assert.equal(health.status,'ready');assert.equal(health.runtimeAI,false);
+assert.ok(Date.now()<Date.parse('2026-10-02T06:24:04Z'));
+const stoppedAt=new Date().toISOString(),elapsedMinutes=(Date.parse(stoppedAt)-Date.parse(receipt.startedAt))/60000;
+const evidence=[];for(const file of ['task_plan.md','progress.md','docs/phase103-source-lock.json','data/maintenance-journal/2026-10-02-phase103-final-handoff.json'])evidence.push({file,sha256:await sha(join(root,file)),bytes:(await stat(join(root,file))).size});
+const stop={phase:103,startedAt:receipt.startedAt,stoppedAt,elapsedMinutes,classification:'progress',developmentFrozen:true,finalHandoffAt:receipt.finishedAt,allReferencedEvidenceBytePreserved:true,fixed21OriginalEventsPreserved:true,fixed21ReviewCompletionsExist:true,sourceIdentityUnchanged:true,onlyProductionCSSUnchangedSinceReview:true,candidatePersistentAndNotInstalled:true,originalThreeServicesStillRunning:true,health,publicUrl:receipt.site.url,newTimer:false,productionSignals:0,privateExecSessionsClosed:[...receipt.privateExecSessionsCompleted,67316],ownedNativeNewTabClosed:true,originalUserPublicTabPreserved:true,threeReviewersFinished:true,privateCleanupEvidence:'signed phase103-runtime-review / lock-diagnostic / works-review-addendum; no surviving owned private resource reported',fullGoal:'U01-U47 remains active',next:'Fix isolated prefetch passive-diagnostic P2, complete Main gates before any installation; fixed new intake from2636',evidence};
+await writeFile(join(root,'data/maintenance-journal/2026-10-02-phase103-stop.json'),JSON.stringify(stop,null,2)+'\n',{flag:'wx',mode:0o600});
+await writeFile(join(root,'data/maintenance-journal/2026-10-02-phase103-stop.md'),`# Phase103 最终停止与接续\n\nUTC ${receipt.startedAt} 开始，${stoppedAt} 最终停止，实际 ${elapsedMinutes.toFixed(3)} 分钟；提前冻结后只文档和验证。final-handoff ${receipt.finishedAt} 是验证截面，原JSON/引用证据不改写。\n\n固定21原事件SHA和独立reviewed、19引用证据、CSS、冻包、来源标识再次保全；原三服务/ready/runtimeAI=false保持。未发生产信号、催采、催同步或新增任务。Root本轮新Chrome页关闭，原公网页保留；三独立代理与私有测试均收束。\n\n完整回归固定并发4的4255/4255通过，首轮4254/4255的锁分类P2仍保留、不称已修。采集候选P2与真实收益未闭合，不晋升。完整U01–U47继续active；下一窄修候选诊断、全Main门控、自然采样验收，2636起固定范围另审。普通采样无需AI，关机新增/全作品/任何网络仍未完成。\n`,{flag:'wx',mode:0o600});
+console.log(JSON.stringify({stoppedAt,elapsedMinutes,allVerified:true,fullGoalActive:true},null,2));

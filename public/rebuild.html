@@ -10,6 +10,8 @@
   <link rel="stylesheet" href="/rebuild.css?v=20261010-import-integrity-2">
   <link rel="stylesheet" href="/master-roster.css?v=20261010-jupiter-workspace-2">
   <link rel="stylesheet" href="/team-access.css?v=20261004-team-access-1">
+  <link rel="stylesheet" href="/creator-source-dashboard.css?v=20261022-integration-3">
+  <link rel="stylesheet" href="/creator-operating.css?v=20261022-operating-3">
 </head>
 <body>
   <a class="skip" href="#main">跳到主要内容</a>
@@ -29,6 +31,7 @@
         <p class="sidebar-label">工作区</p>
         <button class="nav-item active" data-view="overview" type="button">经营总览</button>
         <button class="nav-item" data-view="accounts" type="button">账号管理</button>
+        <button class="nav-item" data-view="works" type="button">作品台账</button>
         <button class="nav-item" data-view="topics" type="button">话题监控</button>
         <button class="nav-item" data-view="import" type="button">导入名单</button>
         <button class="nav-item" id="teamAccessButton" type="button" aria-haspopup="dialog" aria-controls="teamAccessDialog" hidden>成员权限</button>
@@ -68,6 +71,8 @@
         <section id="overviewView" data-view-panel>
           <p class="metric-boundary">区间净变化 · 缺采不补零 · 估算播放 = 获赞净变化 × 100，非平台实际播放量</p>
           <div class="kpi-grid" id="kpiGrid" aria-label="关键指标"></div>
+          <section id="creatorOperatingSummary" class="creator-operating-summary" aria-label="当前范围的表格作品数据"><p>正在读取作品台账…</p></section>
+          <details class="creator-source-audit"><summary>全量入库对账与来源证据（全库，不受上方范围影响）</summary><section id="creatorSourceBridge" class="creator-source-bridge" aria-label="全库来源对账" aria-live="polite"><p>正在核对全量来源与现有监控…</p></section></details>
           <details id="recordedWindowAlternative" class="recorded-window-alternative" hidden></details>
           <div class="section-row section-row-space"><div><h2>账号表现</h2><p class="muted">先选关注指标，再查看增长、下滑或缺少可比数据的账号。</p></div><div class="overview-metric-tools"><label>关注指标<select id="workflowMetric"><option value="followers">粉丝</option><option value="likes">获赞</option><option value="posts">作品存量</option><option value="estimatedPlays">估算播放</option></select></label><button class="link-btn" data-action="workflow-accounts" type="button">查看全部账号</button></div></div>
           <div id="dailyWorkflow" class="daily-workflow" aria-label="账号表现筛选"></div>
@@ -77,7 +82,7 @@
           <section class="trend-card" id="trendCard"><div class="chart-wrap" id="trendChart"><div class="empty">等待数据…</div></div><div class="chart-axis" id="chartAxis"></div></section>
           <details id="rosterDistribution" class="roster-distribution"><summary>名册分布与分类来源</summary>
           <section class="theme-panel" aria-labelledby="themeTitle">
-            <div class="section-row"><div><h2 id="themeTitle">大主题</h2><p class="muted">已建档经营账号按账号 ID 去重（含暂停）；指标仅统计启用账号。同一账号只计入一个大主题。</p></div><button class="link-btn" data-view="accounts" type="button">查看主题账号 →</button></div>
+            <div class="section-row"><div><h2 id="themeTitle">大主题</h2><p class="muted">监控账号与表格作者按明确身份合并；主题人数包含来源资料，平台变化仅统计有实测的启用账号。</p></div><button class="link-btn" data-view="accounts" type="button">查看主题账号 →</button></div>
             <div class="theme-grid" id="themeGrid"><div class="empty">读取主题统计…</div></div><p class="theme-summary" id="themeSummary">—</p>
           </section>
           <section class="classification-panel" aria-labelledby="classificationTitle">
@@ -89,24 +94,27 @@
         </section>
         <section id="accountsView" data-view-panel hidden>
           <div id="accountModeSwitch" class="account-mode-switch" role="tablist" aria-label="账号资料范围">
-            <button id="accountModeOperatingTab" type="button" role="tab" data-account-mode="operating" aria-selected="true" aria-controls="operatingAccountsPanel">经营账号</button>
-            <button id="accountModeRosterTab" type="button" role="tab" data-account-mode="roster" aria-selected="false" aria-controls="rosterAccountsPanel" tabindex="-1">完整来源名册</button>
+            <button id="accountModeOperatingTab" type="button" role="tab" data-account-mode="operating" aria-selected="true" aria-controls="operatingAccountsPanel">全部账号</button>
+            <button id="accountModeRosterTab" type="button" role="tab" data-account-mode="roster" aria-selected="false" aria-controls="rosterAccountsPanel" tabindex="-1">来源核对与补充</button>
           </div>
           <section id="operatingAccountsPanel" class="account-mode-panel" role="tabpanel" aria-labelledby="accountModeOperatingTab">
-            <div class="section-row"><div><h2>经营账号</h2><p class="muted" id="accountCount" tabindex="-1">—</p></div><div class="table-tools"><label class="search"><input id="accountSearch" type="search" placeholder="搜索作者、平台账号 ID…" aria-label="搜索经营账号"></label><label class="sort-label">排序<select id="sortSelect"><option value="followers">粉丝</option><option value="likes">点赞</option><option value="estimatedPlays">估算播放</option><option value="posts">作品</option><option value="delta">日变化</option></select></label></div></div>
+            <div class="section-row"><div><h2>全部账号</h2><p class="muted" id="accountCount" tabindex="-1">—</p></div><div class="table-tools"><label class="search"><input id="accountSearch" type="search" placeholder="搜索作者、平台账号 ID…" aria-label="搜索全部账号"></label><label class="sort-label">排序<select id="sortSelect"><option value="followers">粉丝</option><option value="likes">点赞</option><option value="estimatedPlays">估算播放</option><option value="posts">作品</option><option value="delta">日变化</option></select></label></div></div>
             <div class="overview-metric-tools"><label>表现指标<select id="accountWorkflowMetric"><option value="followers">粉丝</option><option value="likes">获赞</option><option value="posts">作品存量</option><option value="estimatedPlays">估算播放</option></select></label></div>
             <div id="accountWorkflow" class="daily-workflow" aria-label="台账表现筛选"></div>
             <p id="accountWorkflowCaption" class="workflow-caption"></p>
-            <p class="account-mode-note">这里只显示已建档、可进入经营统计的账号。没找到？<button type="button" class="link-btn" data-action="search-master-roster">用当前关键词查完整来源名册</button></p>
+            <p class="account-mode-note">这里统一显示监控账号与已入库表格作者。表格累计值与平台实测分列；未采数据不补零。需要补充资料？<button type="button" class="link-btn" data-action="search-master-roster">用当前关键词查完整来源名册</button></p>
             <p class="muted ledger-reading-help" id="accountTableHelp">账号台账可上下、左右滚动；聚焦表格区域后用方向键浏览，Tab 可进入列名与账号，Shift+Tab 可返回翻页。</p>
             <section class="table-card" id="accountsTable" role="region" aria-label="经营账号台账" aria-describedby="accountCount accountTableHelp" tabindex="0"></section><div class="pager" id="pager"></div>
           </section>
           <section id="rosterAccountsPanel" class="account-mode-panel" role="tabpanel" aria-labelledby="accountModeRosterTab" hidden>
-            <div class="account-mode-intro"><div><h2>完整来源名册</h2><p class="muted">包含已建档、暂停和待核对资料；待核对条目不会进入经营指标。</p></div></div>
+            <div class="account-mode-intro"><div><h2>来源核对与补充</h2><p class="muted">包含已建档、暂停和待核对资料；待核对条目不会进入经营指标。</p></div></div>
             <div id="masterRosterHost"></div>
           </section>
         </section>
         <section id="topicsView" data-view-panel hidden><div class="section-row"><div><h2>话题监控</h2><p class="muted">只呈现参与人数与播放量变化，独立于账号板块。</p></div></div><section class="topic-grid" id="topicsGrid"><div class="empty">正在读取话题数据…</div></section></section>
+        <section id="worksView" data-view-panel hidden>
+          <div id="creatorOperatingHost" class="creator-operating" aria-live="polite"><p>正在读取已入库的作者与作品…</p></div>
+        </section>
         <section id="importView" data-view-panel hidden>
           <div class="section-row"><div><h2>导入作者名单</h2><p class="muted">上传表格后先预览审查，再提交处理。新增账号、既有记录与证据请求分别计数。</p></div></div>
           <section class="import-card">
@@ -198,7 +206,9 @@
   <script type="module" src="/team-access.js?v=20261004-team-access-2"></script>
   <script type="module" src="/import-review.js?v=20261009-current-resolution-1"></script>
   <script type="module" src="/import-monitoring.js?v=20261010-import-integrity-2"></script>
-  <script type="module" src="/rebuild.js?v=20261010-import-integrity-2"></script>
+  <script type="module" src="/rebuild.js?v=20261022-unified-roster-1"></script>
+  <script type="module" src="/creator-operating.js?v=20261022-operating-6"></script>
   <script type="module" src="/master-roster-entry.js?v=20261010-jupiter-workspace-2"></script>
+  <script type="module" src="/creator-source-dashboard.js?v=20261022-integration-3"></script>
 </body>
 </html>

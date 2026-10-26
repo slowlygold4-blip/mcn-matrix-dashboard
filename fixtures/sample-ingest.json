@@ -1,0 +1,21 @@
+{
+  "capturedAt": "2026-08-31T08:30:00+08:00",
+  "snapshot": {
+    "followers": 1200,
+    "totalLikes": 36500,
+    "totalPosts": 48
+  },
+  "posts": [
+    {
+      "id": "replace-with-real-aweme-id",
+      "author_name": "替换为真实作者名",
+      "title": "替换为真实作品标题",
+      "published_at": "2026-08-31T07:00:00+08:00",
+      "like_count": 123,
+      "comment_count": 12,
+      "share_count": 4,
+      "play_count": 3400,
+      "url": "https://www.douyin.com/video/replace-with-real-aweme-id"
+    }
+  ]
+}

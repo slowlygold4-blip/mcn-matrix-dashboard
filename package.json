@@ -9,6 +9,7 @@
     "dev": "NODE_ENV=development node --watch server.mjs",
     "test": "node --test test/*.test.mjs",
     "check": "node --check server.mjs && node --check public/app.js && node --check public/rebuild.js && node --check public/console-model.js && npm test",
+    "audit:monitor": "node scripts/audit-monitor-chain.mjs --strict",
     "audit:sources": "node scripts/probe-public-sources.mjs --strict",
     "connect:douyin-topics": "node scripts/connect-douyin-topics.mjs",
     "install-service": "node scripts/service.mjs install",

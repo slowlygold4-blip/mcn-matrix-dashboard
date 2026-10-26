@@ -16,6 +16,13 @@ const home=join(data,'public-replica-publisher');
 const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const iso=value=>typeof value==='string'&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString()===value;
 const fail=code=>{throw Object.assign(new Error(code),{code});};
+// A staged generation is immutable. Its preparation features must not change
+// merely because a newer executable uses a different export revision.
+const legacyDateIndexRevisions=new Set(['catalog-date-range-v1','catalog-date-range-v2-roster-classification',PUBLIC_REPLICA_EXPORT_REVISION]);
+export function shouldPreparePublicDateIndex(active){
+  return typeof active?.dateIndex==='boolean' ? active.dateIndex
+    : legacyDateIndexRevisions.has(active?.exportRevision);
+}
 
 export async function privateRead(path,{credential=false}={}){
   const fd=await open(path,constants.O_RDONLY|constants.O_NOFOLLOW);
@@ -146,6 +153,10 @@ export function shouldStagePublicReplica(state, observed, now = Date.now()) {
   const confirmedAt = Date.parse(state.lastConfirmedPublishedAt);
   // A rolled-back clock or invalid confirmation cannot grant publication.
   if (!Number.isFinite(confirmedAt) || confirmedAt > now) return false;
+  // A schema upgrade must publish its new read model without waiting for a
+  // collection change or another cadence interval. Active generations above
+  // still resume unchanged, and ordinary updates retain the 30-minute limit.
+  if (state.exportRevision && state.exportRevision !== PUBLIC_REPLICA_EXPORT_REVISION) return true;
   // Retry the saved immutable generation until confirmed, then catch up to
   // changed data on the next ordinary tick if that generation is already old.
   // A fresh generation still resets the 30-minute export cadence. Legacy or
@@ -160,7 +171,7 @@ async function readPublication(directory){
   const readPart=async relative=>{for(const part of [dirname(directory),directory,...(relative.includes('/')?[join(directory,dirname(relative))]:[])]){const s=await lstat(part);if(!s.isDirectory()||s.isSymbolicLink())fail('unsafe-staging-path');}
     const fd=await open(join(directory,relative),constants.O_RDONLY|constants.O_NOFOLLOW);try{const s=await fd.stat();if(!s.isFile())fail('unsafe-staging-path');return await fd.readFile('utf8');}finally{await fd.close();}};
   const manifest=JSON.parse(await readPart('manifest.json'));
-  const files=[];for(const meta of manifest.files){if(!/^(catalog|topics|summary)\.json$|^(daily|works|work-metrics)\/[1-9]\d{0,7}\.json$/.test(meta.path))fail('invalid-partition-path');files.push({...meta,content:await readPart(meta.path)});}
+  const files=[];for(const meta of manifest.files){if(!/^(catalog|topics|summary|publishing)\.json$|^publishing\/\d{6}\.json$|^(daily|works|work-metrics)\/[1-9]\d{0,7}\.json$/.test(meta.path))fail('invalid-partition-path');files.push({...meta,content:await readPart(meta.path)});}
   return {manifest,files};
 }
 async function observe(db,asOf){
@@ -207,17 +218,17 @@ async function run(){
           if(state.publishedAsOf){
             if(state.sync?.status!=='success'||state.sync.asOf!==state.publishedAsOf)fail('invalid-published-baseline');
             const previous=await readPublication(join(data,'public-replica-staging','publisher-'+state.publishedAsOf.replace(/[:.]/g,'-')));
-            const baseline=await preparePublishedSnapshotBaseline(previous,{asOf:state.publishedAsOf,manifestSha256:state.sync.manifestSha256});
+            const baseline=await preparePublishedSnapshotBaseline(previous,{asOf:state.publishedAsOf,manifestSha256:state.sync.manifestSha256,exportRevision:state.exportRevision});
             attachPublishedSnapshotBaseline(observed.committedPublication,baseline);
           }
           replica=exportPublicReplica(db,{asOf,committedPublication:observed.committedPublication});
           if(db.prepare('SELECT total_changes() n').get().n!==0)fail('unexpected-write');}
         finally{releaseCommittedTargetPublication(observed?.committedPublication);try{db.exec('ROLLBACK');}catch{}db.close();}
         const manifest=await writePublicReplica(directory,replica);
-        state.active={directory,asOf,manifestHash:hash(manifest),marker:observed.marker,source:observed.source,exportRevision:PUBLIC_REPLICA_EXPORT_REVISION,publicationContract:COMMITTED_TARGET_PUBLICATION};state.status='staged';await privateWrite(statePath,state);
+        state.active={directory,asOf,manifestHash:hash(manifest),marker:observed.marker,source:observed.source,exportRevision:PUBLIC_REPLICA_EXPORT_REVISION,dateIndex:true,publicationContract:COMMITTED_TARGET_PUBLICATION};state.status='staged';await privateWrite(statePath,state);
       }
       const publication=await readPublication(state.active.directory);if(publication.manifest.asOf!==state.active.asOf||hash(publication.manifest)!==state.active.manifestHash)fail('staging-version-conflict');
-      const result=await sync.sync(publication,{signal:signal.signal,dateIndex:state.active.exportRevision===PUBLIC_REPLICA_EXPORT_REVISION});
+      const result=await sync.sync(publication,{signal:signal.signal,dateIndex:shouldPreparePublicDateIndex(state.active)});
       state.status=result.status;state.code=result.code??null;state.checkedAt=new Date().toISOString();state.sync=result;
       if(result.status==='success'){
         state.lastConfirmedPublishedAt=state.checkedAt;state.publishedAsOf=state.active.asOf;

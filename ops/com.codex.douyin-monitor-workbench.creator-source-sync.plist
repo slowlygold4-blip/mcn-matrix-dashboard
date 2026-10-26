@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.codex.douyin-monitor-workbench.creator-source-sync</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/tyke/.local/bin/node</string>
+    <string>/Users/tyke/Documents/Codex/2026-08-31/bi-a/outputs/douyin-monitor-workbench/scripts/sync-creator-library.mjs</string>
+    <string>--once</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/tyke/Documents/Codex/2026-08-31/bi-a/outputs/douyin-monitor-workbench</string>
+  <key>RunAtLoad</key><true/>
+  <key>StartInterval</key><integer>3600</integer>
+  <key>ThrottleInterval</key><integer>300</integer>
+  <key>ProcessType</key><string>Background</string>
+  <key>StandardOutPath</key><string>/Users/tyke/Documents/Codex/2026-08-31/bi-a/outputs/douyin-monitor-workbench/data/creator-source-sync/launchd.out.log</string>
+  <key>StandardErrorPath</key><string>/Users/tyke/Documents/Codex/2026-08-31/bi-a/outputs/douyin-monitor-workbench/data/creator-source-sync/launchd.err.log</string>
+</dict>
+</plist>

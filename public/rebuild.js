@@ -1,4 +1,4 @@
-import { METRICS, numeric, formatNumber as fmt, beijingToday, rangeFor, shiftDate, sortAccounts, periodDelta, csvCell, periodEvidenceCaption, metricObservationCaption, readNavigationState, writeNavigationState, buildMetricContributions, buildTrendView, hasRecordedWindowShape, projectRecordedWindow, recordedWindowCaption, buildRecordedWindowAlternative, getWorkflowMetric, createWorkflowSummary, filterWorkflowAccounts } from './console-model.js?v=20261005-daily-workflow-1';
+import { METRICS, numeric, formatNumber as fmt, beijingToday, rangeFor, shiftDate, sortAccounts, periodDelta, csvCell, periodEvidenceCaption, metricObservationCaption, readNavigationState, writeNavigationState, buildMetricContributions, buildTrendView, hasRecordedWindowShape, projectRecordedWindow, recordedWindowCaption, buildRecordedWindowAlternative, getWorkflowMetric, createWorkflowSummary, filterWorkflowAccounts, sourceColumns, accountStateLabel, unifiedRosterCaption, sourceMetricCell, sourceFactsMarkup, sourceWorksMarkup } from './console-model.js?v=20261022-unified-roster-1';
 
 const $ = (id) => document.getElementById(id);
 const READ_TIMEOUT_MS = 25_000;
@@ -19,6 +19,7 @@ let topicController = null;
 let detailController = null;
 let detailRequest = 0;
 let accountHistory = null;
+let sourceWorksRequest = 0;
 let historyGeneration = 0;
 let topicRequest = 0;
 let topicSnapshot = null, topicReadFailed = false;
@@ -217,14 +218,14 @@ async function loadMonitoringStatus({ signal, rethrow = false } = {}) {
     const count = value => Number.isInteger(value) && value >= 0 ? fmt(value, true) : '—';
     const times = Array.isArray(scheduler.slotTimes) ? scheduler.slotTimes.filter(time => /^\d{2}:\d{2}$/.test(time)).join(' / ') : '';
     const next = scheduler.nextRunAt && Number.isFinite(Date.parse(scheduler.nextRunAt)) ? dateTime(scheduler.nextRunAt) : '待确认';
-    const hours = Number.isFinite(scheduler.scheduleIntervalHours) && scheduler.scheduleIntervalHours > 0 ? `每 ${scheduler.scheduleIntervalHours} 小时` : '计划待确认';
+    const hours = scheduler.scheduleMode === 'continuous' ? '全天持续轮巡' : Number.isFinite(scheduler.scheduleIntervalHours) && scheduler.scheduleIntervalHours > 0 ? `每 ${scheduler.scheduleIntervalHours} 小时` : '计划待确认';
     const total = count(scheduler.scheduledAccountTargetCount);
     const topicTotal = count(scheduler.scheduledTopicTargetCount);
     const topicComplete = count(scheduler.scheduledTopicMetricCompletedTargetCount);
     const topicState = Number.isInteger(scheduler.scheduledTopicTargetCount) && Number.isInteger(scheduler.scheduledTopicMetricCompletedTargetCount)
       ? scheduler.scheduledTopicTargetCount === 0 ? '未配置话题' : scheduler.scheduledTopicMetricCompletedTargetCount === scheduler.scheduledTopicTargetCount ? '本轮齐全' : '本轮有缺项'
       : '覆盖待确认';
-    const runLabel = laneLocked ? '作品通道暂停 · 主页/话题独立调度' : scheduler.running === true ? '正在采集' : scheduler.running === false ? '等待计划时点' : '运行状态待确认';
+    const runLabel = laneLocked ? '作品通道暂停 · 主页/话题独立调度' : scheduler.running === true ? '正在采集' : scheduler.running === false ? (scheduler.scheduleMode === 'continuous' ? '轮巡接续 / 等待退避' : '等待计划时点') : '运行状态待确认';
     const staleChecked = Number.isInteger(source.staleCount) && source.staleCount >= 0
       && Number.isInteger(source.uncheckedCount) && source.uncheckedCount >= 0
       ? Math.max(0, source.staleCount - source.uncheckedCount) : null;
@@ -436,6 +437,7 @@ function automaticApply(payload, { scopeKey }) {
   if (payload.topics) { topicRequest++; renderTopicsData(payload.topics); $('topicsGrid').setAttribute('aria-busy', 'false'); }
   busy(false);
   restoreReadingPosition(position);
+  if (typeof CustomEvent === 'function') document.dispatchEvent?.(new CustomEvent('mcn:operating-data-updated'));
   return true;
 }
 function renderLiveStatus(event) {
@@ -566,6 +568,9 @@ function saveLocation() {
     if (detailHistoryContext?.sequence === entry.sequence) detailHistoryContext.base = url.href;
   }
   history.replaceState(browserState, '', url);
+  if (typeof CustomEvent === 'function') document.dispatchEvent?.(new CustomEvent('mcn:scope-applied', {
+    detail: { ...presentationControls(), ...appliedRange(), view: state.view },
+  }));
 }
 function params() {
   return new URLSearchParams(deriveReadRequest(committedControls()).query);
@@ -816,6 +821,7 @@ async function load({ refreshApplied = false, scopeOnly = false } = {}) {
     insightsNeedRead = false; navigationRangePending = false;
     $('exportButton').disabled = false;
     renderCatalog(); renderSummary(); renderAccounts(); renderTrend(); saveLocation();
+    if (typeof CustomEvent === 'function') document.dispatchEvent?.(new CustomEvent('mcn:operating-data-updated'));
     if (state.view === 'topics') {
       const expectedRange = { start: data.range.startDate, end: data.range.endDate };
       const topicMatches = topicReadContext?.ownerRequestId === id
@@ -962,7 +968,7 @@ function renderSummary() {
     const count = Number(item.count) || 0;
     const ratio = classTotal ? Math.round(count / classTotal * 100) : 0;
     const active = shown.classification === item.key;
-    return `<button type="button" class="classification-card${active ? ' active' : ''}" data-classification="${esc(item.key)}" aria-pressed="${active}"><span class="classification-name"><i class="classification-dot ${esc(item.color || 'slate')}" aria-hidden="true"></i>${esc(item.label)}</span><strong>${fmt(count)}</strong><span class="classification-meta">${ratio}% · 建档账号（含暂停）</span><span class="classification-bar"><i style="width:${Math.min(100, ratio)}%"></i></span></button>`;
+    return `<button type="button" class="classification-card${active ? ' active' : ''}" data-classification="${esc(item.key)}" aria-pressed="${active}"><span class="classification-name"><i class="classification-dot ${esc(item.color || 'slate')}" aria-hidden="true"></i>${esc(item.label)}</span><strong>${fmt(count)}</strong><span class="classification-meta">${ratio}% · 全部账号（含表格资料）</span><span class="classification-bar"><i style="width:${Math.min(100, ratio)}%"></i></span></button>`;
   }).join('') : '<div class="empty">暂无可展示的分类资料。</div>';
   $('classificationSummary').textContent = `已分类 ${fmt(classified)} / ${fmt(classTotal)} 个账号 · 待分类 ${fmt(Number(classification.unclassified) || 0)} 个`;
   const themeSummary = state.data.themeSummary || { total: 0, assigned: 0, unassigned: 0, items: [] };
@@ -971,7 +977,7 @@ function renderSummary() {
     const count = Number(item.count) || 0;
     const ratio = themeSummary.total ? Math.round(count / themeSummary.total * 100) : 0;
     const active = shown.theme === item.key;
-    return `<button type="button" class="theme-card${active ? ' active' : ''}" data-theme="${esc(item.key)}" aria-pressed="${active}"><span class="theme-name">${esc(item.label)}</span><strong>${fmt(count)}</strong><span class="theme-meta">${ratio}% · 建档账号（含暂停）</span><span class="theme-bar"><i style="width:${Math.min(100, ratio)}%"></i></span></button>`;
+    return `<button type="button" class="theme-card${active ? ' active' : ''}" data-theme="${esc(item.key)}" aria-pressed="${active}"><span class="theme-name">${esc(item.label)}</span><strong>${fmt(count)}</strong><span class="theme-meta">${ratio}% · 全部账号（含表格资料）</span><span class="theme-bar"><i style="width:${Math.min(100, ratio)}%"></i></span></button>`;
   }).join('') : '<div class="empty">暂无大主题资料。</div>';
   $('themeSummary').textContent = `已归属 ${fmt(themeSummary.assigned)} / ${fmt(themeSummary.total)} 个账号 · 待归属 ${fmt(themeSummary.unassigned)} 个`;
   const sourceRows = (state.data.classificationSources || []).map(source => {
@@ -986,7 +992,7 @@ function renderSummary() {
   $('dataHealth').innerHTML = `<span><strong>${total}</strong> 个启用账号</span><span>最新有效采样 <strong>${dateTime(successTimes.at(-1))}</strong></span><span>${s.pendingCount || 0} 个等待首次数据 · ${s.staleCount || 0} 个数据过期</span><button class="link-btn" data-view="accounts">查看账号明细 →</button><span>已知合计可含历史值（如已注销账号）；当天采集情况以新采覆盖为准。</span>`;
   renderCollectionCoverage();
   $('metricTabs').innerHTML = Object.entries(METRICS).map(([key, label]) => `<button type="button" data-metric="${key}" aria-pressed="${key === state.metric}">${label}变化</button>`).join('');
-  $('pageTitle').textContent = state.view === 'overview' ? (shown.period === 'day' ? '今天的矩阵' : '矩阵经营总览') : ({ accounts: '账号台账', topics: '话题观察', import: '导入作者名单' })[state.view];
+  $('pageTitle').textContent = state.view === 'overview' ? (shown.period === 'day' ? '今天的矩阵' : '矩阵经营总览') : ({ accounts: '账号台账', works: '作品台账', topics: '话题观察', import: '导入作者名单' })[state.view];
 }
 function metricContributionScope(data) {
   const theme = data.themeSummary?.items?.find(item => item.key === data.theme)?.label;
@@ -1030,10 +1036,10 @@ function selectMetricExplanation(key) {
 }
 function clearLocalAccountFilters({ collection = 'all' } = {}) {
   state.workflowTask = 'all';
-  state.query = ''; state.platform = 'all'; state.enabled = 'active'; state.collectionFilter = collection; state.page = 1;
+  state.query = ''; state.platform = 'all'; state.enabled = 'all'; state.collectionFilter = collection; state.page = 1;
   if ($('accountSearch')) $('accountSearch').value = '';
   if ($('platformSelect')) $('platformSelect').value = 'all';
-  if ($('enabledSelect')) $('enabledSelect').value = 'active';
+  if ($('enabledSelect')) $('enabledSelect').value = 'all';
   if ($('collectionSelect')) $('collectionSelect').value = collection;
 }
 function showContributionLedger(key) {
@@ -1068,16 +1074,18 @@ function selectCollectionFilter(value) {
   setView('accounts'); renderAccounts();
 }
 function accountCollectionMarkup(account) {
+  if (account.sourceOnly) return '<small class="muted">表格资料已合并 · 尚无实时采样</small>';
   const c = collectionOnDate(account);
   const dayLabel = state.data?.activeRecordedWindow ? `所选末日 ${appliedRange().end}` : '期末';
   return `<small class="${c.profileObserved ? 'muted' : 'down'}">${dayLabel}主页${c.profileObserved ? '有数据' : '缺采'}</small><small class="muted">${worksLabels[c.worksState] || worksLabels.unknown}</small>`;
 }
 function rows({ overview = false, ignoreWorkflow = false } = {}) {
   const q = overview ? '' : state.query.trim().toLocaleLowerCase();
-  const enabled = overview ? 'active' : state.enabled;
+  const enabled = overview ? 'all' : state.enabled;
   const selected = (state.data?.accounts || []).filter(a => {
     if (enabled === 'active' && !a.enabled) return false;
-    if (enabled === 'paused' && a.enabled) return false;
+    if (enabled === 'paused' && (a.enabled || a.sourceOnly)) return false;
+    if (enabled === 'source' && !a.sourceOnly) return false;
     if (!overview && state.platform !== 'all' && a.platform !== state.platform) return false;
     const collection = collectionOnDate(a);
     if (!overview && state.collectionFilter === 'missing-profile' && collection.profileObserved) return false;
@@ -1093,21 +1101,23 @@ function renderWorkflow() {
     const root = $(id); if (!root) continue;
     const base = rows({ overview, ignoreWorkflow: true });
     const counts = createWorkflowSummary(base, state.workflowMetric, state.data?.period);
-    if (!overview) { counts.all = base.length; root.hidden = state.enabled === 'paused'; }
+    counts.all = base.length;
+    if (!overview) root.hidden = state.enabled === 'paused' || state.enabled === 'source';
     root.innerHTML = Object.entries(workflowLabels).map(([task, label]) => `<button type="button" class="workflow-button" data-workflow-task="${task}" aria-pressed="${state.workflowTask === task}"><span>${label}</span><strong>${fmt(counts[task], true)}</strong></button>`).join('');
   }
   for (const id of ['workflowMetric', 'accountWorkflowMetric']) if ($(id)) $(id).value = state.workflowMetric;
   if ($('accountWorkflowMetric')) $('accountWorkflowMetric').disabled = state.enabled === 'paused';
   if ($('accountWorkflowCaption')) $('accountWorkflowCaption').textContent = state.enabled === 'paused'
     ? '当前只查看暂停账号；增长、下滑与缺可比数据筛选仅用于启用账号。'
-    : `${state.enabled === 'all' ? '“全部”包含暂停账号；表现筛选只统计启用账号。' : '按当前搜索与平台条件统计启用账号。'}真实零变化保留在“全部”。${state.workflowMetric === 'estimatedPlays' ? '估算播放 = 获赞净变化 × 100，非实际播放。' : ''}`;
+    : `“全部”包含合并后的表格资料、启用和暂停账号；增长/下滑只统计有实测的启用账号，表格累计值不算增长。${state.workflowMetric === 'estimatedPlays' ? '估算播放 = 获赞净变化 × 100，非实际播放。' : ''}`;
   const accounts = rows({ overview: true });
-  if ($('workflowCaption')) $('workflowCaption').textContent = `${METRICS[state.workflowMetric]} · ${workflowLabels[state.workflowTask]} · ${accounts.length} 个启用账号，展示前 ${Math.min(accounts.length, 8)} 个。仅筛选下方列表，上方区间总计不变；真实零变化保留在“全部”。${state.workflowMetric === 'estimatedPlays' ? '估算播放 = 获赞净变化 × 100，非实际播放。' : ''}`;
+  if ($('workflowCaption')) $('workflowCaption').textContent = `${unifiedRosterCaption(state.data?.accounts || [])}。当前${workflowLabels[state.workflowTask]}展示前 ${Math.min(accounts.length, 8)} 个；增长/下滑仅基于平台实测，表格累计值单列。`;
 }
 function selectWorkflow(task, metric = state.workflowMetric) {
   if (!Object.hasOwn(workflowLabels, task) || !Object.hasOwn(METRICS, metric)) return;
   state.workflowTask = task; state.workflowMetric = metric; state.page = 1;
-  if (task !== 'all') { state.enabled = 'active'; if ($('enabledSelect')) $('enabledSelect').value = 'active'; }
+  state.enabled = task === 'all' ? 'all' : 'active';
+  if ($('enabledSelect')) $('enabledSelect').value = state.enabled;
   state.sort = `${metric}.delta`; state.direction = task === 'declining' ? 'asc' : 'desc';
   state.metric = metric;
   renderAccounts();
@@ -1120,10 +1130,10 @@ function overviewAccountTable(accounts) {
   // of the investigation metric. Only append other focused metrics.
   const tableColumns = [['label', '账号'], ['followers.value', '粉丝数'], ['followers.delta', '粉丝净变化'],
     ['likes.value', '获赞数'], ['likes.delta', '获赞净变化'], ['posts.value', '作品数'],
-    ...(['followers.delta', 'likes.delta'].includes(key) ? [] : [[key, `${METRICS[state.workflowMetric]}净变化`]])];
+    ...(['followers.delta', 'likes.delta'].includes(key) ? [] : [[key, `${METRICS[state.workflowMetric]}净变化`]]), ...sourceColumns];
   return `<table class="table overview-ledger"><thead><tr>${tableColumns.map(([sort, label]) => `<th scope="col" aria-sort="${state.sort === sort ? state.direction === 'asc' ? 'ascending' : 'descending' : 'none'}"><button type="button" class="sort-button" data-sort="${sort}">${esc(label)}<span aria-hidden="true">${state.sort === sort ? state.direction === 'asc' ? ' ↑' : ' ↓' : ' ↕'}</span></button></th>`).join('')}<th scope="col">大主题</th><th scope="col">最近采样</th></tr></thead><tbody>${accounts.map(a => `<tr><td><button type="button" class="row-btn account-cell" data-account-id="${a.id}" data-account-metric="${state.workflowMetric}"><span><strong>${esc(a.label)}</strong><small>${esc(platformNames[a.platform] || a.platform)} · ${esc(a.publicId || a.submittedAccountId || '暂无账号ID')}</small></span></button></td>${tableColumns.slice(1).map(([metric]) => accountMetricCell(a, metric, 'overviewTable')).join('')}<td>${accountThemeMarkup(a)}</td><td>${dateTime(a.status?.lastSuccessAt)}</td></tr>`).join('')}</tbody></table>`;
 }
-const columns = [['label', '账号'], ['followers.value', '粉丝数'], ['followers.delta', '粉丝净变化'], ['likes.value', '获赞数'], ['likes.delta', '获赞净变化'], ['estimatedPlays.delta', '估算播放变化'], ['posts.value', '作品数'], ['posts.delta', '作品净变化']];
+const columns = [['label', '账号'], ['followers.value', '粉丝数'], ['followers.delta', '粉丝净变化'], ['likes.value', '获赞数'], ['likes.delta', '获赞净变化'], ['estimatedPlays.delta', '估算播放变化'], ['posts.value', '作品数'], ['posts.delta', '作品净变化'], ...sourceColumns];
 function compactLedger() { return ledgerMode === 'compact' || ledgerMode === null && typeof window !== 'undefined' && window.matchMedia?.('(max-width: 720px)').matches; }
 function ledgerControls() {
   const root = $('ledgerReadingControls'); if (!root) return;
@@ -1144,9 +1154,10 @@ function ledgerSortButton(key) {
 function compactAccountTable(accounts) {
   if (!accounts.length) return '<div class="table-empty">没有符合条件的账号。试试清除搜索或切换矩阵。</div>';
   const keys = ledgerMetric === 'estimatedPlays' ? ['estimatedPlays.delta'] : [`${ledgerMetric}.value`,`${ledgerMetric}.delta`];
-  return `<table class="table compact-ledger"><thead><tr><th scope="col" aria-sort="${state.sort==='label'?(state.direction==='asc'?'ascending':'descending'):'none'}">${ledgerSortButton('label')}</th><th scope="col" aria-sort="${keys.includes(state.sort)?(state.direction==='asc'?'ascending':'descending'):'none'}">${keys.map(ledgerSortButton).join('')}</th></tr></thead><tbody>${accounts.map(a=>`<tr><td><button class="row-btn account-cell" data-account-id="${esc(a.id)}"><span><strong>${esc(a.label)}</strong><small>${esc(platformNames[a.platform]||a.platform)} · ${esc(a.publicId||a.submittedAccountId||'尚无账号 ID')}</small>${a.enabled?'':'<small>已暂停</small>'}</span></button><small>${dateTime(a.status?.lastSuccessAt)}</small>${accountCollectionMarkup(a)}</td><td>${keys.map(key=>`<div class="compact-metric"><small>${esc(columns.find(([column])=>column===key)[1])}</small>${accountMetricCell(a,key,'accountsTable','div')}</div>`).join('')}${ledgerMetric==='estimatedPlays'?'<small class="muted">获赞净变化 × 100 · 非实际播放量</small>':''}</td></tr>`).join('')}</tbody></table>`;
+  return `<table class="table compact-ledger"><thead><tr><th scope="col" aria-sort="${state.sort==='label'?(state.direction==='asc'?'ascending':'descending'):'none'}">${ledgerSortButton('label')}</th><th scope="col" aria-sort="${keys.includes(state.sort)?(state.direction==='asc'?'ascending':'descending'):'none'}">${keys.map(ledgerSortButton).join('')}</th></tr></thead><tbody>${accounts.map(a=>`<tr><td><button class="row-btn account-cell" data-account-id="${esc(a.id)}"><span><strong>${esc(a.label)}</strong><small>${esc(platformNames[a.platform]||a.platform)} · ${esc(a.publicId||a.submittedAccountId||'尚无账号 ID')}</small><small>${esc(accountStateLabel(a))}</small></span></button><small>${dateTime(a.status?.lastSuccessAt)}</small>${accountCollectionMarkup(a)}</td><td>${keys.map(key=>`<div class="compact-metric"><small>${esc(columns.find(([column])=>column===key)[1])}</small>${accountMetricCell(a,key,'accountsTable','div')}</div>`).join('')}${ledgerMetric==='estimatedPlays'?'<small class="muted">获赞净变化 × 100 · 非实际播放量</small>':''}${a.sourceSummary?sourceColumns.map(([key,label])=>`<div class="compact-metric"><small>${esc(label)}</small>${accountMetricCell(a,key,'accountsTable','div')}</div>`).join(''):''}</td></tr>`).join('')}</tbody></table>`;
 }
 function accountMetricCell(a, key, tableId, tag = 'td') {
+  if (key.startsWith('sourceSummary.')) return sourceMetricCell(a, key, tag);
   const [metric, field] = key.split('.'); const m = a.metrics?.[metric] || {};
   const value = field === 'delta' ? periodDelta(m, state.data.period) : m.value;
   const exact = fmt(value, true), compact = fmt(value);
@@ -1176,7 +1187,7 @@ function accountThemeMarkup(account) {
 }
 function accountTable(accounts, tableId = 'accountsTable') {
   if (!accounts.length) return '<div class="table-empty">没有符合条件的账号。试试清除搜索或切换矩阵。</div>';
-  return `<table class="table"><thead><tr>${columns.map(([key, name]) => `<th scope="col" aria-sort="${state.sort === key ? state.direction === 'asc' ? 'ascending' : 'descending' : 'none'}"><button class="sort-button" data-sort="${key}">${name}<span aria-hidden="true">${state.sort === key ? state.direction === 'asc' ? ' ↑' : ' ↓' : ' ↕'}</span></button></th>`).join('')}<th scope="col">大主题</th><th scope="col">矩阵类型 / 内容标签</th><th scope="col">采样时间</th></tr></thead><tbody>${accounts.map(a => `<tr><td><button class="row-btn account-cell" data-account-id="${a.id}"><span class="avatar" aria-hidden="true">${esc(Array.from(a.label || '?')[0])}</span><span><strong>${esc(a.label)}</strong><small>${esc(platformNames[a.platform] || a.platform)} · ${esc(a.publicId || a.submittedAccountId || '尚无账号 ID')}</small>${a.enabled ? '' : '<small>已暂停</small>'}</span></button></td>${columns.slice(1).map(([key]) => {
+  return `<table class="table"><thead><tr>${columns.map(([key, name]) => `<th scope="col" aria-sort="${state.sort === key ? state.direction === 'asc' ? 'ascending' : 'descending' : 'none'}"><button class="sort-button" data-sort="${key}">${name}<span aria-hidden="true">${state.sort === key ? state.direction === 'asc' ? ' ↑' : ' ↓' : ' ↕'}</span></button></th>`).join('')}<th scope="col">大主题</th><th scope="col">矩阵类型 / 内容标签</th><th scope="col">采样时间</th></tr></thead><tbody>${accounts.map(a => `<tr><td><button class="row-btn account-cell" data-account-id="${a.id}"><span class="avatar" aria-hidden="true">${esc(Array.from(a.label || '?')[0])}</span><span><strong>${esc(a.label)}</strong><small>${esc(platformNames[a.platform] || a.platform)} · ${esc(a.publicId || a.submittedAccountId || '尚无账号 ID')}</small><small>${esc(accountStateLabel(a))}</small></span></button></td>${columns.slice(1).map(([key]) => {
     return accountMetricCell(a, key, tableId);
   }).join('')}<td class="theme-cell">${accountThemeMarkup(a)}</td><td class="classification-cell">${accountClassificationMarkup(a)}</td><td><span>${dateTime(a.status?.lastSuccessAt)}</span>${accountCollectionMarkup(a)}</td></tr>`).join('')}</tbody></table>`;
 }
@@ -1194,16 +1205,15 @@ function renderAccounts() {
   ledgerControls();
   const pageRows = accounts.slice(start, start + state.pageSize);
   $('accountsTable').innerHTML = compactLedger() ? compactAccountTable(pageRows) : accountTable(pageRows, 'accountsTable');
-  // Overview always describes the same enabled source scope as its KPI cards.
-  // Keep local investigation filters in the ledger without leaking them here.
+  // Overview is the complete unified roster. Measurement KPI cohorts remain
+  // separate; local account-search filters must not leak into this roster.
   $('overviewTable').innerHTML = overviewAccountTable(rows({ overview: true }).slice(0, 8));
   renderWorkflow();
   for (const id of openReasons) { const reason = $(id); if (reason) reason.open = true; }
   $('collectionSelect').value = state.collectionFilter;
   const scopedAccounts = Array.isArray(state.data.accounts) ? state.data.accounts : [];
   const scopedEnabled = scopedAccounts.filter(account => account.enabled).length;
-  const scopedPaused = scopedAccounts.length - scopedEnabled;
-  const range = effectiveMetricRange(); $('accountCount').textContent = `当前范围已建档 ${scopedAccounts.length} 个（启用 ${scopedEnabled} · 暂停 ${scopedPaused}） · 当前筛选 ${accounts.length} 个 · ${collectionLabels[state.collectionFilter]} · ${state.data.activeRecordedWindow ? `已记录时段变化：${state.data.activeRecordedWindow.baselineDate} 采样 → ${range.end} 采样` : `列表变化对应 ${range.start} 至 ${range.end}`}`;
+  const range = effectiveMetricRange(); $('accountCount').textContent = `${unifiedRosterCaption(scopedAccounts)} · 当前筛选 ${accounts.length} 个 · ${collectionLabels[state.collectionFilter]} · ${state.data.activeRecordedWindow ? `已记录时段变化：${state.data.activeRecordedWindow.baselineDate} 采样 → ${range.end} 采样` : `平台变化对应 ${range.start} 至 ${range.end}`}`;
   const sortLabel = columns.find(([key]) => key === state.sort)?.[1] || state.sort;
   const sortDirection = state.sort === 'label' ? (state.direction === 'asc' ? '名称升序' : '名称降序') : (state.direction === 'asc' ? '从低到高' : '从高到低');
   const [sortMetric, sortField] = state.sort.split('.');
@@ -1472,7 +1482,9 @@ function historyTable(data, { workHistory = false } = {}) {
       const url = safeWorkUrl(item.url), caption = String(item.caption || '未提供标题');
       const label = url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(caption)}</a>` : esc(caption);
       const detail = Number.isSafeInteger(item.id) && item.id > 0 ? `<button type="button" class="link-btn" data-history-work="${item.id}">查看指标历史</button>` : '';
-      return `<tr><td class="history-title">${label}${detail}</td><td>${esc(worksEvidenceTime(item.publishedAt))}</td>${['likes', 'comments', 'shares', 'collects'].map(key => `<td>${fmt(item[key], true)}</td>`).join('')}<td>${historyPlayCell(item)}</td><td>${esc(worksEvidenceTime(item.lastObservedAt))}</td></tr>`;
+      const sourceCaption = item.sourceObservedAt ? `<small>来源更新 ${esc(worksEvidenceTime(item.sourceObservedAt))} · 非发布日</small><small>来源累计赞 ${fmt(item.sourceCumulativeLikes, true)} · 播放 ${fmt(item.sourceCumulativePlays, true)}</small>` : '';
+      const published = item.publishedAt ? worksEvidenceTime(item.publishedAt) : item.publishedOn ? `${item.publishedOn}（来源推算）` : '未知';
+      return `<tr><td class="history-title">${label}${detail}${sourceCaption}</td><td>${esc(published)}</td>${['likes', 'comments', 'shares', 'collects'].map(key => `<td>${fmt(item[key], true)}</td>`).join('')}<td>${historyPlayCell(item)}</td><td>${esc(worksEvidenceTime(item.lastObservedAt))}${typeof item.id === 'string' ? '<small>来源刷新，非平台采样</small>' : ''}</td></tr>`;
     }
     const values = daily ? [`${esc(item.date)}<small>当日最后记录 ${esc(worksEvidenceTime(item.capturedAt))}</small>`, fmt(item.followers, true), signed(item.followersDelta), fmt(item.likes, true), signed(item.likesDelta), fmt(item.posts, true), signed(item.postsDelta), fmt(item.estimatedPlays, true), signed(item.estimatedPlaysDelta), historyMetricProvenance(item)]
       : [esc(worksEvidenceTime(item.capturedAt)), fmt(item.likes, true), fmt(item.comments, true), fmt(item.shares, true), fmt(item.collects, true), historyPlayCell(item)];
@@ -1662,8 +1674,25 @@ function changeDetailTrend(metric) {
 }
 function accountDetailHistory(value = typeof history === 'undefined' ? null : history.state) {
   const entry = value?.[DETAIL_HISTORY_KEY];
-  return entry?.owner === detailHistoryOwner && Number.isSafeInteger(entry.id) && entry.id > 0
+  return entry?.owner === detailHistoryOwner && (Number.isSafeInteger(entry.id) && entry.id > 0 || typeof entry.id === 'string' && /^roster:[a-f0-9]{32}$/.test(entry.id))
     && entry.base === location.href ? entry : null;
+}
+async function loadSourceAccountWorks(authorKey, page = 1) {
+  const account = state.data?.accounts?.find(a => a.id === state.detailId);
+  if (!account?.sourceSummary?.authorKeys?.includes(authorKey) || !Number.isSafeInteger(page) || page < 1) return;
+  const root = $('sourceAccountWorks'); if (!root) return;
+  const owner = state.detailId, sequence = ++sourceWorksRequest;
+  root.innerHTML = loadingMarkup('读取这个账号已入库的作品…');
+  try {
+    const query = new URLSearchParams({ view: 'works', authorKey, page, pageSize: 30 });
+    const data = await api(`/api/creator-operating-view?${query}`, { signal: detailController.signal });
+    if (state.detailId !== owner || sequence !== sourceWorksRequest || !root.isConnected) return;
+    if (data.query?.authorKey !== authorKey || !Array.isArray(data.items) || data.items.some(w => w.authorKey !== authorKey)) throw new Error('作品归属核对未通过');
+    root.innerHTML = sourceWorksMarkup(data, authorKey);
+  } catch (error) {
+    if (error.name !== 'AbortError' && state.detailId === owner && sequence === sourceWorksRequest)
+      root.innerHTML = `<p class="notice error">${esc(error.message)}</p><button type="button" class="link-btn" data-source-works-key="${esc(authorKey)}">重新读取</button>`;
+  }
 }
 function rememberAccountDetailHistory(id, { fromHistory = false } = {}) {
   if (fromHistory || typeof history === 'undefined' || typeof history.pushState !== 'function') return;
@@ -1691,11 +1720,18 @@ async function openAccount(id, { fromHistory = false } = {}) {
   const dialog = $('accountDialog');
   rememberAccountDetailHistory(id, { fromHistory });
   if (!dialog.open) { detailTrigger = document.activeElement; detailTriggerId = id; dialog.showModal(); }
-  $('dialogName').textContent = state.data.accounts.find(a => a.id === id)?.label || '账号详情';
+  $('dialogName').textContent = state.data?.accounts?.find(a => a.id === id)?.label || '账号详情';
   $('dialogMeta').textContent = '正在读取所选日期的历史记录';
   $('dialogBody').setAttribute?.('aria-busy', 'true');
   $('dialogBody').innerHTML = loadingMarkup('读取该账号的历史记录…');
   try {
+    const unifiedAccount = state.data?.accounts?.find(a => a.id === id);
+    if (unifiedAccount?.sourceOnly) {
+      $('dialogMeta').textContent = `${platformNames[unifiedAccount.platform] || unifiedAccount.platform} · ${unifiedAccount.publicId || '未填写有效账号 ID'} · ${accountStateLabel(unifiedAccount)}`;
+      $('dialogBody').innerHTML = `<p class="muted">这位作者已进入统一账号名册。粉丝、获赞日变化等尚无平台采样，不用表格累计值冒充。</p>${sourceFactsMarkup(unifiedAccount)}`;
+      if (unifiedAccount.sourceSummary?.authorKeys?.[0]) await loadSourceAccountWorks(unifiedAccount.sourceSummary.authorKeys[0]);
+      return;
+    }
     const appliedData = state.data, detailRange = effectiveMetricRange(); const recorded = appliedData?.activeRecordedWindow;
     const comparisonRange = appliedData?.comparison?.range;
     const p = new URLSearchParams({ period: 'custom', startDate: detailRange.start, endDate: detailRange.end });
@@ -1712,6 +1748,8 @@ async function openAccount(id, { fromHistory = false } = {}) {
     detailTrendComparison = comparisonRange ? data.comparison : null;
     $('dialogMeta').textContent = `${platformNames[a.platform] || a.platform} · ${a.publicId || a.submittedAccountId || '暂无账号ID'} · ${a.boards.map(b => b.name).join(' / ') || '未分板块'}`;
     $('dialogBody').innerHTML = `${recorded ? `<p class="recorded-window-notice">${esc(recordedWindowCaption(appliedData))}</p>` : ''}${comparisonRange ? `<p class="muted">A 本期 ${esc(detailRange.start)} 至 ${esc(detailRange.end)} · B 对比期 ${esc(comparisonRange.startDate)} 至 ${esc(comparisonRange.endDate)}。期末值与区间净变化分别展示，缺测不补零。</p>` : ''}${detailKpiMarkup(a, { recorded, comparison: detailTrendComparison })}${investigationMetric === 'estimatedPlays' ? '<p class="muted">你正在查看估算播放对应的获赞变化：下方先显示获赞原始曲线，估算播放为获赞净变化 × 100，非平台实际播放量。</p>' : ''}${detailTrendMarkup(a)}${accountHistoryShell()}${renderWorksEvidence(data, detailRange)}${detailDailyTable(a, detailRange, comparisonRange ? 'A 本期' : '')}${detailTrendComparison ? detailDailyTable(detailTrendComparison.account, { start: comparisonRange.startDate, end: comparisonRange.endDate }, 'B 对比期') : ''}<p class="muted">粉丝区间变化口径：${esc(a.metrics.followers.reason || '变化采用所选区间前一日基准和结束日采样；缺少端点时不计算。')}</p>${a.profileUrl ? `<a class="link-btn" href="${esc(a.profileUrl)}" target="_blank" rel="noreferrer noopener">查看公开主页 ↗</a>` : ''}`;
+    const sourceAccount = state.data?.accounts?.find(account => account.id === id);
+    if (sourceAccount?.sourceSummary) $('dialogBody').insertAdjacentHTML('afterbegin', sourceFactsMarkup(sourceAccount));
   } catch (error) { if (error.name !== 'AbortError' && state.detailId === id && dialog.open && request === detailRequest) $('dialogBody').innerHTML = `<div class="notice error" role="alert">${esc(error.message)} <button type="button" class="link-btn" data-retry-account>重新读取</button></div>`; }
   finally { if (state.detailId === id && request === detailRequest) $('dialogBody').setAttribute?.('aria-busy', 'false'); }
 }
@@ -1872,7 +1910,7 @@ async function loadTopics({ rangeOverride = null, ownerRequestId = state.request
 function setView(view, { renderData = true, fromHistory = false } = {}) {
   const aliases = { targets: 'accounts', boards: 'accounts', reports: 'overview', updates: 'import', audit: 'overview' };
   view = aliases[view] || view;
-  if (!['overview', 'accounts', 'topics', 'import'].includes(view)) view = 'overview';
+  if (!['overview', 'accounts', 'works', 'topics', 'import'].includes(view)) view = 'overview';
   // A dispatched history traversal cannot be cancelled. Keep the latest
   // explicit destination until our modal Back is consumed, rather than let
   // its late popstate undo a view/URL that has already been rendered.
@@ -1898,10 +1936,14 @@ function setView(view, { renderData = true, fromHistory = false } = {}) {
   }
   document.querySelectorAll('[data-view-panel]').forEach(el => el.hidden = el.id !== `${view}View`);
   document.querySelectorAll('.nav-item').forEach(el => { el.classList.toggle('active', el.dataset.view === view); el.setAttribute('aria-current', el.dataset.view === view ? 'page' : 'false'); });
-  $('pageTitle').textContent = ({ overview: presentationControls().period === 'day' ? '今天的矩阵' : '矩阵经营总览', accounts: '账号台账', topics: '话题观察', import: '导入作者名单' })[view];
+  $('pageTitle').textContent = ({ overview: presentationControls().period === 'day' ? '今天的矩阵' : '矩阵经营总览', accounts: '账号台账', works: '作品台账', topics: '话题观察', import: '导入作者名单' })[view];
   renderScopeSubtitle();
   document.querySelector('.date-controls').hidden = view === 'import';
   $('compareControls').hidden = view === 'import' || view === 'topics';
+  const comparisonLabel = $('compareToggle')?.closest?.('label');
+  if (comparisonLabel) comparisonLabel.hidden = view === 'works';
+  if ($('compareDates')) $('compareDates').hidden = view === 'works' || !state.compare;
+  if ($('exportButton')) $('exportButton').hidden = view === 'works';
   $('appliedScopeBar').hidden = view === 'import';
   $('filterDetails').hidden = view === 'import';
   if ($('primaryScope')) $('primaryScope').hidden = view === 'import' || view === 'topics';
@@ -1909,7 +1951,7 @@ function setView(view, { renderData = true, fromHistory = false } = {}) {
   if ($('recordedWindowNotice')) {
     const caption = recordedWindowCaption(state.data) || missingRecordedWindowCaption(state.data);
     $('recordedWindowNotice').textContent = caption;
-    $('recordedWindowNotice').hidden = !caption || ['topics', 'import'].includes(view);
+    $('recordedWindowNotice').hidden = !caption || ['topics', 'import', 'works'].includes(view);
   }
   if (view === 'topics' && (previousView !== 'topics' || state.data)) {
     const pendingRange = pendingInsightsRead?.ownerRequestId === state.requestId ? pendingInsightsRead.range : null;
@@ -1932,6 +1974,14 @@ function setView(view, { renderData = true, fromHistory = false } = {}) {
 document.addEventListener?.('mcn:open-account', event => {
   const id = Number(event.detail?.id);
   if (Number.isSafeInteger(id) && id > 0) void openAccount(id);
+});
+document.addEventListener?.('mcn:source-date-range', event => {
+  const { start, end } = event.detail || {};
+  if (!historyDay(start) || !historyDay(end) || start > end || end > beijingToday()) return;
+  state.period = 'custom'; state.start = start; state.end = end;
+  $('periodSelect').value = 'custom'; $('startDate').value = start; $('endDate').value = end;
+  state.compare = false; $('compareToggle').checked = false;
+  setupDates(); setView('works', { renderData: false }); void load();
 });
 document.addEventListener?.('mcn:import-monitoring-supplement', event => {
   const detail = event.detail;
@@ -1961,8 +2011,8 @@ document.addEventListener?.('mcn:master-roster-loaded', event => {
 function downloadCsv() {
   if (!state.data) return;
   const range = effectiveMetricRange(), requested = appliedRange(), recorded = state.data.activeRecordedWindow;
-  const names = ['账号', '平台', '账号ID', '大主题', '内容分类', '粉丝数', '粉丝净变化', '获赞数', '获赞净变化', '估算播放变化(获赞净变化×100)', '作品数', '作品净变化', '最近采样', '开始日期', '结束日期', '变化口径', '采样基准日期', '所选开始日期', '所选结束日期'];
-  const matrix = rows().map(a => [a.label, platformNames[a.platform], a.publicId || a.submittedAccountId, a.classification?.theme?.label || '待归属', (a.classification?.labels || []).map(item => item.label).join('；'), a.metrics.followers.value, periodDelta(a.metrics.followers, state.data.period), a.metrics.likes.value, periodDelta(a.metrics.likes, state.data.period), periodDelta(a.metrics.estimatedPlays, state.data.period), a.metrics.posts.value, periodDelta(a.metrics.posts, state.data.period), a.status.lastSuccessAt, range.start, range.end, recorded ? '已记录时段净变化（非完整所选区间）' : '所选区间净变化', recorded?.baselineDate || shiftDate(range.start, -1), requested.start, requested.end]);
+  const names = ['账号', '平台', '账号ID', '大主题', '内容分类', '粉丝数', '粉丝净变化', '获赞数', '获赞净变化', '估算播放变化(获赞净变化×100)', '作品数', '作品净变化', '最近采样', '开始日期', '结束日期', '变化口径', '采样基准日期', '所选开始日期', '所选结束日期', '账号资料状态', '表格作品', '作品累计播放·表格', '作品累计赞·表格', '表格来源版本'];
+  const matrix = rows().map(a => [a.label, platformNames[a.platform], a.publicId || a.submittedAccountId, a.classification?.theme?.label || '待归属', (a.classification?.labels || []).map(item => item.label).join('；'), a.metrics.followers.value, periodDelta(a.metrics.followers, state.data.period), a.metrics.likes.value, periodDelta(a.metrics.likes, state.data.period), periodDelta(a.metrics.estimatedPlays, state.data.period), a.metrics.posts.value, periodDelta(a.metrics.posts, state.data.period), a.status.lastSuccessAt, range.start, range.end, recorded ? '已记录时段净变化（非完整所选区间）' : '所选区间净变化', recorded?.baselineDate || shiftDate(range.start, -1), requested.start, requested.end, accountStateLabel(a), a.sourceSummary?.works, a.sourceSummary?.cumulativePlays, a.sourceSummary?.cumulativeLikes, a.sourceSummary?.sourceRevision]);
   const blob = new Blob(['\ufeff', [names, ...matrix].map(row => row.map(csvCell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = `矩阵数据_${range.start}_${range.end}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
@@ -2690,7 +2740,7 @@ function enhanceShell() {
   $('accountsTable').insertAdjacentHTML('beforebegin', '<div class="pager pager-top" id="accountsPagerTop" role="group" aria-label="账号列表翻页"></div>');
   $('pager').setAttribute('role', 'group');
   $('pager').setAttribute('aria-label', '账号列表底部翻页');
-  document.querySelector('.table-tools').insertAdjacentHTML('beforeend', '<label class="sort-label">平台<select id="platformSelect"><option value="all">全部平台</option><option value="douyin">抖音</option><option value="bilibili">B站</option><option value="xiaohongshu">小红书</option><option value="kuaishou">快手</option></select></label><label class="sort-label">范围<select id="enabledSelect"><option value="active">启用账号</option><option value="all">已建档（含暂停）</option><option value="paused">已暂停</option></select></label><button class="secondary-btn" id="exportButton">导出明细</button>');
+  document.querySelector('.table-tools').insertAdjacentHTML('beforeend', '<label class="sort-label">平台<select id="platformSelect"><option value="all">全部平台</option><option value="douyin">抖音</option><option value="bilibili">B站</option><option value="xiaohongshu">小红书</option><option value="kuaishou">快手</option></select></label><label class="sort-label">范围<select id="enabledSelect"><option value="all">全部账号（含表格资料）</option><option value="active">监控已启用</option><option value="paused">监控已暂停</option><option value="source">仅表格资料</option></select></label><button class="secondary-btn" id="exportButton">导出明细</button>');
   $('exportButton').insertAdjacentHTML('beforebegin', '<label class="sort-label">采集<select id="collectionSelect"><option value="all">全部采集状态</option><option value="missing-profile">期末主页缺采</option><option value="incomplete-works">期末作品明细不完整</option></select></label>');
   $('accountDialog').setAttribute('aria-labelledby', 'dialogName');
   $('authDialog').setAttribute('aria-label', '进入矩阵数据台');
@@ -2827,7 +2877,11 @@ function bind() {
     }
     if (button.dataset.view) setView(button.dataset.view);
     if (button.dataset.action === 'accounts') setView('accounts');
-    if (button.dataset.accountId) void openAccount(Number(button.dataset.accountId));
+    if (button.dataset.sourceWorksKey) { void loadSourceAccountWorks(button.dataset.sourceWorksKey, Number(button.dataset.sourceWorksPage || 1)); return; }
+    if (button.dataset.accountId) {
+      const raw = button.dataset.accountId, id = /^roster:[a-f0-9]{32}$/.test(raw) ? raw : Number(raw);
+      if (state.data?.accounts?.some(account => account.id === id) || Number.isSafeInteger(id) && id > 0) void openAccount(id);
+    }
     if (button.dataset.sort) { const key = button.dataset.sort; state.direction = state.sort === key && state.direction === 'desc' ? 'asc' : 'desc'; state.sort = key; state.page = 1; renderAccounts(); }
     if (button.dataset.page && !button.disabled) changeAccountPage(button.dataset.page);
     if (button.dataset.metric) { state.metric = button.dataset.metric; renderTrend(); }

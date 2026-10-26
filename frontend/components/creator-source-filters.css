@@ -1,0 +1,20 @@
+.source-date-filters {display:flex;align-items:end;flex-wrap:wrap;gap:10px;margin:0 20px 12px;padding:14px;border:1px solid var(--mcn-line);border-radius:8px;background:var(--mcn-surface);}
+.source-date-filters label {display:grid;gap:6px;font-size:12px;color:var(--mcn-muted);min-width:150px;}
+.source-date-filters input {min-height:38px;width:100%;min-width:0;background:var(--mcn-bg);color:var(--mcn-ink);border:1px solid var(--mcn-line);border-radius:6px;padding:6px 8px;}
+.source-date-filters input:focus-visible {outline:2px solid var(--mcn-positive);outline-offset:3px;}
+.source-date-filters p {flex-basis:100%;margin:0;font-size:12px;line-height:1.6;color:var(--mcn-muted);}
+.source-date-filters [role="alert"] {color:var(--mcn-negative,#f1a5a5);}
+.source-date-filters button {min-height:38px;}
+.source-export-status {margin:0 20px 12px;color:var(--mcn-muted);font-size:12px;}
+.source-share-link {margin:0 20px 12px;min-width:0;}
+.source-share-link p {font-size:12px;color:var(--mcn-muted);margin-bottom:8px;}
+.source-share-link input {width:100%;min-width:0;}
+.source-completeness{margin:0 20px 16px;padding:12px 14px;border:1px solid var(--mcn-line);border-left:3px solid #bda464;border-radius:8px;background:var(--mcn-surface);}
+.source-completeness .meta{margin:0;padding:0;font-size:13px;line-height:1.7;}
+.source-completeness button{margin-top:10px;min-height:40px;white-space:normal;}
+@media(max-width:600px){.source-completeness{margin-inline:12px;}.source-completeness button{min-height:44px;}}
+.source-ledger-method{margin:0 20px 14px;color:var(--mcn-muted);font-size:12px;line-height:1.6;}
+.source-ledger-method summary{cursor:pointer;width:max-content;max-width:100%;text-decoration:underline;text-underline-offset:3px;}
+.source-ledger-method .meta{padding:0;margin-top:8px;}
+.source-ledger-method summary:focus-visible{outline:2px solid var(--mcn-positive);outline-offset:3px;}
+@media(max-width:600px){.source-date-filters {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin-inline:12px;padding:12px;}.source-date-filters label {min-width:0;}.source-date-filters p{grid-column:1/-1;}.source-date-filters button {min-height:44px;padding-inline:4px;font-size:12px;white-space:normal;}.source-ledger>.panel-head>.source-actions {width:100%;margin:0;}.source-date-filters input {min-height:44px;font-size:16px;}}

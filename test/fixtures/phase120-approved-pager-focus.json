@@ -1,0 +1,6 @@
+{
+  "sourceBeforeSha256": "3c01021bc26a8c0b4bcca4ed44c29ac9e28d66cb9c4c3472c8ba523f8d6b1e95",
+  "sourceAfterSha256": "53168956c44814c512426b55e1542bcbd3a5481400c5f5511a43119cab9d6c1d",
+  "before": "scope={JSON.stringify([navigationEpoch.current,tab,personal?.id,account?.id,kind,work,data?.manifest.asOf,loading,board,theme,tag,query,rosterStatus,start,end,sort,order,hSort,hOrder])}",
+  "after": "scope={JSON.stringify([tab,personal?.id,account?.id,kind,work,data?.manifest.asOf,loading,board,theme,tag,query,rosterStatus,start,end,sort,order,hSort,hOrder])}"
+}

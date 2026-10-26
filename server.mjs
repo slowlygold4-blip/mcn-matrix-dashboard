@@ -1,3 +1,10 @@
+import {startCollectionRelay} from './lib/collection-relay.mjs';
+import {privateRead as readPrivateRelayFile,privateWrite as writePrivateRelayFile} from './scripts/public-replica-publisher.mjs';
+import {createCollectionAccess} from './lib/collection-access.mjs';
+import {collectionProgress} from './lib/collection-progress.mjs';
+import { claimAuthorResolutionTurn } from './lib/author-resolution-turn.mjs';
+import { ContinuousCollectionRound } from "./lib/continuous-collection-round.mjs";
+import { beijingCollectionSlot as initialCollectionSlot } from "./lib/collection-cadence.mjs";
 import { createServer } from "node:http";
 import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -5,6 +12,7 @@ import { existsSync } from "node:fs";
 import { basename, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
+import { performance } from "node:perf_hooks";
 import { MonitorDatabase, normalizeBoardKey, normalizeBoardName } from "./lib/database.mjs";
 import { MonitorScheduler } from "./lib/scheduler.mjs";
 import { RefreshCollection } from "./lib/refresh-collection.mjs";
@@ -43,12 +51,16 @@ import {
 } from "./lib/utils.mjs";
 import { getProductInsights, getAccountInsight } from "./lib/product-insights.mjs";
 import { ConsoleReader } from "./lib/console-reader.mjs";
+import { CreatorLibraryReader } from "./lib/creator-library.mjs";
+import { readCreatorSourceBridge } from "./lib/creator-source-bridge.mjs";
+import { readCreatorOperatingView } from "./lib/creator-source-operating-view.mjs";
 import { accountHistoryOptions } from "./lib/account-history-options.mjs";
 import { getProductContinuity, getAuthorSources } from "./lib/product-continuity.mjs";
 import { inspectSourcePollManifest } from "./lib/source-poller-status.mjs";
 import { createSourceJobStateReader } from "./lib/source-job-state-read.mjs";
 import { readUpdateSla } from "./lib/update-sla.mjs";
 import { runFirstCollectionTick } from "./lib/first-collection.mjs";
+import { assessAuthorQueueClock, planAuthorResolutionQueueWakeup } from "./lib/author-resolution-queue-plan.mjs";
 import { readPublicEntry } from "./lib/public-entry.mjs";
 import { reportCsv } from "./lib/report-export.mjs";
 import { readMasterRoster } from "./lib/master-roster.mjs";
@@ -136,6 +148,7 @@ const sourcePollerCapability = await ensureSourcePollerCapability(dataDir);
 const host = process.env.HOST || "0.0.0.0";
 const port = Number(process.env.PORT || 4188);
 const database = new MonitorDatabase(join(dataDir, "douyin-monitor.sqlite"));
+const creatorLibrary = new CreatorLibraryReader(database.filePath);
 // Persist the rollout boundary once. Subsequent restarts must repair every
 // missing receipt since activation, not just the newest completed batch.
 database.db.prepare(`INSERT OR IGNORE INTO settings(key,value,updated_at)
@@ -231,7 +244,9 @@ const scheduledBackup = createScheduledBackupThrottle(backupManager, { minInterv
 const systemAuditReader = new SystemAuditReader({ databasePath: database.filePath, backupDir: backupManager.backupDir });
 const scheduler = new MonitorScheduler(database, {
   asyncPlanning: true,
+  shouldYieldScheduledCollection: () => authorQueueTurnRequested || authorQueueRunning || authorDetailProbeRunning,
   scheduleIntervalHours: 8,
+  continuousRoundStore: new ContinuousCollectionRound(join(dataDir, "continuous-collection.json"), initialCollectionSlot({anchorTime:database.getSettings().scheduleTime}).startsAt),
   worksOnlyEnabled: true,
   scheduleTimeZone: "Asia/Shanghai",
   providerOptions: { signal: shutdownController.signal },
@@ -251,6 +266,7 @@ const scheduler = new MonitorScheduler(database, {
 });
 const requestReadScopes = new WeakMap();
 const refreshCollection = new RefreshCollection({ database, scheduler });
+let collectionRelay=null;
 function createRequestReadScope(request, response) {
   const controller = new AbortController();
   const abort = () => { if (!response.writableEnded) controller.abort(); };
@@ -287,6 +303,8 @@ const authorQueueWorkerId = `server-${randomUUID()}`;
 const authorJobWorkerId = `author-job-${randomUUID()}`;
 let authorQueueTimer = null;
 let authorQueueRunning = false;
+let authorQueueTurnRequested = false;
+let authorQueueClock = null;
 let authorDetailProbeRunning = false;
 let authorDetailProbeNotBefore = 0;
 const activeAuthorDetailProbes = new Set();
@@ -971,7 +989,7 @@ async function executeAuthorResolveJob(job) {
 }
 
 async function processAuthorResolutionJobs() {
-  if (shuttingDown || authorJobRunning) return;
+  if (shuttingDown || authorJobRunning || authorQueueRunning || authorQueueTurnRequested) return;
   const job = database.claimNextAuthorResolutionJob({ owner: authorJobWorkerId });
   if (!job) return;
   authorJobRunning = true;
@@ -989,7 +1007,7 @@ async function tickAuthorResolutionJobs() {
   if (!hasQueued) {
     runFirstCollectionTick(database, scheduler, {
       signal: shutdownController.signal,
-      canRun: () => !shuttingDown && !authorJobRunning && !authorQueueRunning,
+      canRun: () => !shuttingDown && !authorJobRunning && !authorQueueRunning && !authorQueueTurnRequested,
     }).catch((error) => console.error(`[${new Date().toISOString()}] 首次采集：`, error.message));
   }
   scheduleAuthorResolutionJobs(hasQueued ? 250 : 30_000);
@@ -1019,9 +1037,9 @@ function isTerminalAuthorEvidenceError(value) {
 }
 
 async function processAuthorResolutionQueue() {
-  if (shuttingDown || authorQueueRunning || authorJobRunning || authorDetailProbeRunning || scheduler.currentPromise) return;
-  const due = database.claimDueAuthorResolutions(2, { owner: authorQueueWorkerId, leaseMs: 30 * 60_000 });
-  if (!due.length) return;
+  if (shuttingDown || authorQueueRunning || authorJobRunning || authorDetailProbeRunning || scheduler.currentPromise || scheduler.planningTick || ownedCollectorExecutor.state().busy) return;
+  const due = claimAuthorResolutionTurn(database, { owner: authorQueueWorkerId, leaseMs: 30 * 60_000 });
+  if (!due.length) { authorQueueTurnRequested = false; return; }
   authorQueueRunning = true;
   try {
     const provider = new PublicWebProvider(database.getSettings(), { database, signal: shutdownController.signal, authorisedDetailEnabled: true });
@@ -1089,27 +1107,59 @@ async function processAuthorResolutionQueue() {
       nextAttemptAt: queueRetryAt(item.attempts), reason: '后台核验流程未完成，已安全延期；未作为平台失败消耗重试次数' });
   } finally {
     authorQueueRunning = false;
+    authorQueueTurnRequested = false;
   }
 }
 
 async function tickAuthorResolutionQueue() {
   authorQueueTimer = null;
   if (shuttingDown) return;
-  try {
-    await processAuthorResolutionQueue();
-  } catch (error) {
-    console.error(`[${new Date().toISOString()}]`, error);
+  const clockSample = { wallNowMs: Date.now(), monotonicNowMs: performance.now() };
+  const clock = assessAuthorQueueClock(authorQueueClock, clockSample.wallNowMs, clockSample.monotonicNowMs);
+  authorQueueClock = clockSample;
+  if (!clock.healthy) {
+    console.error(`作者核验队列时钟异常：${clock.reason}；30 秒后复查`);
+    scheduleAuthorResolutionQueue(30_000);
+    return;
   }
+  let before;
+  try {
+    before = planAuthorResolutionQueueWakeup(database.db, clockSample.wallNowMs);
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] 作者核验队列轻量探针失败：`, error);
+    scheduleAuthorResolutionQueue(30_000);
+    return;
+  }
+  if (!before.hasDueCandidate) {
+    authorQueueTurnRequested = false;
+    scheduleAuthorResolutionQueue(before.delayMs);
+    return;
+  }
+  // An empty queue never runs the fair-claim CTE. The existing worker still
+  // claims at most two identities per turn with its established fair ordering.
+  authorQueueTurnRequested = true;
+  try { await processAuthorResolutionQueue(); }
+  catch (error) { authorQueueTurnRequested = false; console.error(`[${new Date().toISOString()}]`, error); }
+  // Reserve the next idle turn instead of losing every race to continuous works.
+  // No active collection is interrupted and the existing two-item budget stays.
+  if (authorQueueTurnRequested && !shuttingDown) { scheduleAuthorResolutionQueue(1_000); return; }
   if (shuttingDown) return;
-  const hasMoreDue = database.listDueAuthorResolutions(1).length > 0;
-  scheduleAuthorResolutionQueue(hasMoreDue ? 60_000 : 30 * 60_000);
+  try {
+    const after = planAuthorResolutionQueueWakeup(database.db, Date.now());
+    scheduleAuthorResolutionQueue(after.delayMs);
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] 作者核验队列下次唤醒计算失败：`, error);
+    scheduleAuthorResolutionQueue(30_000);
+  }
 }
 
 function scheduleAuthorResolutionQueue(delayMs = 2_000, replace = false) {
   if (shuttingDown) return;
   if (authorQueueTimer && !replace) return;
   if (authorQueueTimer) clearTimeout(authorQueueTimer);
-  authorQueueTimer = setTimeout(tickAuthorResolutionQueue, Math.max(250, Number(delayMs) || 2_000));
+  const boundedDelay = Number.isFinite(delayMs)
+    ? Math.max(250, Math.min(30 * 60_000, Math.trunc(delayMs))) : 30_000;
+  authorQueueTimer = setTimeout(tickAuthorResolutionQueue, boundedDelay);
 }
 
 function startAuthorResolutionQueue() {
@@ -1119,6 +1169,8 @@ function startAuthorResolutionQueue() {
 function stopAuthorResolutionQueue() {
   if (authorQueueTimer) clearTimeout(authorQueueTimer);
   authorQueueTimer = null;
+  authorQueueClock = null;
+  authorQueueTurnRequested = false;
 }
 
 function publicTarget(target) {
@@ -1390,6 +1442,45 @@ async function handleApi(request, response, url) {
 
   access.authenticate(request, response);
   if (["POST", "PATCH", "PUT", "DELETE"].includes(request.method)) access.verifyMutation(request);
+
+  if (request.method === "GET" && pathname === "/api/creator-library/summary") {
+    access.requireRole(request, "viewer");
+    return json(response, 200, creatorLibrary.summary({ admin: request.auth.user.role === "admin" }));
+  }
+  if (request.method === "GET" && pathname === "/api/creator-source/overview") {
+    access.requireRole(request, "viewer");
+    return json(response, 200, readCreatorSourceBridge(database.db));
+  }
+  if (request.method === "GET" && pathname === "/api/creator-operating-view") {
+    access.requireRole(request, "viewer");
+    const result = readCreatorOperatingView(database.db, Object.fromEntries(url.searchParams));
+    return json(response, result.statusCode || 200, result);
+  }
+  if (request.method === "GET" && pathname === "/api/creator-source/sync-status") {
+    access.requireRole(request, "viewer");
+    let saved = null;
+    try { saved = JSON.parse(await readFile(join(dataDir, "creator-source-sync/status.json"), "utf8")); }
+    catch (error) { if (error.code !== "ENOENT") throw error; }
+    const allowed = new Set(["unchanged", "unchanged-content", "imported", "deferred", "failed"]);
+    return json(response, 200, { checkedAt: saved?.checkedAt || null,
+      status: allowed.has(saved?.status) ? saved.status : "not-checked",
+      revision: saved?.revision != null && Number.isSafeInteger(Number(saved.revision)) ? Number(saved.revision) : null,
+      importId: saved?.importId != null && Number.isSafeInteger(Number(saved.importId)) && Number(saved.importId) > 0 ? Number(saved.importId) : null,
+      reason: request.auth.user.role === "admin" ? String(saved?.reason || "").slice(0, 240) || null : null });
+  }
+  if (request.method === "GET" && pathname === "/api/creator-library/rows") {
+    access.requireRole(request, "viewer");
+    const result = creatorLibrary.rows({ sheetId: url.searchParams.get("sheet") || "08", query: url.searchParams.get("q") || "",
+      track: url.searchParams.get("track") || "", linkStatus: url.searchParams.get("linkStatus") || "all",
+      page: url.searchParams.get("page") || 1, pageSize: url.searchParams.get("pageSize") || 30,
+      admin: request.auth.user.role === "admin" });
+    return json(response, result.statusCode || 200, result);
+  }
+  if (request.method === "GET" && pathname === "/api/creator-library/search") {
+    access.requireRole(request, "viewer");
+    const result = creatorLibrary.searchAll({ query: url.searchParams.get("q") || "", admin: request.auth.user.role === "admin" });
+    return json(response, result.statusCode || 200, result);
+  }
 
   if (request.method === "POST" && pathname === "/api/auth/logout") {
     recordAction(request, "session.logout", "session");
@@ -2079,6 +2170,15 @@ async function handleApi(request, response, url) {
     if (deleted) recordAction(request, "target.delete", "target", targetMatch[1], { label: target.label });
     return deleted ? json(response, 200, { ok: true }) : json(response, 404, { error: "目标不存在" });
   }
+  if (request.method === "POST" && pathname === "/api/collection-access") {
+    access.requireRole(request, "admin");
+    access.assertSameOrigin(request);
+    return json(response, 200, await createCollectionAccess(dataDir));
+  }
+  if (request.method === "GET" && pathname === "/api/collection-progress") {
+    access.requireRole(request, "viewer");
+    return json(response, 200, collectionProgress(database.db));
+  }
   if (request.method === "GET" && pathname === "/api/refresh-collection") {
     access.requireRole(request, "editor");
     const jobId = url.searchParams.get("jobId");
@@ -2091,10 +2191,10 @@ async function handleApi(request, response, url) {
     access.requireRole(request, "editor");
     const body = await readJson(request, 8_000);
     assertCollectionServerReady();
-    if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length) {
+    if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).some(key => key !== "requestId") || (body.requestId !== undefined && (typeof body.requestId !== "string" || !/^[0-9a-f-]{36}$/i.test(body.requestId)))) {
       throw new HttpError(400, "刷新采集不接受账号、板块或日期筛选参数", "INVALID_COLLECTION_SCOPE");
     }
-    const result = refreshCollection.request();
+    const result = refreshCollection.request({requestId:body.requestId});
     if (!result.reused) recordAction(request, "refresh.collection.start", "collection", result.job.id, { scope: "all-enabled" });
     return json(response, 202, result);
   }
@@ -2294,6 +2394,11 @@ if (isMainModule) {
       if (shuttingDown) return;
       startupReadiness = { status: "ready", message: "" };
       scheduler.start();
+      if(existsSync(join(dataDir,"public-replica-publisher","credential"))) collectionRelay=startCollectionRelay({
+        getCredential:()=>readPrivateRelayFile(join(dataDir,"public-replica-publisher","credential"),{credential:true}),
+        loadState:async()=>{try{return await readPrivateRelayFile(join(dataDir,"public-replica-publisher","collection-relay.json"));}catch(e){if(e.code==="ENOENT")return {};throw e;}},
+        saveState:value=>writePrivateRelayFile(join(dataDir,"public-replica-publisher","collection-relay.json"),value)
+      });
       startAuthorResolutionQueue();
       startAuthorResolutionJobs();
       console.log(`内容平台监控工作台已启动：http://127.0.0.1:${port}`);
@@ -2317,6 +2422,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
   process.once(signal, () => {
     if (shuttingDown) return;
     shuttingDown = true;
+    collectionRelay?.stop();
     refreshCollection.stop();
     const activeTrigger = scheduler.currentProgress?.triggerType ?? null;
     const schedulerDrain = scheduler.drain();

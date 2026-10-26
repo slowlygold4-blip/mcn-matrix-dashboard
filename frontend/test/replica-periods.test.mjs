@@ -1,0 +1,8 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {periodWindow} from '../lib/replica-periods.mjs';
+const asOf='2026-10-01T01:31:30.130Z',accounts=[{id:1,enabled:true}];
+const point=(date,n=1)=>({targetId:1,date,capturedAt:date+'T00:00:00.000Z',followers:n,followersAt:date+'T00:00:00.000Z',likes:null,likesAt:null,posts:null,postsAt:null});
+test('natural-day presets preserve exact calendar boundaries and the fixed business baseline',()=>{const ps=[point('2026-09-14'),point('2026-10-01')];assert.equal(periodWindow('week',accounts,ps,asOf).start,'2026-09-24');assert.equal(periodWindow('day',accounts,ps,asOf).start,'2026-09-30');assert.equal(periodWindow('since',accounts,ps,asOf).start,'2026-09-12');assert.equal(periodWindow('month',accounts,ps,asOf).start,'2026-09-30');});
+test('current calendar month does not silently become the stale scope observation month',()=>{const w=periodWindow('month',accounts,[point('2026-09-29')],asOf);assert.deepEqual([w.start,w.end,w.anchor],['2026-09-30','2026-10-01','2026-09-29']);});
+test('empty source has no wall-clock fallback; observed fallback remains within business history',()=>{assert.equal(periodWindow('week',[],[point('2026-10-01')],asOf).start,null);assert.equal(periodWindow('observed',accounts,[point('2026-09-01'),point('2026-09-14')],asOf).start,'2026-09-14');});
+test('future metrics and repeated daily identity are rejected without mutating saved input',()=>{const ps=[point('2026-09-14')];assert.throws(()=>periodWindow('week',accounts,[...ps,...ps],asOf),/重复/);assert.throws(()=>periodWindow('week',accounts,[point('2026-10-02')],asOf),/无效/);assert.equal(ps.length,1);});

@@ -15,7 +15,7 @@ test('queue rejects an overlong external key without persisting a truncated coll
   assert.throws(() => database.enqueueAuthorResolutions([{ key, name: '作者', videoIds: ['7684603502123456789'] }]), /超过 300 字符/);
   assert.equal(database.db.prepare('SELECT COUNT(*) AS n FROM author_resolution_queue').get().n, 0);
 });
-function fixture(t,{share=false,metadata={sourceType:'author-spreadsheet'},requestExtras={}}={}) {
+function fixture(t,{share=false,expanded=false,metadata={sourceType:'author-spreadsheet'},requestExtras={}}={}) {
   const database=new MonitorDatabase(':memory:');t.after(()=>database.close());const db=database.db;
   const source={sourceRow:2,platform:'douyin',name:'来源作者',douyinId:HANDLE,status:'resolvable',
     videoId:share?'':VIDEO,...(share?{shareUrl:'https://v.douyin.com/ExactShare/',videoLink:'https://v.douyin.com/ExactShare/'}:{})};
@@ -23,7 +23,7 @@ function fixture(t,{share=false,metadata={sourceType:'author-spreadsheet'},reque
   const jobId=randomUUID();
   database.createAuthorResolutionJob({id:jobId,actorName:'离线测试',fileName:request.fileName,sheetName:request.sheetName,request});
   db.prepare('UPDATE author_resolution_jobs SET created_at=? WHERE id=?').run(new Date(Date.now()-1000).toISOString(),jobId);
-  const evidence=buildAuthorEvidenceRequests([source])[0];
+  const evidence=buildAuthorEvidenceRequests([{...source,...(expanded?{locator:SEC}:{})}])[0];
   database.enqueueAuthorResolutions([evidence],{fileName:request.fileName,sheetName:request.sheetName,sourceMetadata:metadata});
   db.prepare("UPDATE author_resolution_jobs SET status='completed',finished_at=? WHERE id=?").run(new Date().toISOString(),jobId);
   const owner='queue-test-owner',claimed=database.claimDueAuthorResolutions(1,{owner,leaseMs:60000})[0];
@@ -74,6 +74,21 @@ test('queue run reuses existing lease/transaction and emits immutable proof with
     assert.equal(f.db.isTransaction,false);
     assert.equal(prepareQueuedAuthorisedImport(f.database,f.claimed,{owner:f.owner}).status,'skipped');
   }
+});
+
+test('queue run reports a persisted identity rejection instead of a false resolution or retry',async t=>{
+  const f=fixture(t),at=new Date().toISOString();
+  f.db.prepare("INSERT INTO targets(type,label,locator,provider,enabled,metadata_json,created_at,updated_at) VALUES('account','保留名称',?,'public-web',1,?,?,?)")
+    .run(SEC,JSON.stringify({platform:'douyin',douyinId:'old_handle'}),at,at);
+  const targetBefore=f.db.prepare('SELECT * FROM targets WHERE locator=?').get(SEC);
+  const outcome=await runQueuedAuthorisedImport(f.database,f.claimed,{owner:f.owner,createInput:f.input,
+    provider:{resolveAuthorisedDetail:async({items:[input]})=>f.proof(input)}});
+  assert.equal(outcome.status,'rejected');
+  assert.equal(outcome.code,'AUTHOR_TARGET_PUBLIC_ID_CONFLICT');
+  assert.equal(outcome.monitoringChanged,false);
+  assert.equal(f.row().status,'rejected');
+  assert.deepEqual(f.db.prepare('SELECT * FROM targets WHERE locator=?').get(SEC),targetBefore);
+  assert.equal(f.db.prepare('SELECT count(*) n FROM author_resolution_success_receipts').get().n,0);
 });
 
 test('missing/changed owner, expiry, policy, evidence, prior target and manual suspension cannot launch',async t=>{
@@ -185,5 +200,32 @@ test('existing-claim service refuses forged source, other sibling lease and exha
     assert.throws(()=>commitAuthorisedImportDetail(f.database,p.job,{sourceRow:p.sourceRow},proof,{startedAt:proof.requestStartedAt,
       finishedAt:proof.requestFinishedAt,existingClaim:p.claim,createInput:row=>f.input(p.job,row)}));
     assert.equal(f.capture(),before);assert.equal(f.db.isTransaction,false);
+  }
+});
+
+
+test('expanded canonical queue retains original source and succeeds only with matching fresh identity', async t => {
+  const f = fixture(t, {share:true, expanded:true});
+  const original = JSON.stringify(f.job.request);
+  const prepared = prepareQueuedAuthorisedImport(f.database,f.claimed,{owner:f.owner});
+  assert.equal(prepared.status,'ready');
+  assert.equal(prepared.input.expectedSecUid,SEC);
+  assert.equal(prepared.input.key,f.claimed.identity_key);
+  assert.equal(f.job.request.rows[0].locator,undefined);
+  let calls=0;
+  const outcome=await runQueuedAuthorisedImport(f.database,f.claimed,{owner:f.owner,createInput:f.input,
+    provider:{resolveAuthorisedDetail:async({items:[input]})=>{calls++;return f.proof(input);}}});
+  assert.equal(calls,1);assert.equal(outcome.status,'resolved');
+  assert.equal(f.row().status,'resolved');
+  assert.equal(JSON.stringify(f.database.getAuthorResolutionJob(f.job.id).request),original);
+  assert.equal(f.db.prepare('SELECT count(*) n FROM snapshots').get().n,0);
+});
+
+test('expanded queue cannot replace the original handle, work, or explicit canonical', t => {
+  for(const field of ['douyin_id','share_urls_json','identity_key']) {
+    const f=fixture(t,{share:true,expanded:true});
+    const value=field==='share_urls_json'?'["https://v.douyin.com/DifferentWork/"]':'not_the_source';
+    f.db.prepare(`UPDATE author_resolution_queue SET ${field}=? WHERE id=?`).run(value,f.claimed.id);
+    assert.notEqual(prepareQueuedAuthorisedImport(f.database,f.claimed,{owner:f.owner}).status,'ready');
   }
 });
