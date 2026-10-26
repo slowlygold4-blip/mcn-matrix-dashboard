@@ -14,7 +14,7 @@
 - `test/`、`frontend/test/`：后端与前端测试。
 - `docs/`：公开开发说明。
 
-完整业务资料、原表、审查日志及数据库快照另外保存在所有者的私有完整归档仓库。登录态、密钥、会话与邀请码不上传。请向所有者申请归档访问权限，不要把业务数据提交到本公开仓库。
+完整业务资料、原表、审查日志及数据库快照另外保存在[私有完整归档仓库](https://github.com/slowlygold4-blip/mcn-matrix-dashboard-archive/releases/tag/snapshot-20261026)。登录态、密钥、会话与邀请码不上传。请向所有者申请归档访问权限，不要把业务数据提交到本公开仓库。
 
 ## 启动本地服务
 
@@ -53,3 +53,5 @@ node --test test/observatory-field.test.mjs test/matrix-scope.test.mjs test/repl
 运行时采集是本地脚本，不调用语言模型。平台访问失败、作品分页不完整和作者关联缺口仍需处理；不应把单次成功或主页成功当作全部作品采集成功。缺测保留为空；估算播放与实际播放不可混用。保留来源、采样时间与去重证据。
 
 本项目为 UNLICENSED；第三方组件许可证见 THIRD_PARTY_NOTICES.md 和各 vendor 目录。
+
+存储治理与恢复：[STORAGE.md](docs/STORAGE.md)。

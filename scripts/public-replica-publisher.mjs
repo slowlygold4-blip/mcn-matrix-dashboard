@@ -1,4 +1,5 @@
 import { constants, watch } from 'node:fs';
+import { prunePublicReplicaStaging } from '../lib/public-replica-retention.mjs';
 import { open, mkdir, readFile, rename, lstat, link, unlink } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { randomUUID, createHash } from 'node:crypto';
@@ -237,6 +238,7 @@ async function run(){
         state.publicationContract=state.active.publicationContract??null;state.active=null;
       }
       await privateWrite(statePath,state);console.log(JSON.stringify({status:state.status,code:state.code,asOf:state.active?.asOf??state.publishedAsOf,runtimeAI:false}));
+      if(result.status==='success')try{const retention=await prunePublicReplicaStaging({dataDir:data,dryRun:false});console.log(JSON.stringify({cacheRetention:retention.status,removed:retention.removed.length,runtimeAI:false}));}catch(error){console.error('cache-retention-deferred',error.code||error.name);}
     }catch(e){state.status='failed';state.code=['invalid-source','invalid-summary','unsafe-private-file','invalid-staging-directory'].includes(e.code)?e.code:'publisher-check-failed';state.checkedAt=new Date().toISOString();await privateWrite(statePath,state).catch(()=>{});console.log(JSON.stringify({status:'failed',code:state.code,runtimeAI:false}));}
     finally{busy=false;}
   };
