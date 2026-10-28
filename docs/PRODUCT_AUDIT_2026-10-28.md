@@ -5,6 +5,7 @@ This public note contains code and synthetic-test results only. Operational repo
 ## Changes
 
 - Source maintenance uses an authenticated, editor-only narrow bootstrap endpoint. Dashboard aggregation latency is no longer mistaken for missing edit permission.
+- Semantic activation conflicts preserve acknowledged uploads and expose only fixed diagnostic enums. Missing remote uploads remain replayable; arbitrary error bodies stay private.
 - The producer and public ingestion route share bounded UTF-8 byte budgets. A growing catalog can be uploaded separately without raising limits for ordinary work partitions or anonymous uploads.
 - Continuous profile freshness no longer depends on the works queue becoming empty. Durable work cursors and upstream cooldowns remain independent.
 - Collection coverage can include atomically committed, matching snapshot/audit evidence during a long running batch. Progress counters alone do not prove usable observations.

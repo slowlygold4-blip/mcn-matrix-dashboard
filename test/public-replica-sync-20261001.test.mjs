@@ -557,6 +557,23 @@ test('sync lost cloud staging resets local completion and succeeds on replay wit
   assert.equal((await sync.sync(fixture())).status, 'success');
 });
 
+test('semantic activation refusal keeps verified uploads and exposes only a fixed diagnostic enum',async()=>{
+ for(const [message,reason] of [['日期历史未通过全量来源核对，未发布','date-proof-rejected'],['每日发片索引核验失败','publishing-proof-rejected']]){
+  const cloud=fakeCloud(),original=cloud.fetch;let reject=true;
+  cloud.fetch=async(url,init={})=>{
+   if(reject&&init.method==='POST'&&JSON.parse(init.body).action==='activate')return Response.json({error:message,private:SENTINEL},{status:409});
+   return original(url,init);
+  };
+  const sync=producer(cloud),first=await sync.sync(fixture());
+  assert.equal(first.transportFailure.activationReason,reason);
+  assert.equal(sync.checkpoint().completedBatches.length,first.batchesTotal);
+  assert.equal(JSON.stringify(first).includes(SENTINEL),false);
+  const uploaded=cloud.uploads;reject=false;
+  assert.equal((await sync.sync(fixture())).status,'success');
+  assert.equal(cloud.uploads,uploaded,'correcting the validator must not resend every valid partition');
+ }
+});
+
 test('sync persistence and credential failures cannot expose thrown body/secrets or activate', async () => {
   for (const options of [
     { saveCheckpoint: async () => { throw Error(`${SECRET} ${SENTINEL}`); } },
