@@ -14,7 +14,7 @@ test('real readonly planning worker receives the persisted continuous window',as
 
 // Reproduces the production deadlock: no profile work remains, while works
 // transport is deferred, so roundSettled stays false indefinitely.
-test('works deferral cannot freeze the next profile pass',async t=>{const{store}=setup(t);const db=new MonitorDatabase(':memory:');t.after(()=>db.close());const s=new MonitorScheduler(db,{continuousRoundStore:store,asyncPlanning:true,worksOnlyEnabled:true});const now=new Date();s.readPlanning=async()=>({asOf:now.toISOString(),slotKey:s.collectionSlot(now).key,dueIds:[],worksTargetId:null,roundSettled:false,profilePassSettled:true});const before=store.window().key;await s.tick(now);assert.notEqual(store.window().key,before);});
+test('works deferral preserves its checkpoint; profile freshness ages independently',async t=>{const{store}=setup(t);const db=new MonitorDatabase(':memory:');t.after(()=>db.close());const s=new MonitorScheduler(db,{continuousRoundStore:store,asyncPlanning:true,worksOnlyEnabled:true});const now=new Date();s.readPlanning=async()=>({asOf:now.toISOString(),slotKey:s.collectionSlot(now).key,dueIds:[],worksTargetId:null,roundSettled:false,profilePassSettled:true});const before=store.window().key;await s.tick(now);assert.equal(store.window().key,before);});
 
 test('real planning marks profile pass settled while works remain due',async t=>{
  const {path,store}=setup(t),db=new MonitorDatabase(path+'.sqlite');t.after(()=>db.close());
@@ -49,4 +49,25 @@ test('continuous planner refreshes stale profiles even while the same pass remai
  const plan=await s.readPlanning('tick',new Date());
  assert.ok(plan.dueIds.includes(target.id));
  assert.equal(store.state.round,1);
+});
+
+test('checkpoint rollover cannot recollect fresh profiles or discard their accepted audits',async t=>{
+ const {path,store}=setup(t),db=new MonitorDatabase(path+'.sqlite');t.after(()=>db.close());
+ const locator='MS4wLjABAAAAContinuousFixture0123456789';
+ const target=db.createTarget({type:'account',provider:'public-web',label:'fixture',locator});
+ const {normalizeCollection}=await import('../lib/providers/normalize.mjs');
+ const at=new Date(),capturedAt=at.toISOString(),run=db.beginRun('scheduled',target.id,1);
+ const raw={capturedAt,accountStatus:'validated',accountError:null,profile:{user:{sec_uid:locator,uid:'12345678',follower_count:20,total_favorited:40,aweme_count:1}},worksCoverage:'unavailable',worksErrorCode:'deferred',works:{stopReason:'request-deferred',pagination:{requestCount:0,pages:[]}},provenance:{mode:'guest-ttwid-unsigned-profile',profileMode:'guest-ttwid-unsigned-profile',profileEndpoint:'https://www.douyin.com/aweme/v1/web/user/profile/other/',accountLocator:'sec_uid',cookiePersisted:false,runtimeAI:false,paidAPI:false}};
+ db.saveCollection(target,run,normalizeCollection(target,raw,{capturedAt}));db.finishRun(run,{status:'success',successCount:1});
+ const s=new MonitorScheduler(db,{continuousRoundStore:store,asyncPlanning:true,worksOnlyEnabled:true});t.after(()=>s.stop());
+ const next=new Date(at.getTime()+120000);assert.equal(store.advance(store.window(at).key,next),true);
+ const fresh=await s.readPlanning('tick',next);assert.deepEqual(fresh.dueIds,[]);assert.equal(fresh.profilePassSettled,true);
+ const stale=await s.readPlanning('tick',new Date(at.getTime()+9*3600000));assert.ok(stale.dueIds.includes(target.id));
+});
+test('an entirely settled continuous queue does not spin checkpoint rounds every minute',async t=>{
+ const {store}=setup(t),db=new MonitorDatabase(':memory:');t.after(()=>db.close());
+ const now=new Date();assert.equal(store.advance(store.window().key,new Date(now.getTime()-120000)),true);
+ const s=new MonitorScheduler(db,{continuousRoundStore:store,asyncPlanning:true,worksOnlyEnabled:true});
+ s.readPlanning=async()=>({asOf:now.toISOString(),slotKey:s.collectionSlot(now).key,dueIds:[],worksTargetId:null,roundSettled:true,profilePassSettled:true});
+ const before=store.window().key;await s.tick(now);assert.equal(store.window().key,before);s.stop();
 });

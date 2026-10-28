@@ -47,3 +47,11 @@ The arithmetic checker exits nonzero on a mismatch. The reference inventory list
 - The in-flight telemetry fix is source-ready, but should be loaded at a safe collection boundary rather than cancelling a long batch.
 
 Hosted frontend version: **v106**, source commit `fc91766213759fc5ab7b60a2ac3d0853f41003fd`.
+
+## Continuation: profile/works scheduling fairness
+
+A fresh checkpoint previously excluded accepted profile observations from the prior checkpoint, even if they were only minutes old. Advancing after a profile pass could therefore trigger another full profile sweep and starve the works lane. Continuous freshness now uses the actual rolling eight-hour observation/audit window across checkpoints. Checkpoints advance only after all currently eligible work settles and the checkpoint is at least eight hours old. Old observations still age out even if works remain deferred.
+
+The real SQLite planning-worker tests include both fresh checkpoint rollover and eventual expiry; related scheduling/telemetry tests pass 42 cases, with 10 separate shutdown/drain cases. Groups overlap earlier reports and must not be added as unique product-wide coverage. This patch is source-ready pending an idle production reload; it must not interrupt the current full batch.
+
+A single read-only test using the existing authorized production works collector returned 30 identity-checked works in the latest public window. It did not modify the production DB, does not prove complete history, and is not a full-roster success rate. A stricter legacy diagnostic stopped on an ordinary same-profile replacement document; that probe's navigation error is not evidence the production collector failed.
