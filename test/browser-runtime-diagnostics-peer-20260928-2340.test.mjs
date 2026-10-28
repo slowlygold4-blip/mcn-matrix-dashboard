@@ -8,7 +8,7 @@ import { sanitizeBrowserWorksDiagnostics, unknownBrowserWorksDiagnostics } from 
 const SEC = 'MS4wLjABAAAAruntimeIndependentFixture123456';
 const OTHER = 'MS4wLjABAAAAruntimeDifferentFixture654321';
 const profile = sec => `https://www.douyin.com/user/${sec}`;
-const works = sec => `https://www.douyin.com/aweme/v1/web/aweme/post/?sec_user_id=${sec}&max_cursor=0&a_bogus=[REDACTED]
+const works = sec => `https://www.douyin.com/aweme/v1/web/aweme/post/?sec_user_id=${sec}&max_cursor=0&a_bogus=PRIVATE_SIGNATURE`;
 const item = { key: 'runtime-peer', secUid: SEC, limit: 30 };
 const options = { timeoutMs: 60, bodyTimeoutMs: 25, failureGraceMs: 1 };
 const payload = () => ({ status_code: 0, aweme_list: [{ aweme_id: '7111111111111111111', author: { sec_uid: SEC }, statistics: { digg_count: 0 } }], has_more: 0, max_cursor: 0 });

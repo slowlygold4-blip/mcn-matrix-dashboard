@@ -9,7 +9,7 @@ import { normalizeAuthorisedDetailInput, collectAuthorisedDetail, validateAuthor
 const JOB = 'c9895a58-14ef-4f1f-8c88-428fb3ce8d6f', VIDEO = '7690702905876096104';
 const SEC = 'MS4wLjABAAAACandidateSourceAuthor001', UID = '1234567890123456789';
 const SHARE = 'https://v.douyin.com/OfflineToken/', URL = `https://www.douyin.com/video/${VIDEO}`;
-const DETAIL = `https://www.douyin.com/aweme/v1/web/aweme/detail/?aweme_id=${VIDEO}&a_bogus=[REDACTED]
+const DETAIL = `https://www.douyin.com/aweme/v1/web/aweme/detail/?aweme_id=${VIDEO}&a_bogus=PRIVATE_SIGNATURE`;
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const job = (changes = {}, options = {}) => ({ id: JOB, status: 'completed', request: { rows: [{ sourceRow: 294, platform: 'douyin',
   name: '不得搜索此昵称', douyinId: '原表昵称', status: 'resolvable', shareUrl: SHARE, ...changes }] }, ...options });

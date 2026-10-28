@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, basename } from 'node:path';
 import { randomUUID, createHash } from 'node:crypto';
 import vm from 'node:vm';
+import { sourceSubmissionIdentity } from '../scripts/source-poller.mjs';
 import { MonitorDatabase, normalizeBoardKey, normalizeBoardName } from '../lib/database.mjs';
 import { AUTHOR_UPLOAD_LIMITS, authorPreviewContentSha256, canonicalAccountLocator, markExistingAuthors,
   normalizeAccountLocator, normalizePlatform, parseAuthorSpreadsheet, validateSubmittedAccountId } from '../lib/author-spreadsheet.mjs';
@@ -120,7 +121,7 @@ async function bitableSubmission(current = SOURCE) {
   const context = vm.createContext({ current: clone(current),
     source: { ...clone(current), tableId: current.sourceSheetId, baseToken: 'PRIVATE_BASE_FIXTURE',
       accessToken: 'PRIVATE_ACCESS_FIXTURE' },
-    normalizeBitableAuthorSource, bitable: { rows: [clone(ROW)] },
+    normalizeBitableAuthorSource, sourceSubmissionIdentity, bitable: { rows: [clone(ROW)] },
     currentSession: { headers: { authorization: 'PRIVATE_AUTH_FIXTURE' } },
     trustedHeaders: { authorization: 'PRIVATE_AUTH_FIXTURE',
       [SOURCE_POLLER_CAPABILITY_HEADER]: SOURCE_POLLER_CAPABILITY },
@@ -128,6 +129,7 @@ async function bitableSubmission(current = SOURCE) {
       assert.equal(path, '/api/author-spreadsheet/auto-monitor');
       assert.equal(headers[SOURCE_POLLER_CAPABILITY_HEADER], SOURCE_POLLER_CAPABILITY);
       assert.equal(headers.authorization, 'PRIVATE_AUTH_FIXTURE');
+      assert.equal(headers['idempotency-key'], sourceSubmissionIdentity(current));
       return clone(payload);
     },
   });
@@ -257,13 +259,13 @@ test('phase72 actual Bitable reader records read completion time, never earlier 
     execFileAsync: async () => {
       clock += 45_000;
       return { stdout: JSON.stringify({ ok: true, data: { fields: ['抖音昵称', '抖音号'],
-        rev: 72, data: [['作者', 'phase72-author']], record_id_list: ['record72'], has_more: false } }) };
+        rev: 72, data: [['作者', 'phase72-author']], record_id_list: ['recFixture72'], has_more: false } }) };
     },
   });
   vm.runInContext(`${actualReader}\nglobalThis.phase72Reader = readBitable;`, context);
   const result = clone(await context.phase72Reader({ ...SOURCE, tableId: SOURCE.sourceSheetId, baseToken: 'PRIVATE_BASE_FIXTURE' }));
   assert.equal(result.sourceReadAt ?? result.readAt, '2026-10-01T17:10:45.000Z');
-  const originalRaw = { fields: ['抖音昵称', '抖音号'], rows: [{ values: ['作者', 'phase72-author'], recordId: 'record72' }] };
+  const originalRaw = { fields: ['抖音昵称', '抖音号'], rows: [{ values: ['作者', 'phase72-author'], recordId: 'recFixture72' }] };
   assert.equal(result.sourceSha256, digest(JSON.stringify(originalRaw)), 'timestamp does not rewrite source content hash');
   const currentBlock = span(poller, '        if (source.sourceType === "lark-bitable") {', '          const baseline =');
   const currentSpan = currentBlock.slice(currentBlock.indexOf('          const current ='));
@@ -313,7 +315,7 @@ for (const [label, patch] of [
   ['deceptive official suffix', { sourceUrl: 'https://feishu.cn.foreign.example/base/BitableObject12345?table=tblBound72' }],
   ['credential URL', { sourceUrl: 'https://user:PRIVATE_PASS@fixture.feishu.cn/base/BitableObject12345?table=tblBound72' }],
   ['custom port', { sourceUrl: 'https://fixture.feishu.cn:8443/base/BitableObject12345?table=tblBound72' }],
-  ['private token query', { sourceUrl: `${SOURCE_URL}&access_token=[REDACTED] }],
+  ['private token query', { sourceUrl: `${SOURCE_URL}&access_token=PRIVATE_TOKEN` }],
   ['unknown query', { sourceUrl: `${SOURCE_URL}&authorization=PRIVATE_AUTH` }],
   ['foreign source object path', { sourceUrl: 'https://fixture.feishu.cn/mail/BitableObject12345?table=tblBound72' }],
   ['invalid table ID', { sourceSheetId: '../tblBound72' }],

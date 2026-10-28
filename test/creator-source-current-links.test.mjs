@@ -132,3 +132,30 @@ test('transaction-scoped proof reuse expires after local writes and after the ex
   assert.equal(readCurrentCreatorSourceLinks(db,options).accountLinks.length,1);
  } finally {if(db.isTransaction)db.exec('ROLLBACK');}
 });
+
+
+test('many candidate authors use one source scan while invalid receipts stay rejected',t=>{
+ const db=fixture(t);
+ for(let id=2;id<=20;id++){
+  db.prepare(`INSERT INTO author_resolution_queue SELECT ?,identity_key,name,douyin_id,account_locator,
+    video_ids_json,share_urls_json,status,evidence_version,verification_policy_version,resolved_target_id,
+    lease_owner,lease_until,suspended_target_enabled,source_metadata_json FROM author_resolution_queue WHERE id=1`).run(id);
+  db.prepare(`INSERT INTO author_resolution_import_sources SELECT ?,queue_identity_key,payload_json,
+    receipt_sha256,observed_at FROM author_resolution_import_sources WHERE queue_id=1`).run(id);
+ }
+ let sourceScans=0;
+ const adapter=new Proxy(db,{get(target,key){
+  if(key==='prepare')return sql=>{
+   const statement=target.prepare(sql);
+   if(!/SELECT\s+\*\s+FROM\s+author_resolution_import_sources/i.test(sql))return statement;
+   return {iterate(...args){sourceScans++;return statement.iterate(...args);}};
+  };
+  const value=Reflect.get(target,key,target);return typeof value==='function'?value.bind(target):value;
+ }});
+ const result=readCurrentCreatorSourceLinks(adapter);
+ assert.equal(sourceScans,1,'source-table scan count must not grow with candidate author count');
+ assert.equal(result.accountLinks.length,1);
+ assert.equal(result.workLinks.length,2);
+ assert.equal(result.stats.receiptAccepted,1);
+ assert.equal(result.stats.rejected,19,'a shared scan must not let unbound queue receipts inherit another author proof');
+});

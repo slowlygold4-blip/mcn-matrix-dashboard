@@ -9,7 +9,7 @@ const OTHER = 'MS4wLjABAAAAotherfixture123456789';
 const origin = 'https://www.douyin.com';
 const endpoint = `${origin}/aweme/v1/web/aweme/post/`;
 const profile = `${origin}/user/${SEC}`;
-const url = (sec = SEC, cursor = '0') => `${endpoint}?sec_user_id=${sec}&max_cursor=${cursor}&a_bogus=[REDACTED]&msToken=[REDACTED]
+const url = (sec = SEC, cursor = '0') => `${endpoint}?sec_user_id=${sec}&max_cursor=${cursor}&a_bogus=PRIVATE_SIGNATURE&msToken=PRIVATE_TOKEN`;
 const item = { key: 'independent-fixture', secUid: SEC, limit: 30 };
 const options = { timeoutMs: 65, bodyTimeoutMs: 20, failureGraceMs: 1 };
 const payload = () => ({ status_code: 0, aweme_list: [{ aweme_id: '1234567890123456789', author: { sec_uid: SEC }, statistics: { digg_count: 2 } }], has_more: true });
@@ -154,7 +154,7 @@ test('independent diagnostics: navigation and late payload cannot erase an alrea
 test('independent diagnostics: login after a verified page preserves original partial evidence without claiming authenticated', async () => {
   const page = new FixturePage(async p => {
     p.response(); for (let i = 0; i < 10; i++) await Promise.resolve();
-    p.navigate(`${origin}/passport/web/login/?token=[REDACTED] p.response();
+    p.navigate(`${origin}/passport/web/login/?token=PRIVATE_TOKEN`); p.response();
   });
   const result = await collectOne(page, item, options); assert.equal(result.status, 'ok'); assert.equal(result.errorCode, 'login_required');
   assert.equal(result.worksCoverage, 'latest-public-window'); assert.equal(result.posts.length, 1); assert.equal(result.posts[0].author.sec_uid, SEC);

@@ -7,7 +7,7 @@ import { collectAuthorisedDetail, normalizeAuthorisedDetailInput, validateAuthor
 const VIDEO='7690702905876096104', SEC='MS4wLjABAAAAuthorisedDetailFixture12345', UID='1234567890123456789';
 const payload={items:[{key:`douyin:exact_user|video:${VIDEO}`,videoId:VIDEO,submittedId:'exact_user'}]};
 const input=normalizeAuthorisedDetailInput(payload);
-const detailUrl=`https://www.douyin.com/aweme/v1/web/aweme/detail/?aweme_id=${VIDEO}&a_bogus=[REDACTED]
+const detailUrl=`https://www.douyin.com/aweme/v1/web/aweme/detail/?aweme_id=${VIDEO}&a_bogus=PRIVATE_QUERY`;
 const response=()=>({status_code:0,aweme_detail:{aweme_id:VIDEO,author:{sec_uid:SEC,uid:UID,unique_id:'exact_user'}}});
 function fixture({body,status=200}={}) {
   const page=new EventEmitter();let current='about:blank';const frame={url:()=>current};let gotos=0;
@@ -81,7 +81,7 @@ test('structure, work identity, canonical ID and deletion checks retain fail-clo
 test('parent diagnostics projection drops all unknown values and incompatible or malicious enums',async()=>{
   const r=await fixture({body:'not JSON'}).collect();
   const safe=validateAuthorisedDetailResult(input,{...r,diagnostic:{...r.diagnostic,rawBody:'PRIVATE_BODY',
-    headers:{Cookie:'PRIVATE_COOKIE'},url:'https://evil.test/?token=[REDACTED]'}},options(r));
+    headers:{Cookie:'PRIVATE_COOKIE'},url:'https://evil.test/?token=PRIVATE'}},options(r));
   assert.deepEqual(safe.diagnostic,r.diagnostic);assert.equal(JSON.stringify(safe).includes('PRIVATE'),false);
   for(const value of [null,[],{},'PRIVATE',{version:2,stage:'body',reason:'body_not_json'},
     {version:1,stage:'body',reason:'PRIVATE_COOKIE'},{version:1,stage:'body\nPRIVATE',reason:'body_not_json'},

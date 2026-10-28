@@ -7,7 +7,7 @@ import { isExpectedDouyinFirstWorksResponseUrl } from "../lib/douyin-browser-res
 const SEC = "MS4wLjABAAAAabcdefghijklmnopqrstuvwx";
 const OTHER = "MS4wLjABBBBBzyxwvutsrqponmlkjihgfedcba";
 const endpoint = "https://www.douyin.com/aweme/v1/web/aweme/post/";
-const worksUrl = (sec = SEC) => `${endpoint}?sec_user_id=${sec}&max_cursor=0&count=30&a_bogus=[REDACTED]
+const worksUrl = (sec = SEC) => `${endpoint}?sec_user_id=${sec}&max_cursor=0&count=30&a_bogus=PRIVATE_TEST_SIGNATURE`;
 const profileUrl = (sec = SEC) => `https://www.douyin.com/user/${sec}`;
 const item = { key: "account-a", secUid: SEC, limit: 30 };
 const options = { timeoutMs: 180, bodyTimeoutMs: 120, failureGraceMs: 1 };

@@ -160,8 +160,8 @@ test('independent revision: late backdated inserts and future inserts cannot ent
 test('independent private projection: raw, cookie, credentials, hostile URLs never escape any kind', (t) => {
   const { sample, post, bindPostObservation, read } = fixture(t);
   sample(0, 0, 0, 0);
-  const workId = post(1, { url: `https://user:${SECRET}@www.bilibili.com/video/${externalId(1)}?access_token=[REDACTED] });
-  post(2, { url: `https://www.bilibili.com/video/${externalId(2)}?access_token=[REDACTED]#${SECRET}` });
+  const workId = post(1, { url: `https://user:${SECRET}@www.bilibili.com/video/${externalId(1)}?access_token=${SECRET}` });
+  post(2, { url: `https://www.bilibili.com/video/${externalId(2)}?access_token=${SECRET}#${SECRET}` });
   bindPostObservation();
   for (const kind of ['works', 'daily', 'workMetrics']) {
     const result = read({ kind, ...(kind === 'workMetrics' ? { workId } : {}) });

@@ -5,7 +5,7 @@ import { isExpectedDouyinWorksResponseUrl } from "../lib/douyin-browser-response
 const SEC = "MS4wLjABAAAAabcdefghijklmnopqrstuvwx";
 const OTHER = "MS4wLjABBBBBzyxwvutsrqponmlkjihgfedcba";
 const ENDPOINT = "https://www.douyin.com/aweme/v1/web/aweme/post/";
-const url = `${ENDPOINT}?sec_user_id=${SEC}&count=30&max_cursor=0&a_bogus=[REDACTED]
+const url = `${ENDPOINT}?sec_user_id=${SEC}&count=30&max_cursor=0&a_bogus=TEST_PRIVATE_SIGNATURE`;
 
 test("works response is bound to the exact requested sec_user_id independently of query ordering", () => {
   assert.equal(isExpectedDouyinWorksResponseUrl(url, SEC), true);

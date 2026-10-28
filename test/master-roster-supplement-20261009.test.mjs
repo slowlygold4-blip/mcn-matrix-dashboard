@@ -159,7 +159,7 @@ test('a linked entry rejects different evidence, permits exact replay and concur
 
 test('unsafe links never reach the worker and registered originals cannot be supplemented', async t => {
   const f = fixture(t);
-  for (const evidence of ['http://127.0.0.1/a', 'https://evil.test/video/123', `https://user:pass@www.douyin.com/user/${SEC}`, `${URL}?access_token=[REDACTED] {
+  for (const evidence of ['http://127.0.0.1/a', 'https://evil.test/video/123', `https://user:pass@www.douyin.com/user/${SEC}`, `${URL}?access_token=synthetic-fixture-value`]) {
     await assert.rejects(prepareMasterRosterSupplement(f.db, f.input(evidence)), error => error.status === 400);
   }
   await assert.rejects(prepareMasterRosterSupplement(f.db, { ...f.input(SEC), entryKey: 'missing' }), error => error.status === 404);

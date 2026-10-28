@@ -12,7 +12,7 @@ const VIDEO = '7690702905876096104', UID = '1234567890123456789';
 const item = { key: 'douyin:Exact_User|video:7690702905876096104', videoId: VIDEO, submittedId: 'Exact_User' };
 const payload = () => ({ items: [{ ...item }] });
 const input = normalizeAuthorisedDetailInput(payload());
-const url = `https://www.douyin.com/aweme/v1/web/aweme/detail/?aweme_id=${VIDEO}&a_bogus=[REDACTED]
+const url = `https://www.douyin.com/aweme/v1/web/aweme/detail/?aweme_id=${VIDEO}&a_bogus=PRIVATE_TEST_SIGNATURE`;
 const body = () => ({ status_code: 0, aweme_detail: { aweme_id: VIDEO,
   author: { sec_uid: SEC, uid: UID, unique_id: 'Exact_User', short_id: '0001234567890123456789', nickname: 'PRIVATE_UNUSED_NAME' },
   video: { play_addr: { url_list: ['https://example.com/private-signature'] } } }, headers: { cookie: 'PRIVATE_RESPONSE_COOKIE' } });

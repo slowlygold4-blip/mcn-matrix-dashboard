@@ -66,3 +66,17 @@ npm run audit:published-math -- /absolute/path/to/sealed-publication
 ```
 
 The latest reviewed sealed edition has 41,437 account-day rows and 164 topic-day rows. All 166,732 arithmetic/baseline comparisons match. This is arithmetic evidence only, not proof of full-roster/source coverage or current publication status.
+
+## Source-link performance and code boundaries
+
+Receipt verification is now a pure module (`lib/author-resolution-proof.mjs`); the legacy export remains compatible. The five-module source/roster reference cycle is reduced to the existing two-module roster/supplement cycle, which remains a separate refactor candidate. Reference-cycle inventory distinguishes literal worker/script references from confirmed initialization bugs.
+
+A production read-only diagnostic exposed an N+1 full-table scan: the legacy source table lacks a queue-ID lookup index. Current links now scan source receipts once, restricted to the already eligible queue IDs, while retaining all source hashes, immutable admission receipts, queue versions and identity checks. A fault test reproduces 20 scans before the fix and one scan after it; 19 invalid queue receipts remain rejected. Related source/identity tests pass 126 cases; publication/board tests pass 17 and the targeted performance combination passes 52 (overlapping groups).
+
+The same production read, stopped after exceeding 95 seconds before the fix, completes in about 362 ms afterward. All 3,436 derived links match the sealed reference hash exactly, and SQLite reports zero local writes. This measured result is one snapshot/read operation, not a general full-product latency guarantee. Production process loading is tracked separately at the safe collection boundary.
+
+## Public handoff source integrity
+
+A compile-only inventory found 10 synthetic test files whose quote/backtick delimiters were broken by an earlier archive-redaction pass. They now use explicit synthetic fixture values; no real credentials were restored. A reusable `npm run audit:source-syntax` compiles tracked JavaScript modules without evaluating them. The post-fix scan covers 1,151 tracked JS modules with zero syntax errors; all 16 tracked Python files also parse. This is syntax validation, not execution of the entire test suite.
+
+Three stale Bitable fixture checks were updated to include the real idempotency-key helper and valid synthetic record IDs, while retaining source-hash, read-completion-time and rejection assertions. The source/roster/publication combination passes 144 cases in the public checkout.
