@@ -77,6 +77,6 @@ The same production read, stopped after exceeding 95 seconds before the fix, com
 
 ## Public handoff source integrity
 
-A compile-only inventory found 10 synthetic test files whose quote/backtick delimiters were broken by an earlier archive-redaction pass. They now use explicit synthetic fixture values; no real credentials were restored. A reusable `npm run audit:source-syntax` compiles tracked JavaScript modules without evaluating them. The post-fix scan covers 1,151 tracked JS modules with zero syntax errors; all 16 tracked Python files also parse. This is syntax validation, not execution of the entire test suite.
+A compile-only inventory found 10 synthetic test files whose quote/backtick delimiters were broken by an earlier archive-redaction pass. They now use explicit synthetic fixture values; no real credentials were restored. A reusable `npm run audit:source-syntax` compiles tracked JavaScript modules without evaluating them. The post-fix scan covers 1,153 tracked JS modules with zero syntax errors; all 16 tracked Python files also parse. This is syntax validation, not execution of the entire test suite.
 
 Three stale Bitable fixture checks were updated to include the real idempotency-key helper and valid synthetic record IDs, while retaining source-hash, read-completion-time and rejection assertions. The source/roster/publication combination passes 144 cases in the public checkout.
