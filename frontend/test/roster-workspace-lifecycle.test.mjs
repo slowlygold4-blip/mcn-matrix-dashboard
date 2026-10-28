@@ -57,7 +57,7 @@ const visualShells={
  'daily-coverage-panel':'export function DailyCoveragePanel(){return null}',
  'topic-history':'export function TopicHistory(){return null}',
  'other-source-catalog':'export function OtherSourceCatalog(){return null}',
- 'source-operations':'export function SourceOperations({onNavigateAccounts}){return <section data-testid="source-operations"><div style={{height:1200}}>合成总览占位</div><button onClick={onNavigateAccounts}>查看账号变化</button></section>}',
+ 'source-operations':'export function SourceOperations({onNavigateAccounts,accountPreview}){return <section data-testid="source-operations">{accountPreview}<div style={{height:1200}}>合成总览占位</div><button onClick={onNavigateAccounts}>查看账号变化</button></section>}',
 };
 const bundle=await build({stdin:{contents:`import React from 'react';import {createRoot} from 'react-dom/client';import Home from './app/page';window.fixture={reads:[],parts:${JSON.stringify(parts)}};createRoot(document.getElementById('root')).render(<Home/>);`,resolveDir:site,sourcefile:'roster-workspace-lifecycle-fixture.tsx',loader:'tsx'},absWorkingDir:site,bundle:true,write:false,format:'iife',platform:'browser',jsx:'automatic',tsconfig:site+'tsconfig.json',define:{'process.env.NODE_ENV':'"test"'},plugins:[{name:'unrelated-panel-shells',setup(build){
  build.onLoad({filter:/components\/[^/]+\.tsx$/},args=>{const name=args.path.split('/').at(-1).replace(/\.tsx$/,'');return visualShells[name]?{contents:visualShells[name],loader:'tsx',resolveDir:site}:null;});
@@ -298,5 +298,19 @@ test('cold author-work share link keeps works readable and retries only failed a
   await page.getByRole('button',{name:'返回原核对页',exact:true}).click();
   await table.locator('tbody tr').first().waitFor();assert.equal(await table.locator('tbody').textContent(),before);
   assert.equal(page.url(),beforeUrl);assert.deepEqual(errors,[]);noMutations(requests);
+ }finally{await context.close();}}finally{await browser.close();}
+});
+
+// Real Home + comparison helper + overview: dates change only after explicit action.
+test('missing period endpoints offer a real comparison and apply dates, net change and keyboard focus',async()=>{
+ const browser=await launch();
+ try{const {context,page,errors,requests}=await openFixture(browser,'?theme=tuantuan&period=custom&start=2026-09-13&end=2026-09-30#overview');try{
+  const action=page.getByRole('button',{name:'查看这个可比区间',exact:true});await action.waitFor();
+  const before=new URL(page.url());assert.equal(before.searchParams.get('start'),'2026-09-13');assert.equal(before.searchParams.get('end'),'2026-09-30');
+  await page.getByText(/2026-09-23 → 2026-09-30 有 1 个启用账号/).waitFor();
+  await action.click();await page.waitForFunction(()=>{const q=new URL(location.href).searchParams;return q.get('start')==='2026-09-23'&&q.get('end')==='2026-09-30'&&q.get('period')==='custom'});
+  await page.getByRole('button',{name:/粉丝净变化.*\+2/}).waitFor();
+  assert.equal(await page.evaluate(()=>document.activeElement?.id),'matrix-growth');
+  assert.deepEqual(errors,[]);noMutations(requests);
  }finally{await context.close();}}finally{await browser.close();}
 });

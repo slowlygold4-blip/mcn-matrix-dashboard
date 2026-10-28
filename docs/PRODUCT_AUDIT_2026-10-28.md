@@ -9,7 +9,7 @@ This public note contains code and synthetic-test results only. Operational repo
 - The producer and public ingestion route share bounded UTF-8 byte budgets. A growing catalog can be uploaded separately without raising limits for ordinary work partitions or anonymous uploads.
 - Continuous profile freshness no longer depends on the works queue becoming empty. Durable work cursors and upstream cooldowns remain independent.
 - Collection coverage can include atomically committed, matching snapshot/audit evidence during a long running batch. Progress counters alone do not prove usable observations.
-- The committed-topic reader recognizes the current writer's time-contract version 1 without relaxing the parent, source, hash or timestamp checks. Unsupported versions remain rejected. Related positive/negative checks: 80 passed. This fix awaits a safe publisher reload.
+- The committed-topic reader recognizes the current writer's time-contract version 1 without relaxing the parent, source, hash or timestamp checks. Unsupported versions remain rejected. Related positive/negative checks: 80 passed. The publisher was reloaded without stopping the collection server. Already sealed generations are not rewritten.
 - A missing endpoint comparison offers a clearly dated, verified alternative range. It never fabricates the business-start baseline or silently replaces the requested dates.
 - Phone account metrics keep numeric values and change indicators aligned; desktop, phone and print checks cover all seven columns.
 - An unused geometry experiment and its tests have moved from production `lib/` into `experiments/profile-root-geometry/`.
@@ -27,7 +27,7 @@ npm run audit:code-layout
 
 `test:core` uses synthetic data and temporary SQLite databases. It passed independently from this public checkout after dependency installation: 61 tests. Including the table-import tests after the dependency patches: 103 tests passed.
 
-The full hosted frontend checkout passed 302 tests and TypeScript checks. Some historical frontend integration tests intentionally require the owner's sealed data fixtures and local browser test harness; the public repository does not include those business files. Do not interpret a missing private fixture as a new collection failure.
+The full hosted frontend checkout passed 302 tests and TypeScript checks. A further actual-Home fixture verifies the comparison action changes dates and net growth only on click and restores keyboard focus. Some historical frontend integration tests intentionally require the owner's sealed data fixtures and local browser test harness; the public repository does not include those business files. Do not interpret a missing private fixture as a new collection failure.
 
 With an authorized local data restore, deterministic read-only operational checks are available:
 
