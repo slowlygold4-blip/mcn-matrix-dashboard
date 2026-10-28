@@ -55,3 +55,14 @@ A fresh checkpoint previously excluded accepted profile observations from the pr
 The real SQLite planning-worker tests include both fresh checkpoint rollover and eventual expiry; related scheduling/telemetry tests pass 42 cases, with 10 separate shutdown/drain cases. Groups overlap earlier reports and must not be added as unique product-wide coverage. This patch is source-ready pending an idle production reload; it must not interrupt the current full batch.
 
 A single read-only test using the existing authorized production works collector returned 30 identity-checked works in the latest public window. It did not modify the production DB, does not prove complete history, and is not a full-roster success rate. A stricter legacy diagnostic stopped on an ordinary same-profile replacement document; that probe's navigation error is not evidence the production collector failed.
+
+## Deterministic topic arithmetic checks
+
+The standalone arithmetic audit now also checks both topic daily deltas and their previous-calendar-day baseline timestamps/checksums. Missing fields, missing dates, zero substitution and cross-topic baselines are rejected. Eight standard-library tests include fault injection and real CLI nonzero exit without input changes.
+
+```sh
+npm run test:audit-math
+npm run audit:published-math -- /absolute/path/to/sealed-publication
+```
+
+The latest reviewed sealed edition has 41,437 account-day rows and 164 topic-day rows. All 166,732 arithmetic/baseline comparisons match. This is arithmetic evidence only, not proof of full-roster/source coverage or current publication status.

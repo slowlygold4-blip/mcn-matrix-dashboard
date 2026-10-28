@@ -18,7 +18,8 @@
     "audit:product-state": "node scripts/audit-product-state.mjs",
     "audit:published-math": "python3 scripts/audit-published-math.py",
     "audit:code-layout": "python3 scripts/audit-code-layout.py",
-    "test:core": "node --test --test-concurrency=1 test/collection-progress.test.mjs test/continuous-collection-round.test.mjs test/source-poller-bootstrap.test.mjs test/source-poller.test.mjs test/public-replica-sync-20261001.test.mjs"
+    "test:core": "node --test --test-concurrency=1 test/collection-progress.test.mjs test/continuous-collection-round.test.mjs test/source-poller-bootstrap.test.mjs test/source-poller.test.mjs test/public-replica-sync-20261001.test.mjs",
+    "test:audit-math": "python3 -m unittest discover -s test -p audit_published_math_test.py"
   },
   "engines": {
     "node": ">=24.0.0"
