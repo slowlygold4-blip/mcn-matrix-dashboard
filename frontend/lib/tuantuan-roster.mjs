@@ -1,4 +1,5 @@
 import {isIndependentStreamer} from './matrix-scope.mjs';
+import {rosterProfileExport} from './tuantuan-roster-metrics.mjs';
 /** Join an imported author to a published account only through persisted target IDs. */
 export function buildTuantuanRoster(authors, accounts, supplements=[], pending=[]) {
  if (![authors,accounts,supplements,pending].every(Array.isArray)) throw Error('团团名册输入无效');
@@ -103,10 +104,11 @@ export function sourceRosterMetric(source, field) {
  return source[field];
 }
 
-export function tuantuanRosterExport(rows) {
+export function tuantuanRosterExport(rows, context={}) {
  if (!Array.isArray(rows)) throw Error('团团名册导出需要作者记录');
  return [
-  ['作者','抖音号','监控状态','监控目标 ID','表格作品','表格累计播放','表格累计点赞','来源证据','数据口径'],
+  ['作者','抖音号','监控状态','监控目标 ID','表格作品','表格累计播放','表格累计点赞','来源证据','数据口径',
+   '最新粉丝数','粉丝采样日期','最新主页获赞','获赞采样日期','对比区间','粉丝变化','主页获赞变化','作品存量变化','区间核对状态','主页与排序口径'],
   ...rows.map(row => {
    const source=row.source,accounts=row.accounts ?? [];
    return [source?.name || accounts[0]?.label || '',source?.identifierStatus==='unusable'
@@ -116,7 +118,8 @@ export function tuantuanRosterExport(rows) {
     accounts.map(account=>account.id).join(' / '),sourceRosterMetric(source,'posts'),
     sourceRosterMetric(source,'plays'),sourceRosterMetric(source,'likes'),
     Array.isArray(source?.sourceTitles)?source.sourceTitles.join(' / '):source?'团团作者总表':'仅监控名册',
-    source?'表格累计值，非日新增；主页指标另见监控账号':'表格未登记；仅有主页监控名册'];
+    source?'表格累计值，非日新增；主页指标另见监控账号':'表格未登记；仅有主页监控名册',
+    ...rosterProfileExport(row,context)];
   }),
  ];
 }

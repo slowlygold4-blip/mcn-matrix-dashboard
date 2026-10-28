@@ -1,3 +1,4 @@
+import {rosterSortFields} from './tuantuan-roster-metrics.mjs';
 const fields={panel:'rosterPanel',query:'rosterQuery',mode:'rosterMode',sort:'rosterSort',direction:'rosterDirection',page:'rosterPage'};
 const known=new Set(Object.values(fields));
 // rosterStatus belongs to the separate account-metrics list, not this roster.
@@ -23,7 +24,7 @@ export function rosterSelection(search=''){
  for(const [field,key]of Object.entries(fields))if(params.has(key))selection[field]=params.get(key);
  selection.panel=rosterPanelSelection(search);
  if(!['all','monitored','paused','source-only'].includes(selection.mode))throw Error('团团名册链接的作者范围无效。');
- if(!['plays','likes','posts','name'].includes(selection.sort))throw Error('团团名册链接的排序无效。');
+ if(!rosterSortFields.some(option=>option.key===selection.sort))throw Error('团团名册链接的排序无效。');
  if(!['asc','desc'].includes(selection.direction))throw Error('团团名册链接的排序顺序无效。');
  if(typeof selection.query!=='string'||selection.query.length>200||/[\u0000-\u001f\u007f]/.test(selection.query))throw Error('团团名册链接的搜索内容无效。');
  if(!/^[1-9]\d{0,5}$/.test(String(selection.page)))throw Error('团团名册链接的页码无效。');

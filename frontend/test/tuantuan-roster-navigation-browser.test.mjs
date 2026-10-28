@@ -7,9 +7,10 @@ import {build} from 'esbuild';
 const site=fileURLToPath(new URL('../',import.meta.url));
 const main=process.env.MCN_MAIN_ROOT||fileURLToPath(new URL('../../douyin-monitor-workbench/',import.meta.url));
 const {chromium}=createRequire(main+'package.json')('playwright-core');
-const rows=Array.from({length:65},(_,index)=>({key:'fixture-'+index,source:{name:'作者'+String(index+1).padStart(3,'0'),douyinId:'id-'+index,douyinIds:['id-'+index,'alias-'+index],posts:1,slicePosts:1,plays:index,likes:index*2,sourceTitles:['合成总表','合成补表']},accounts:index%4===3?[]:[{id:index+1,label:'监控'+(index+1),enabled:index%4<2}]}));
+const rows=Array.from({length:65},(_,index)=>({key:'fixture-'+index,source:{name:'作者'+String(index+1).padStart(3,'0'),douyinId:'id-'+index,douyinIds:['id-'+index,'alias-'+index],posts:1,slicePosts:1,plays:index,likes:index*2,sourceTitles:['合成总表','合成补表']},accounts:index%4===3?[]:[{id:index+1,label:'监控'+(index+1),enabled:index%4<2,latest:{followers:{value:index*10,date:'2026-10-28'},likes:{value:index*20,date:'2026-10-28'}}}]}));
 const roster={rows,counts:{all:65,monitoredEnabled:33,monitoredPaused:16,source:65,baseSource:65,supplementSource:0,reconciledAliases:0,monitored:49,linkedTargets:49}};
-const fixture=`import React,{useState} from 'react';import {createRoot} from 'react-dom/client';import {TuantuanRosterTable} from './components/tuantuan-roster';const original=${JSON.stringify(roster)};function Fixture(){const [roster,setRoster]=useState(original),[active,setActive]=useState(true),[mounted,setMounted]=useState(true),[classification,setClassification]=useState('all');window.fixture={original,setRoster,setActive,setMounted,setClassification};return <div data-roster-shell hidden={!active}>{mounted&&<TuantuanRosterTable roster={roster} classification={classification} addressMode active={active} onOpenAccount={(row,trigger)=>{window.lastAccount={id:row.id,connected:trigger.isConnected,button:trigger.tagName};window.accountTrigger=trigger}} onOpenSourceWorks={(row,trigger)=>{window.lastSource={id:row.douyinId,connected:trigger.isConnected,button:trigger.tagName};window.sourceTrigger=trigger}}/>}</div>}createRoot(document.getElementById('root')).render(<Fixture/>);`;
+const metrics=rows.flatMap(row=>row.accounts.map(account=>({id:account.id,metrics:{followers:{delta:account.id-32,baseline:100,value:100+account.id-32},likes:{delta:32-account.id},posts:{delta:account.id%5-2}}})));
+const fixture=`import React,{useState} from 'react';import {createRoot} from 'react-dom/client';import {TuantuanRosterTable} from './components/tuantuan-roster';const original=${JSON.stringify(roster)},initialMetrics=${JSON.stringify(metrics)};function Fixture(){const [roster,setRoster]=useState(original),[active,setActive]=useState(true),[mounted,setMounted]=useState(true),[classification,setClassification]=useState('all'),[metricRows,setMetrics]=useState(initialMetrics),[changesReady,setReady]=useState(true),[periodLabel,setPeriod]=useState('2026-10-01 -> 2026-10-28');window.fixture={original,setRoster,setActive,setMounted,setClassification,setMetrics,setReady,setPeriod};return <div data-roster-shell hidden={!active}>{mounted&&<TuantuanRosterTable roster={roster} classification={classification} addressMode active={active} metricRows={metricRows} changesReady={changesReady} periodLabel={periodLabel} onOpenAccount={(row,trigger)=>{window.lastAccount={id:row.id,connected:trigger.isConnected,button:trigger.tagName};window.accountTrigger=trigger}} onOpenSourceWorks={(row,trigger)=>{window.lastSource={id:row.douyinId,connected:trigger.isConnected,button:trigger.tagName};window.sourceTrigger=trigger}}/>}</div>}createRoot(document.getElementById('root')).render(<Fixture/>);`;
 
 test('real roster controls preserve task state across URL navigation, loading and remounts',{timeout:45000},async t=>{
  const bundle=await build({stdin:{contents:fixture,resolveDir:site,sourcefile:'roster-navigation-fixture.tsx',loader:'tsx'},absWorkingDir:site,bundle:true,write:false,format:'iife',platform:'browser',jsx:'automatic',tsconfig:site+'tsconfig.json',define:{'process.env.NODE_ENV':'"test"'}});
@@ -83,7 +84,37 @@ test('real roster controls preserve task state across URL navigation, loading an
    await page.goto('http://127.0.0.1:49119/?rosterPanel=authors&rosterPage=4#accounts');
    await page.getByRole('alert').filter({hasText:'链接请求第 4 页'}).waitFor();assert.equal(new URL(page.url()).searchParams.get('rosterPage'),'4');
    await page.getByRole('button',{name:'回到第一页',exact:true}).click();await panel.locator('tbody tr').first().waitFor();assert.equal(new URL(page.url()).searchParams.has('rosterPage'),false);
-   assert.deepEqual(errors,[]);
+    assert.deepEqual(errors,[]);
   });
+   await t.test('all profile and change headers rank both ways, preserve URL scope and export their displayed metrics',async()=>{
+    await page.goto('http://127.0.0.1:49119/?rosterSort=followers.value&rosterPage=2&rosterStatus=paused#accounts');
+    await panel.locator('tbody tr').first().waitFor();
+    assert.equal(await page.getByLabel('上方页码').inputValue(),'2','a direct metric-rank page remains addressable');
+    for(const [key,label] of [['followers.value','最新粉丝数'],['likes.value','最新主页获赞'],
+      ['followers.delta','粉丝变化'],['likes.delta','主页获赞变化'],['posts.delta','作品存量变化']]){
+     await page.getByLabel('团团名册排序指标').selectOption(key);
+     const header=panel.getByRole('columnheader',{name:new RegExp('^'+label)}),button=header.getByRole('button');
+     await button.click();const first=await header.getAttribute('aria-sort');
+     assert.ok(['ascending','descending'].includes(first));assert.equal(new URL(page.url()).searchParams.has('rosterPage'),false);
+     assert.equal(new URL(page.url()).searchParams.get('rosterSort'),key);
+     await button.click();assert.notEqual(await header.getAttribute('aria-sort'),first);
+    }
+    await page.getByLabel('团团名册排序指标').selectOption('followers.delta');
+    await page.getByLabel('团团名册排序顺序').selectOption('desc');
+    assert.match(await panel.locator('tbody tr').first().innerText(),/作者065/);
+    await page.evaluate(()=>{window.fixture.setMetrics([{id:1,metrics:{followers:{delta:100,baseline:0,value:100}}}]);window.fixture.setPeriod('2026-10-20 -> 2026-10-28');});
+    await page.waitForFunction(()=>document.querySelector('.source-table tbody tr')?.textContent.includes('作者001'));
+    assert.match(await panel.getByRole('columnheader',{name:/^粉丝变化/}).innerText(),/2026-10-20/);
+    assert.match(await panel.locator('tbody tr').first().locator('td').nth(7).innerText(),/\+100/);
+    await panel.getByRole('button',{name:'导出当前筛选',exact:true}).click();
+    const output=await page.evaluate(()=>window.exports.at(-1).text());
+    assert.equal(output.trim().split(/\r?\n/).length,66);assert.match(output,/最新粉丝数/);
+    assert.match(output,/2026-10-20 -> 2026-10-28/);assert.match(output,/已核对/);
+    assert.equal(new URL(page.url()).searchParams.get('rosterStatus'),'paused');
+    await page.evaluate(()=>window.fixture.setReady(false));
+    assert.equal(await panel.getByRole('columnheader',{name:/^粉丝变化/}).getByRole('button').isDisabled(),true);
+    assert.match(await panel.locator('tbody tr').first().locator('td').nth(7).innerText(),/区间数据核对中/);
+    assert.deepEqual(errors,[]);
+   });
  }finally{await context.close();}}finally{await browser.close();}
 });

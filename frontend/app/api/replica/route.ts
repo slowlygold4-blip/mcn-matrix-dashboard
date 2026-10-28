@@ -57,8 +57,10 @@ export async function POST(request: Request) {
       if(!Array.isArray(input.files)||input.files.length<1||input.files.length>50)return json({error:"无效分区批次"},400);
       const activated=await db.prepare("SELECT manifest FROM replica_generations WHERE generation=?").bind(input.asOf).first<{manifest:string}>();
       const sealed=activated?new Map(JSON.parse(activated.manifest).files.map((f:{path:string;sha256:string})=>[f.path,f.sha256])):null;
+      const prepared:{path:string;sha256:string;data:string;bytes:number}[]=[],paths=new Set<string>();
       for(const f of input.files) {
         if(typeof f.path!=="string"||!PATH.test(f.path)||!SHA.test(f.sha256)||typeof f.data!=="string"||new TextEncoder().encode(f.data).length>replicaPartitionByteLimit(f.path))return json({error:"无效分区"},400);
+        if(paths.has(f.path))return json({error:"重复分区路径"},400);paths.add(f.path);
         const parsed=JSON.parse(f.data);
         if(parsed.asOf!==input.asOf || privateKey(parsed) || await bytesHash(f.data)!==f.sha256)return json({error:"分区审查或校验失败"},400);
         if(f.path.startsWith('summary/')&&(f.data.length>1_000_000||!summaryPartValid(parsed,input.asOf)||parsed.items.length<1))return json({error:"历史分片字段或时间不一致"},400);
@@ -66,11 +68,28 @@ export async function POST(request: Request) {
         if(f.path==='date-summary-index.json'&&f.data.length>1_000_000)return json({error:"日期索引过大"},400);
         if(f.path==='summary.json'&&!Array.isArray(parsed.items)&&f.data.length>1_000_000)return json({error:"历史索引过大"},400);
         if(sealed&&sealed.get(f.path)!==f.sha256)return json({error:"已发布数据截面不可新增或改写"},409);
-        const existing=await db.prepare("SELECT checksum FROM replica_files WHERE generation=? AND path=?").bind(input.asOf,f.path).first<{checksum:string}>();
-        if(existing&&existing.checksum!==f.sha256)return json({error:"已保存分区不可改写"},409);
-        await bucket.put(`${input.asOf}/${f.sha256}`,f.data,{httpMetadata:{contentType:"application/json"}});
-        await db.prepare("INSERT INTO replica_files(generation,path,checksum,bytes) VALUES(?,?,?,?) ON CONFLICT(generation,path) DO NOTHING").bind(input.asOf,f.path,f.sha256,new TextEncoder().encode(f.data).length).run();
+        prepared.push({...f,bytes:new TextEncoder().encode(f.data).length});
       }
+      // Validate the entire input before any write. Two bounded storage workers
+      // drain on failure; the response never leaves orphan asynchronous work.
+      // Metadata uses one transaction instead of 50 individual D1 write trips.
+      const query="SELECT path,checksum FROM replica_files WHERE generation=? AND path IN ("+prepared.map(()=>'?').join(',')+")";
+      const readMetadata=()=>db.prepare(query).bind(input.asOf,...prepared.map(f=>f.path)).all<{path:string;checksum:string}>();
+      const expected=new Map(prepared.map(f=>[f.path,f.sha256]));
+      const existing=await readMetadata();
+      if(existing.results.some(f=>expected.get(f.path)!==f.checksum))return json({error:"已保存分区不可改写"},409);
+      let next=0,failed=false;
+      const store=async()=>{while(!failed&&next<prepared.length){const f=prepared[next++];try{
+        await bucket.put(`${input.asOf}/${f.sha256}`,f.data,{httpMetadata:{contentType:"application/json"}});
+      }catch{failed=true;}}};
+      await Promise.allSettled(Array.from({length:Math.min(2,prepared.length)},store));
+      if(failed)return json({error:"分区保存未完成，尚未确认本批次"},503);
+      const writes=await db.batch(prepared.map(f=>db.prepare("INSERT INTO replica_files(generation,path,checksum,bytes) VALUES(?,?,?,?) ON CONFLICT(generation,path) DO NOTHING").bind(input.asOf,f.path,f.sha256,f.bytes)));
+      if(writes.length!==prepared.length||writes.some(result=>!result.success))return json({error:"批次索引保存未完成，尚未确认本批次"},503);
+      // A competing immutable upload can win between the initial read and the
+      // batch. Acknowledge only the exact hashes now bound in D1.
+      const committed=await readMetadata();
+      if(committed.results.length!==prepared.length||committed.results.some(f=>expected.get(f.path)!==f.checksum))return json({error:"已保存分区不可改写"},409);
       return json({accepted:input.files.length,asOf:input.asOf});
     }
     if(input.action!=="activate"||input.manifest?.asOf!==input.asOf||!Array.isArray(input.manifest.files)||privateKey(input.manifest))return json({error:"无效发布清单"},400);

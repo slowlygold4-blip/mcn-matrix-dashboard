@@ -123,13 +123,16 @@ test('actual topic-only CLI publishes via explicit proof while default readers, 
       const oldProof=oldProofModule.readCommittedTargetPublication(db,{asOf});
       try {
         assert.equal(oldProof.runningSnapshotCount,0,'Phase97 baseline has no topic publication proof');
-        assert.ok(oldExport.exportPublicReplica(db,{asOf,committedPublication:oldProof}).topics.items.every(row=>row.participants===null&&row.views===null),'same saved current topic is unavailable in Phase97 baseline');
+        assert.ok(oldExport.exportPublicReplica(db,{asOf,committedPublication:oldProof}).topics.items.filter(row=>row.capturedAt===capturedAt).every(row=>row.participants===null&&row.views===null),'same saved current topic is unavailable in Phase97 baseline');
       } finally {oldProofModule.releaseCommittedTargetPublication(oldProof);}
     }
     const proof=readCommittedTargetPublication(db,{asOf});
     assert.equal(proof.runningProfileCount,0);assert.equal(proof.runningTopicCount,1);assert.equal(proof.runningSnapshotCount,1);
-    const defaults=exportPublicReplica(db,{asOf});assert.ok(defaults.topics.items.every(row=>row.participants===null&&row.views===null));
-    const explicit=exportPublicReplica(db,{asOf,committedPublication:proof});assert.deepEqual(explicit.topics.items.map(row=>[row.participants,row.views]),[[12,34]]);
+    const defaults=exportPublicReplica(db,{asOf});const currentDefault=defaults.topics.items.find(row=>row.capturedAt===capturedAt);assert.ok(currentDefault);assert.equal(currentDefault.participants,null);assert.equal(currentDefault.views,null);
+    const explicit=exportPublicReplica(db,{asOf,committedPublication:proof});assert.deepEqual(explicit.topics.items.filter(row=>row.capturedAt===capturedAt).map(row=>[row.participants,row.views]),[[12,34]]);
+    // A prior Beijing calendar day's qualified observation must survive.
+    const currentDay=new Date(Date.parse(capturedAt)+8*3600_000).toISOString().slice(0,10);
+    assert.deepEqual(explicit.topics.items.filter(row=>row.date!==currentDay),baseline.topics.items.filter(row=>row.date!==currentDay));
     const {shouldStagePublicReplica}=await import(new URL('scripts/public-replica-publisher.mjs',root));
     const observed={running:true,marker:'topic-only',committedPublication:proof};
     assert.equal(shouldStagePublicReplica({active:null,coveredMarker:marker,exportRevision:PUBLIC_REPLICA_EXPORT_REVISION,publishedAsOf:asOf,lastConfirmedPublishedAt:asOf},observed,Date.parse(asOf)),false,'30 minute cadence not shortened');
@@ -148,7 +151,7 @@ test('actual topic-only CLI publishes via explicit proof while default readers, 
     await new Promise((resolve,reject)=>{timeout=setTimeout(()=>reject(Error('topic CLI did not publish: '+output)),4500);child.on('message',message=>{messages.push(message);if(message.kind==='success')resolve();});child.once('error',reject);child.once('exit',code=>reject(Error('topic CLI exited '+code+': '+output)));});
     child.kill('SIGTERM');assert.deepEqual(await closed,{code:0,signal:null});
     assert.equal(messages.some(m=>m.kind==='forbidden-origin'),false);
-    assert.deepEqual(messages.find(m=>m.kind==='activated').topics.items.map(row=>[row.participants,row.views]),[[12,34]]);
+    assert.deepEqual(messages.find(m=>m.kind==='activated').topics.items.filter(row=>row.capturedAt===capturedAt).map(row=>[row.participants,row.views]),[[12,34]]);
     const saved=JSON.parse(readFileSync(join(home,'state.json'),'utf8'));
     assert.equal(saved.active,null);assert.equal(saved.status,'success');assert.notEqual(saved.coveredMarker,marker);
     assert.equal(saved.coveredMarker,hash(JSON.stringify({events:[],source:null,contract:'committed-target-atomic-audit-v1',committedTargets:proofMarker})));
