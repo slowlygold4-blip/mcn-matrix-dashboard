@@ -8,6 +8,7 @@ This public note contains code and synthetic-test results only. Operational repo
 - The producer and public ingestion route share bounded UTF-8 byte budgets. A growing catalog can be uploaded separately without raising limits for ordinary work partitions or anonymous uploads.
 - Continuous profile freshness no longer depends on the works queue becoming empty. Durable work cursors and upstream cooldowns remain independent.
 - Collection coverage can include atomically committed, matching snapshot/audit evidence during a long running batch. Progress counters alone do not prove usable observations.
+- The committed-topic reader recognizes the current writer's time-contract version 1 without relaxing the parent, source, hash or timestamp checks. Unsupported versions remain rejected. Related positive/negative checks: 80 passed. This fix awaits a safe publisher reload.
 - A missing endpoint comparison offers a clearly dated, verified alternative range. It never fabricates the business-start baseline or silently replaces the requested dates.
 - Phone account metrics keep numeric values and change indicators aligned; desktop, phone and print checks cover all seven columns.
 - An unused geometry experiment and its tests have moved from production `lib/` into `experiments/profile-root-geometry/`.

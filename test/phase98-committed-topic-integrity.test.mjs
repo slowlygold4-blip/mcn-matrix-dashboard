@@ -35,6 +35,7 @@ function setup(t,{legacyBrowser=false,databasePath=':memory:',closeAfter=true}={
 }
 for(const legacyBrowser of [false,true])test('running paired exact topic advances two current counters with '+(legacyBrowser?'legacy browser':'anonymous')+' terminal root, without finishing run',t=>{const f=setup(t,{legacyBrowser}),s=f.fresh(),r=f.read();assert.equal(r.point.participants,20);assert.equal(r.point.views,200);assert.equal(r.point.capturedAt,NEW);assert.equal(f.db.prepare('SELECT status FROM runs WHERE id=?').get(s.runId).status,'running');assert.equal(f.db.prepare('SELECT finished_at FROM runs WHERE id=?').get(s.runId).finished_at,null);});
 const malformed={
+ 'unsupported time contract':r=>{r.topicTimeContractVersion=2;r.capturedAt=NEW;},
  'same-name wrong challenge ID':r=>r.challengeId='1111111111111111',
  'missing challenge ID':r=>delete r.challengeId,
  'numeric challenge ID':r=>r.challengeId=1617668778418189,
@@ -70,6 +71,11 @@ const malformed={
  'missing participants is not complete fresh topic':r=>r.participants=null,
  'missing views is not complete fresh topic':r=>r.views=null,
 };
+test('current writer time-contract version 1 retains the exact parent and current-counter proof',t=>{
+ const f=setup(t),s=f.fresh({changeRaw:r=>{r.topicTimeContractVersion=1;r.capturedAt=NEW;}}),r=f.read();
+ assert.equal(r.point.participants,20);assert.equal(r.point.views,200);
+ assert.equal(f.db.prepare('SELECT status FROM runs WHERE id=?').get(s.runId).status,'running');
+});
 for(const [name,changeRaw]of Object.entries(malformed))test(name+' never publishes unqualified new topic counters',t=>{const f=setup(t);f.fresh({changeRaw});const r=f.read();assert.notEqual(r.point?.participants,20);assert.notEqual(r.point?.views,200);});
 const changedRows={
  'missing current audit':f=>f.db.prepare('DELETE FROM audits WHERE id=?').run(f.current.audit.id),
