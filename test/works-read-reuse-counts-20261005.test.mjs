@@ -8,7 +8,6 @@ import { persistPosts } from '../lib/post-persistence.mjs';
 
 const root = new URL('../', import.meta.url);
 const lib = new URL('lib/', root);
-const backup = new URL('data/backups/code/20261005-works-read-before/', root);
 const SEC = 'MS4wLjABAAAAWorksReadReuseCounts123456789', UID = '123456789';
 const ANCHOR = '2026-09-28T02:50:00.000Z', ASOF = '2026-09-28T15:59:59.999Z';
 const options = { period: 'custom', timeZone: 'Asia/Shanghai', startDate: '2026-09-28',
@@ -22,7 +21,7 @@ function absoluteImports(source, replacements = new Map()) {
 }
 const moduleUrl = source => `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
 
-async function implementation(directory, key) {
+async function implementation(directory, key, { uncached = false } = {}) {
   let source = readFileSync(new URL('works-observation.mjs', directory), 'utf8');
   const parseExpression = 'JSON.parse(row.raw_json)';
   assert.equal(source.split(parseExpression).length - 1, 1, 'expected one ledger parsing site');
@@ -31,6 +30,14 @@ async function implementation(directory, key) {
   source = source.replace('const evidence = validateWorksOnlyEvidence(raw, { now });',
     `globalThis[Symbol.for('works-read-reuse-test-counts')].get('${key}').verifies.push(row.run_id);
       const evidence = validateWorksOnlyEvidence(raw, { now });`);
+  // Compare the same public implementation with source reuse disabled. A clean
+  // checkout must not require a private historical backup or freeze unrelated
+  // report fields at an older schema. Source validation still runs each time.
+  if (uncached) {
+    const shared = 'return loadVerifiedWorksOnlyRowsInRead(db, asOf, targetId, options, receipt);';
+    assert.equal(source.split(shared).length - 1, 1, 'expected one scoped reader');
+    source = source.replace(shared, 'return loadVerifiedWorksOnlyRowsInRead(db, asOf, targetId, options, null);');
+  }
   const worksUrl = moduleUrl(absoluteImports(source));
   const works = await import(worksUrl);
   const productSource = absoluteImports(readFileSync(new URL('product-insights.mjs', directory), 'utf8'),
@@ -39,7 +46,7 @@ async function implementation(directory, key) {
   return { works, product, key };
 }
 
-const original = await implementation(backup, 'original');
+const original = await implementation(lib, 'original', { uncached: true });
 const candidate = await implementation(lib, 'candidate');
 
 function fixture(t) {
@@ -105,7 +112,7 @@ function measured(impl, database, read) {
   return { result: read(facade), metric };
 }
 
-test('original fixture proves two selected windows repeat exact historical source parsing and validation', t => {
+test('uncached same-version reader repeats exact historical source parsing and validation', t => {
   const { database, runs } = fixture(t);
   const { result, metric } = measured(original, database, db => original.product.getProductInsights(db, options));
   assert.deepEqual(metric.selections, [runs.slice().reverse(), runs.slice(1).reverse()]);
@@ -114,7 +121,7 @@ test('original fixture proves two selected windows repeat exact historical sourc
   assert.equal(result.summary.publishedSamples.value, 3);
 });
 
-test('loadData shares real receipts only within one snapshot and deep matches the fixed original', t => {
+test('loadData shares real receipts within one snapshot and matches same-version uncached output', t => {
   const { database, runs } = fixture(t);
   const before = database.db.prepare('SELECT total_changes() AS n').get().n;
   database.db.exec('PRAGMA query_only=ON');

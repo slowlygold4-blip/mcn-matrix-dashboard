@@ -121,11 +121,21 @@ test('September 12 preset remains strict with its actual previous-day baseline a
 
 test('account theme/classification and works-only writes cannot alter independent topic metrics', t => {
   const f = fixture(t);
-  const topic = f.database.createTarget({ type: 'hashtag', provider: 'manual', label: '#offline topic', locator: '#offline topic' });
-  const insert = f.db.prepare(`INSERT INTO snapshots(target_id,captured_at,hashtag_participants,hashtag_views,quality_status,account_status,works_coverage,source_checksum,raw_json)
-    VALUES(?,?,?,?, 'validated','unknown','not-applicable','offline-topic-evidence','{}')`);
-  insert.run(topic.id, '2026-09-28T02:00:00.000Z', 100, 1000);
-  insert.run(topic.id, ANCHOR, 102, 1500);
+  t.mock.timers.setTime(Date.parse('2026-09-27T00:00:00.000Z'));
+  const topic = f.database.createTarget({ type: 'hashtag', provider: 'public-web', label: '#offline topic', locator: '#offline topic' });
+  for (const [capturedAt, participants, views] of [['2026-09-28T02:00:00.000Z', 100, 1000], [ANCHOR, 102, 1500]]) {
+    t.mock.timers.setTime(Date.parse(capturedAt) - 1000);
+    const runId = f.database.beginRun('scheduled', topic.id, 1);
+    const raw = { scope: 'douyin-official-challenge-detail', businessStatusCode: 0,
+      challengeId: '7684603502', label: topic.locator, officialName: topic.locator,
+      participants, views, capturedAt,
+      provenance: { mode: 'douyin-official-anonymous-challenge-detail',
+        endpoint: 'https://www.douyin.com/aweme/v1/web/challenge/detail/',
+        authenticated: false, runtimeAI: false, paidAPI: false } };
+    t.mock.timers.setTime(Date.parse(capturedAt) + 1000);
+    f.database.saveCollection(topic, runId, normalizeCollection(topic, raw, { capturedAt }));
+    f.database.finishRun(runId, { status: 'success', successCount: 1, processedCount: 1 });
+  }
   const options = { startDate: '2026-09-12', endDate: '2026-09-29' };
   const before = f.database.listTopicHistory(options).topics;
   f.append([post(1, '2025-12-17T17:59:02.000Z')]);

@@ -5,23 +5,34 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { MonitorDatabase } from '../lib/database.mjs';
 import { getProductInsights, getAccountInsight } from '../lib/product-insights.mjs';
+import { normalizeCollection } from '../lib/providers/normalize.mjs';
 
 // Offline counterexamples for interpreting coverage, not real platform samples.
 function fixture(t) {
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-09-01T02:00:00.000Z') });
   const directory = mkdtempSync(join(tmpdir(), 'works-coverage-peer-'));
   const database = new MonitorDatabase(join(directory, 'fixture.sqlite'));
   t.after(() => { database.close(); rmSync(directory, { recursive: true, force: true }); });
   const target = database.createTarget({ type: 'account', label: 'offline-peer',
     locator: 'MS4wLjABAAAAofflinepeerabcdefghijklmnop', provider: 'public-web', metadata: { platform: 'douyin' } });
   const sample = (date, inventory, coverage, count = null) => {
-    const raw = count === null ? { worksCoverage: coverage } : { worksCoverage: coverage,
-      works: { aweme_list: Array.from({ length: count }, (_, n) => ({
-        aweme_id: String(7000000000000000000n + BigInt(n)), create_time: 1789257600,
-      })), has_more: false, stopReason: 'browser-end-of-list' } };
-    database.db.prepare(`INSERT INTO snapshots(target_id,captured_at,followers,total_likes,total_posts,
-      quality_status,account_status,works_coverage,source_checksum,raw_json)
-      VALUES(?,?,100,1000,?,'warning','available',?,?,?)`)
-      .run(target.id, `${date}T02:00:00.000Z`, inventory, coverage, `offline-${date}`, JSON.stringify(raw));
+    const capturedAt = `${date}T02:00:00.000Z`;
+    t.mock.timers.setTime(Date.parse(capturedAt));
+    const raw = { capturedAt, accountStatus: 'validated', accountError: null,
+      profile: { user: { sec_uid: target.locator, uid: '123456789', follower_count: 100,
+        total_favorited: 1000, aweme_count: inventory } },
+      worksCoverage: coverage, worksErrorCode: count === null ? 'deferred' : null,
+      works: count === null ? { stopReason: 'request-deferred', pagination: { requestCount: 0, pages: [] } }
+        : { aweme_list: Array.from({ length: count }, (_, n) => ({
+          aweme_id: String(7000000000000000000n + BigInt(n)), create_time: 1789257600,
+          author: { sec_uid: target.locator, uid: '123456789' }, statistics: { digg_count: 0 },
+        })), has_more: false, stopReason: 'browser-end-of-list' },
+      provenance: { mode: 'guest-ttwid-unsigned-profile', profileMode: 'guest-ttwid-unsigned-profile',
+        profileEndpoint: 'https://www.douyin.com/aweme/v1/web/user/profile/other/',
+        accountLocator: 'sec_uid', cookiePersisted: false, runtimeAI: false, paidAPI: false } };
+    // Save synthetic source through the normal identity/hash/counter contract;
+    // arbitrary SQL counters with fake hashes must not be accepted by readers.
+    database.saveCollection(target, null, normalizeCollection(target, raw, { capturedAt }));
   };
   const options = { period: 'day', timeZone: 'Asia/Shanghai', reference: new Date('2026-09-29T03:00:00.000Z') };
   return { database, target, sample, options };
@@ -54,11 +65,8 @@ test('complete current zero inventory can coexist with retained historical works
   const { database, target, sample, options } = fixture(t);
   sample('2026-09-28', 1, 'complete', 1);
   sample('2026-09-29', 0, 'complete', 0);
-  const inserted = database.db.prepare(`INSERT INTO posts(target_id,external_id,caption,published_at,first_seen_at,last_seen_at)
-    VALUES(?,?,'offline historical work',?,?,?)`).run(target.id, '7000000000000000000',
-    '2026-09-27T02:00:00.000Z', '2026-09-28T02:00:00.000Z', '2026-09-28T02:00:00.000Z');
-  database.db.prepare('INSERT INTO post_metrics(post_id,captured_at,likes) VALUES(?,?,?)')
-    .run(Number(inserted.lastInsertRowid), '2026-09-28T02:00:00.000Z', 1);
+  assert.equal(database.db.prepare('SELECT COUNT(*) n FROM posts WHERE target_id=?').get(target.id).n, 1,
+    'the earlier synthetic source already persisted this historical work');
   const result = getAccountInsight(database, target.id, options);
   assert.equal(result.account.collection.worksState, 'complete');
   assert.equal(result.account.worksObservation.sampleCount, 0);

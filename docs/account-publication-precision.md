@@ -47,3 +47,18 @@ and never become a published generation merely because an upload returned.
 Tests exercise large catalogs, denied anonymous requests, invalid final parts,
 duplicate paths, immutable conflicts, R2 and database failures, retry, concurrency
 conflicts and sealed exact replay. No test calls a model or a remote service.
+
+## Reproducible regression fixtures
+
+Works-read reuse tests compare the current implementation against the same
+implementation with request-local source reuse disabled. They assert identical
+reports and 3 versus 5 source verifications, independent comparison scopes,
+rollback/write rejection and historical-source recovery. A public checkout no
+longer needs a private dated code backup or a frozen older report schema.
+
+Coverage and independent-topic fixtures save synthetic source through the normal
+normalization, identity, checksum, audit and run contracts. Test dates precede the
+requested report; real zeros stay distinct from missing baselines. They do not
+change production validation to accept arbitrary SQL counters. Scheduler tests
+provide the constructor's default yield callback when constructing a prototype
+fixture. These changes affect tests only, with no platform requests or model use.
