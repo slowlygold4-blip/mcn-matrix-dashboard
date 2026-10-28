@@ -60,6 +60,8 @@ test('actual Home preserves range/comparison/draft/filter, refresh address and e
   const current=h.window.location.href;fresh=home(current);await fresh.flush();assert.deepEqual(selected(fresh),[false,true]);assert.equal(fresh.state('query'),'合成作者');assert.deepEqual(deep(fresh.state('comparison')),comparison);
   const networkBefore=h.network.length;await nextPage(h);h.window.scrollY=555;const beforeCsv=await csv(h),trigger={isConnected:true,disabled:false,focus(){h.document.activeElement=this;}};
   const row=h.all().find(n=>n.type==='TableRow'&&typeof n.key==='number');nodes(row).find(n=>n.props.className==='author').props.onClick({currentTarget:trigger});await h.flush();
-  h.back();await h.flush();assert.equal(h.window.location.href,current);assert.equal(h.state('page'),2);assert.equal(h.window.scrollY,555);assert.equal(h.document.activeElement,trigger);assert.deepEqual(await csv(h),beforeCsv);assert.deepEqual(selected(h),[false,true]);assert.equal(h.network.length,networkBefore);
+  h.back();await h.flush();assert.equal(h.window.location.href,current);assert.equal(h.state('page'),2);assert.equal(h.window.scrollY,555);assert.equal(h.document.activeElement,trigger);assert.deepEqual(await csv(h),beforeCsv);assert.deepEqual(selected(h),[false,true]);// Entering/leaving a pinned account rechecks publication metadata. It must
+  // not reread partitions or start collection while restoring list state.
+  const checks=h.network.slice(networkBefore);assert.equal(checks.length,2);assert.ok(checks.every(([url,options])=>url==='/api/replica'&&(!options.method||options.method==='GET')));
  }finally{h.close();fresh?.close();}
 });

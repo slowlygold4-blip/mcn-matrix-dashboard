@@ -260,7 +260,7 @@ const scheduler = new MonitorScheduler(database, {
     if (result.triggerType !== "scheduled") return;
     const resultBackup = await scheduledBackup(`scheduled-${result.status}`);
     if (resultBackup.status === "succeeded") console.log(`自动备份已完成：${resultBackup.backup.path}`);
-    else if (resultBackup.status === "throttled") console.log(`自动备份已合并：10 分钟内已有成功备份；下次可备份 ${resultBackup.nextEligibleAt}`);
+    else if (resultBackup.status === "throttled") console.log(`自动备份已合并：6 小时内已有成功备份；下次可备份 ${resultBackup.nextEligibleAt}`);
     else console.log("自动备份本次未创建：已有备份进程运行或未满足备份条件");
   },
 });
@@ -1442,6 +1442,16 @@ async function handleApi(request, response, url) {
 
   access.authenticate(request, response);
   if (["POST", "PATCH", "PUT", "DELETE"].includes(request.method)) access.verifyMutation(request);
+
+  // Background source maintenance needs identity and source metadata only.
+  // Keep it independent of expensive dashboard/audit aggregation.
+  if (request.method === "GET" && pathname === "/api/source-poll/bootstrap") {
+    access.requireRole(request, "editor");
+    return json(response, 200, {
+      auth: access.sessionPayload(request.auth),
+      authorSources: getAuthorSources(database, { userId: request.auth.user.id }),
+    });
+  }
 
   if (request.method === "GET" && pathname === "/api/creator-library/summary") {
     access.requireRole(request, "viewer");

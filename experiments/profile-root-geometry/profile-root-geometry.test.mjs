@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { observeProfileRootGeometry as observe, sanitizeProfileRootGeometry as sanitize,
-  profileRootGeometryIsCandidate as candidate } from '../lib/phase71-profile-root-geometry.mjs';
+  profileRootGeometryIsCandidate as candidate } from './profile-root-geometry.mjs';
 const SEC = 'MS4wLjABAAAAphase71SyntheticProfile';
 const SECRET = 'P71_PRIVATE_STATE_MUST_NOT_ESCAPE';
 function fixture(config = {}) {

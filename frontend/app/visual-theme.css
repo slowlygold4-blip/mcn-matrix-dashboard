@@ -1054,3 +1054,18 @@ body {
 .workspace .all-author-overview__sampling > summary {cursor:pointer;padding:10px 0;}
 .workspace .tuantuan-roster-table td .change-indicator {display:flex;}
 .workspace .tuantuan-roster-table th small {display:block;font-weight:400;font-size:.65rem;}
+
+/* Keep the numeric reading edge stable when a change label is present.
+   Phone cards have exactly two flex items: the metric label and this group. */
+.workspace .account-ledger .account-metrics-table .account-metric-value {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  max-width: 100%;
+  min-width: 0;
+}
+@media screen and (max-width: 420px) {
+  .workspace .account-ledger .account-metrics-table tbody td:not(:first-child) {
+    padding-block: 6px !important;
+  }
+}

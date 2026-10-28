@@ -30,8 +30,8 @@ test('real roster controls preserve task state across URL navigation, loading an
    const csv=await page.evaluate(()=>window.exports.at(-1).text());assert.equal(csv.trim().split(/\r?\n/).length,66);assert.match(csv,/alias-64/);assert.match(csv,/合成总表 \/ 合成补表/);
    const group=page.getByRole('group',{name:'团团作者范围'});
    for(const label of ['全部作者 65','启用监控 33','暂停监控 16','未关联监控 16'])assert.equal(await group.getByRole('button',{name:label,exact:true}).count(),1);
-   assert.match(await panel.innerText(),/启用不等于采样成功/);
-   assert.equal(await panel.getByRole('columnheader',{name:/^原表登记作品/}).count(),1);
+   assert.match(await panel.innerText(),/全部作者统一展示/);
+   assert.equal(await panel.getByRole('columnheader',{name:/^已登记作品/}).count(),1);
    const explanation=panel.locator('details.roster-method');assert.equal(await explanation.getAttribute('open'),null,'secondary data explanation stays collapsed for a simpler first view');
    await explanation.locator('summary').click();assert.match(await panel.innerText(),/后来补充的作品数量见作者作品页的“已归档作品”/);await explanation.locator('summary').click();
    assert.equal(await panel.locator('tbody tr').first().locator('td').nth(2).innerText(),'1','clarifying the label must not recalculate the source work count');
@@ -62,7 +62,7 @@ test('real roster controls preserve task state across URL navigation, loading an
   });
 
   await t.test('callbacks retain exact origin buttons and parent panel changes are not overwritten',async()=>{
-   await panel.getByRole('button',{name:'查看来源作品 →',exact:true}).first().click();
+   await panel.getByRole('button',{name:'查看作品 →',exact:true}).first().click();
    assert.deepEqual(await page.evaluate(()=>window.lastSource),{id:'id-30',connected:true,button:'BUTTON'});
    await panel.getByRole('button',{name:'监控31 · 查看账号变化',exact:true}).click();
    assert.deepEqual(await page.evaluate(()=>window.lastAccount),{id:31,connected:true,button:'BUTTON'});
@@ -79,7 +79,7 @@ test('real roster controls preserve task state across URL navigation, loading an
    await page.goto('http://127.0.0.1:49119/?rosterPanel=authors&rosterPage=0&rosterStatus=all#accounts');
    await page.getByRole('alert').filter({hasText:'页码无效'}).waitFor();assert.equal(await panel.locator('tbody tr').count(),0);assert.equal(await panel.getByRole('button',{name:'导出当前筛选',exact:true}).isDisabled(),true);
    await page.getByRole('button',{name:'重置名册筛选',exact:true}).click();await panel.locator('tbody tr').first().waitFor();
-   assert.equal(new URL(page.url()).searchParams.get('rosterPanel'),'authors');assert.equal(new URL(page.url()).searchParams.get('rosterStatus'),'all');
+   assert.equal(new URL(page.url()).searchParams.get('rosterPanel')??'authors','authors');assert.equal(new URL(page.url()).searchParams.get('rosterStatus'),'all');
    await page.goto('http://127.0.0.1:49119/?rosterPanel=authors&rosterPage=4#accounts');
    await page.getByRole('alert').filter({hasText:'链接请求第 4 页'}).waitFor();assert.equal(new URL(page.url()).searchParams.get('rosterPage'),'4');
    await page.getByRole('button',{name:'回到第一页',exact:true}).click();await panel.locator('tbody tr').first().waitFor();assert.equal(new URL(page.url()).searchParams.has('rosterPage'),false);

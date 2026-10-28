@@ -1,3 +1,4 @@
+import {replicaPartitionByteLimit,replicaBatchByteLimit,REPLICA_UPLOAD_MAX_BYTES} from '@/lib/replica-partition-budget.mjs';
 import {auditPublishing} from '@/lib/replica-publishing.mjs';
 import { env } from "cloudflare:workers";
 import {summaryDescriptors,summaryPartValid} from '@/lib/replica-summary.mjs';
@@ -48,15 +49,16 @@ export async function POST(request: Request) {
   const producer = (env as unknown as Record<string,unknown>).REPLICA_INGEST_SECRET;
   if (typeof producer !== "string" || producer.length < 48 || request.headers.get("Authorization") !== `Bearer ${producer}`) return json({error:"只读访问"},403);
   try {
-    const text=await request.text(); if(text.length>8_000_000) return json({error:"批次过大"},413);
+    const text=await request.text(); if(new TextEncoder().encode(text).length>REPLICA_UPLOAD_MAX_BYTES) return json({error:"批次过大"},413);
     const input=JSON.parse(text); const {db,bucket}=runtime();
+    if(input.action==="upload"&&Array.isArray(input.files)&&new TextEncoder().encode(text).length>replicaBatchByteLimit(input.files))return json({error:"批次过大"},413);
     if(!validGeneration(input.asOf)||Date.parse(input.asOf)>Date.now())return json({error:"无效采样截止时间"},400);
     if(input.action==="upload") {
       if(!Array.isArray(input.files)||input.files.length<1||input.files.length>50)return json({error:"无效分区批次"},400);
       const activated=await db.prepare("SELECT manifest FROM replica_generations WHERE generation=?").bind(input.asOf).first<{manifest:string}>();
       const sealed=activated?new Map(JSON.parse(activated.manifest).files.map((f:{path:string;sha256:string})=>[f.path,f.sha256])):null;
       for(const f of input.files) {
-        if(typeof f.path!=="string"||!PATH.test(f.path)||!SHA.test(f.sha256)||typeof f.data!=="string"||f.data.length>(f.path==="summary.json"?6_000_000:4_000_000))return json({error:"无效分区"},400);
+        if(typeof f.path!=="string"||!PATH.test(f.path)||!SHA.test(f.sha256)||typeof f.data!=="string"||new TextEncoder().encode(f.data).length>replicaPartitionByteLimit(f.path))return json({error:"无效分区"},400);
         const parsed=JSON.parse(f.data);
         if(parsed.asOf!==input.asOf || privateKey(parsed) || await bytesHash(f.data)!==f.sha256)return json({error:"分区审查或校验失败"},400);
         if(f.path.startsWith('summary/')&&(f.data.length>1_000_000||!summaryPartValid(parsed,input.asOf)||parsed.items.length<1))return json({error:"历史分片字段或时间不一致"},400);

@@ -33,7 +33,7 @@ const shells={
 const bundle=await build({stdin:{contents:`import React from 'react';import {createRoot} from 'react-dom/client';import Home from './app/page';window.fixture={data:${JSON.stringify(loaded)}};createRoot(document.getElementById('root')).render(<Home/>);`,resolveDir:site,sourcefile:'overview-read-failure-fixture.tsx',loader:'tsx'},absWorkingDir:site,bundle:true,write:false,format:'iife',platform:'browser',jsx:'automatic',tsconfig:site+'tsconfig.json',define:{'process.env.NODE_ENV':'"test"'},plugins:[{name:'unrelated-source-shells',setup(build){
  build.onLoad({filter:/components\/[^/]+\.tsx$/},args=>{const name=args.path.split('/').at(-1).replace(/\.tsx$/,'');return shells[name]?{contents:shells[name],loader:'tsx',resolveDir:site}:null;});
  build.onLoad({filter:/lib\/replica-view\.mjs$/},()=>({contents:'export async function loadReplicaView(){return structuredClone(window.fixture.data)}',loader:'js'}));
- build.onLoad({filter:/lib\/source-part-reader\.mjs$/},()=>({contents:'export async function readSourceIndex(){throw Error("fixture source unavailable")};export function sourcePartsIdentity(){return "fixture"}',loader:'js'}));
+ build.onLoad({filter:/lib\/source-part-reader\.mjs$/},()=>({contents:'export async function readSourcePart(){throw Error("fixture source unavailable")};export async function readSourceIndex(){throw Error("fixture source unavailable")};export function sourcePartsIdentity(){return "fixture"}',loader:'js'}));
  build.onLoad({filter:/\.css$/},()=>({contents:'',loader:'empty'}));
 }}]});
 
@@ -66,10 +66,11 @@ test('overview discloses initial read failure, retry, and failed refresh without
 
    apiStatus=200;
    await failure.getByRole('button',{name:'重新读取数据'}).click();
-   await page.getByText(/最近账号采样/).waitFor();
-   assert.match(await page.locator('.topbar').innerText(),/最近账号采样/);
+   await page.getByText(/公开数据截至/).waitFor();
+   assert.match(await page.locator('.topbar').innerText(),/公开数据截至/);
    assert.equal(await page.getByRole('alert').filter({hasText:'本次读取已保存数据失败'}).count(),0);
-   await page.locator('.sidebar').getByRole('button',{name:'账号变化',exact:true}).click();
+   await page.locator('.sidebar').getByRole('button',{name:'矩阵账号',exact:true}).click();
+   await page.getByRole('button',{name:'只看已采集账号变化',exact:true}).click();
    await page.getByText('粉丝总数',{exact:true}).waitFor();
    assert.match(await page.locator('.metric-ledger').innerText(),/110/);
    await page.locator('.sidebar').getByRole('button',{name:'总览',exact:true}).click();
@@ -78,8 +79,9 @@ test('overview discloses initial read failure, retry, and failed refresh without
    await page.getByRole('button',{name:'重新读取已保存数据',exact:true}).click();
    await failure.waitFor();
    assert.match(await failure.innerText(),/仍显示上次成功读取的.*版本，不能视为最新数据/);
-   assert.match(await page.locator('.topbar').innerText(),/最近账号采样/);
-   await page.locator('.sidebar').getByRole('button',{name:'账号变化',exact:true}).click();
+   assert.match(await page.locator('.topbar').innerText(),/公开数据截至/);
+   await page.locator('.sidebar').getByRole('button',{name:'矩阵账号',exact:true}).click();
+   await page.getByRole('button',{name:'只看已采集账号变化',exact:true}).click();
    assert.match(await page.locator('.metric-ledger').innerText(),/110/,'a failed read must retain, not zero-fill, the last verified snapshot');
    assert.equal(requests.filter(request=>request.path==='/api/replica').length,4,'a verified edition gets one immediate background publication check');
    assert.ok(requests.every(request=>request.method==='GET'),'read retry must not trigger collection');

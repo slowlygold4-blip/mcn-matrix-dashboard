@@ -30,7 +30,7 @@ async function fixtureAssets(){
  const fixture=`import React,{useState} from 'react';import {createRoot} from 'react-dom/client';
  import {ScrollableTable as Table} from './components/scrollable-table';
  import {TableHeader,TableRow,TableHead,TableBody,TableCell} from './components/ui/table';
- import {Button} from './components/ui/button';import {AccountClassification} from './components/account-classification';
+ import {Button} from './components/ui/button';import {AccountClassification} from './components/account-classification';import {ChangeIndicator} from './components/change-indicator';
  type Row=any;
  const magnitude=${wideNumber};
  const records=Array.from({length:20},(_,index)=>({id:index+1,label:index===0?'样本作者 OvO':'合成作者'+String(index+1).padStart(2,'0')+' · 很长的团团账号名称OVO',enabled:index!==1,classification:{theme:{label:'团团'},labels:index===1?[{key:'slice',label:'切片'},{key:'creation',label:'原创二创'},{key:'ai',label:'AI二创'}]:[{key:'slice',label:'切片'},{key:'creation',label:'原创二创'}]},metrics:Object.fromEntries(['followers','likes','posts'].map((key,offset)=>[key,{value:[magnitude,0,null,magnitude-1][(index+offset)%4],delta:[magnitude,-magnitude,0,null][(index+offset)%4]}]))}));

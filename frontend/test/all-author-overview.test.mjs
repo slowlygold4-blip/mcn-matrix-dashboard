@@ -28,10 +28,20 @@ test('same author row presents source values, period endpoints and missing reaso
  const roster=allAuthorOverview(buildTuantuanRoster([{...authors[0],name:'已采作者'},{...authors[1],name:'表格作者',followers:123}],[a]),metrics);
  const html=renderToStaticMarkup(React.createElement(m.exports.AllAuthorOverview,{roster,metricRows:metrics,start:'2026-10-19',end:'2026-10-26',ready:true,scopeLabel:'团团',onOpenAccount(){},onOpenSourceWorks(){},children:'sampling detail'}));
  const plain=html.replace(/<[^>]+>/g,'');
- assert.match(plain,/全部作者的数据与变化 · 2 位/);
+ assert.match(plain,/全部作者的数据与变化/);
+ assert.match(plain,/2位作者 · 全部保留/);
  assert.match(plain,/表格作者/);assert.match(plain,/已采作者/);
  assert.match(plain,/123已记录值/);assert.match(plain,/10 → 12/);
  assert.match(plain,/0→持平/);assert.match(plain,/尚无主页采样/);
  assert.match(plain,/缺少所选区间的起止采样/);
  assert.match(plain,/来源和更新情况/);
+});
+
+test('empty strict period exposes an explicit verified-range action while retaining all authors',async()=>{
+ const r=await build({entryPoints:['components/all-author-overview.tsx'],bundle:true,write:false,platform:'node',format:'cjs',packages:'external'});const m={exports:{}};Function('require','module','exports',r.outputFiles[0].text)(createRequire(import.meta.url),m,m.exports);
+ const roster=allAuthorOverview(base,[]);
+ const html=renderToStaticMarkup(React.createElement(m.exports.AllAuthorOverview,{roster,metricRows:[],start:'2026-09-12',end:'2026-10-28',ready:true,scopeLabel:'团团',onOpenAccount(){},onOpenSourceWorks(){},availableComparison:{start:'2026-10-20',end:'2026-10-24',count:1},onChooseComparison(){},children:'每日变化'}));
+ const plain=html.replace(/<[^>]+>/g,'');
+ assert.match(plain,/4,927位作者 · 全部保留/);assert.match(plain,/2026-10-20 → 2026-10-24 有 1 个启用账号/);
+ assert.match(plain,/查看这个可比区间/);assert.match(plain,/不代表完整的 9\/12 起增长/);assert.match(plain,/每日变化/);
 });

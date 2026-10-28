@@ -14,7 +14,11 @@
     "connect:douyin-topics": "node scripts/connect-douyin-topics.mjs",
     "install-service": "node scripts/service.mjs install",
     "uninstall-service": "node scripts/service.mjs uninstall",
-    "service-status": "node scripts/service.mjs status"
+    "service-status": "node scripts/service.mjs status",
+    "audit:product-state": "node scripts/audit-product-state.mjs",
+    "audit:published-math": "python3 scripts/audit-published-math.py",
+    "audit:code-layout": "python3 scripts/audit-code-layout.py",
+    "test:core": "node --test --test-concurrency=1 test/collection-progress.test.mjs test/continuous-collection-round.test.mjs test/source-poller-bootstrap.test.mjs test/source-poller.test.mjs test/public-replica-sync-20261001.test.mjs"
   },
   "engines": {
     "node": ">=24.0.0"

@@ -49,7 +49,7 @@ const visualShells={
 };
 const bundle=await build({stdin:{contents:`import React from 'react';import {createRoot} from 'react-dom/client';import Home from './app/page';window.fixture={reads:[],parts:${JSON.stringify(parts)},catalogGate:new Promise(resolve=>window.releaseCatalog=resolve)};createRoot(document.getElementById('root')).render(<Home/>);`,resolveDir:site,sourcefile:'source-workspace-lifecycle-fixture.tsx',loader:'tsx'},absWorkingDir:site,bundle:true,write:false,format:'iife',platform:'browser',jsx:'automatic',tsconfig:site+'tsconfig.json',define:{'process.env.NODE_ENV':'"test"'},plugins:[{name:'unrelated-panel-shells',setup(build){
  build.onLoad({filter:/components\/[^/]+\.tsx$/},args=>{const name=args.path.split('/').at(-1).replace(/\.tsx$/,'');return visualShells[name]?{contents:visualShells[name],loader:'tsx',resolveDir:site}:null;});
- build.onLoad({filter:/lib\/replica-reader\.mjs$/},()=>({contents:`export async function readReplicaPart({part,signal}){window.fixture.reads.push(part);if(part==='catalog.json')await window.fixture.catalogGate;signal?.throwIfAborted();if(!(part in window.fixture.parts))throw Error('Unexpected test partition '+part);return structuredClone(window.fixture.parts[part]);}`,loader:'js'}));
+ build.onLoad({filter:/lib\/replica-reader\.mjs$/},()=>({contents:`export function validateUnifiedWorksPart(items){return items;} export async function readReplicaPart({part,signal}){window.fixture.reads.push(part);if(part==='catalog.json')await window.fixture.catalogGate;signal?.throwIfAborted();if(!(part in window.fixture.parts))throw Error('Unexpected test partition '+part);return structuredClone(window.fixture.parts[part]);}`,loader:'js'}));
  build.onLoad({filter:/\.css$/},()=>({contents:'',loader:'empty'}));
 }}]});
 
@@ -135,7 +135,7 @@ test('source workspace survives delayed catalog, tab changes, and account roundt
   await page.goForward();await page.getByTestId('account-detail').waitFor();
   // Leaving detail through the sidebar must keep the prior source namespace,
   // not leave stale on-screen filters behind an address that refreshes to defaults.
-  await page.locator('.sidebar').getByRole('button',{name:'账号变化',exact:true}).click();await waitLoaded(page);
+  await page.locator('.sidebar').getByRole('button',{name:'矩阵账号',exact:true}).click();await waitLoaded(page);
   await page.locator('.sidebar').getByRole('button',{name:'作者与作品',exact:true}).click();
   await ledger.waitFor({state:'visible'});
   assert.deepEqual([...new URL(page.url()).searchParams].filter(([key])=>key.startsWith('source')),rememberedSource,'detail sidebar navigation must preserve the exact source filter address');
@@ -168,7 +168,7 @@ test('directory-only source startup loads topics on first visit without requesti
 
 test('account day/week/month controls still load exact ranges; source navigation does not load date summaries',async()=>{
  const browser=await chromium.launch({headless:true,executablePath:process.env.MCN_TEST_CHROME||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',args:['--disable-background-networking']});
- try{const {context,page,errors}=await openFixture(browser,'?period=custom&start=2026-09-12&end=2026-09-30#accounts');try{
+ try{const {context,page,errors}=await openFixture(browser,'?rosterPanel=changes&period=custom&start=2026-09-12&end=2026-09-30#accounts');try{
   await page.evaluate(()=>window.releaseCatalog());await waitLoaded(page);
   const periods=page.getByLabel(/^选择周期/);await periods.waitFor();
   for(const [period,start,end] of [['day','2026-09-29','2026-09-30'],['week','2026-09-23','2026-09-30'],['month','2026-09-30','2026-10-01']]){

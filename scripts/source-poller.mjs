@@ -321,12 +321,15 @@ async function fetchJson(path, options = {}) {
   return payload;
 }
 
-async function readSession() {
-  const response = await fetch(`${baseUrl}/api/bootstrap`, { signal: AbortSignal.timeout(requestTimeoutMs) });
+export async function readSession() {
+  const response = await fetch(`${baseUrl}/api/source-poll/bootstrap`, { signal: AbortSignal.timeout(requestTimeoutMs) });
   let payload;
   try { payload = await response.json(); }
   catch { throw new Error(`${response.status}: 本地工作台尚未就绪`); }
-  if (!response.ok || !payload?.auth?.csrfToken || !payload.auth?.permissions?.edit) {
+  if (!response.ok) {
+    throw new Error(`${response.status}: ${clean(payload?.error || "来源维护连接失败", 300)}`);
+  }
+  if (!payload?.auth?.csrfToken || !payload.auth?.permissions?.edit) {
     throw new Error("本地工作台没有可用的编辑权限，来源轮询已暂停");
   }
   const cookie = responseCookies(response);

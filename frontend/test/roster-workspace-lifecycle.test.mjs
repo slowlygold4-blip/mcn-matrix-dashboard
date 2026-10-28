@@ -61,7 +61,7 @@ const visualShells={
 };
 const bundle=await build({stdin:{contents:`import React from 'react';import {createRoot} from 'react-dom/client';import Home from './app/page';window.fixture={reads:[],parts:${JSON.stringify(parts)}};createRoot(document.getElementById('root')).render(<Home/>);`,resolveDir:site,sourcefile:'roster-workspace-lifecycle-fixture.tsx',loader:'tsx'},absWorkingDir:site,bundle:true,write:false,format:'iife',platform:'browser',jsx:'automatic',tsconfig:site+'tsconfig.json',define:{'process.env.NODE_ENV':'"test"'},plugins:[{name:'unrelated-panel-shells',setup(build){
  build.onLoad({filter:/components\/[^/]+\.tsx$/},args=>{const name=args.path.split('/').at(-1).replace(/\.tsx$/,'');return visualShells[name]?{contents:visualShells[name],loader:'tsx',resolveDir:site}:null;});
- build.onLoad({filter:/lib\/replica-reader\.mjs$/},()=>({contents:`export async function readReplicaPart({part,signal}){window.fixture.reads.push(part);signal?.throwIfAborted();if(!(part in window.fixture.parts))throw Error('Unexpected test partition '+part);return structuredClone(window.fixture.parts[part]);}`,loader:'js'}));
+ build.onLoad({filter:/lib\/replica-reader\.mjs$/},()=>({contents:`export function validateUnifiedWorksPart(items){return items;} export async function readReplicaPart({part,signal}){window.fixture.reads.push(part);signal?.throwIfAborted();if(!(part in window.fixture.parts))throw Error('Unexpected test partition '+part);return structuredClone(window.fixture.parts[part]);}`,loader:'js'}));
  build.onLoad({filter:/\.css$/},()=>({contents:'',loader:'empty'}));
 }}]});
 
@@ -120,10 +120,10 @@ test('main navigation marks the actual account route while author directory subt
  const browser=await launch();
  try{const {context,page,errors,requests}=await openFixture(browser,'?theme=tuantuan&rosterPanel=authors#accounts');try{
   await loaded(page);
-  await page.getByRole('heading',{name:'团团作者名册',exact:true}).waitFor();
+  await page.getByRole('heading',{name:/^全部作者明细/}).waitFor();
   assert.equal(new URL(page.url()).hash,'#accounts');
-  await assertSidebar(page,'账号变化');
-  assert.equal(await page.getByRole('button',{name:/^找全部作者/}).getAttribute('aria-pressed'),'true');
+  await assertSidebar(page,'矩阵账号');
+  assert.equal(await page.getByRole('button',{name:/^全部矩阵作者/}).getAttribute('aria-pressed'),'true');
   await sidebar(page).getByRole('button',{name:'作者与作品',exact:true}).click();
   await ledger(page).waitFor({state:'visible'});
   assert.equal(new URL(page.url()).hash,'#source');
@@ -131,8 +131,8 @@ test('main navigation marks the actual account route while author directory subt
   await page.goBack();
   await roster(page).waitFor({state:'visible'});
   assert.equal(new URL(page.url()).hash,'#accounts');
-  await assertSidebar(page,'账号变化');
-  assert.equal(await page.getByRole('button',{name:/^找全部作者/}).getAttribute('aria-pressed'),'true');
+  await assertSidebar(page,'矩阵账号');
+  assert.equal(await page.getByRole('button',{name:/^全部矩阵作者/}).getAttribute('aria-pressed'),'true');
   assert.deepEqual(errors,[]);noMutations(requests);
  }finally{await context.close();}}finally{await browser.close();}
 });
@@ -141,66 +141,54 @@ test('roster search, order and second page survive source-work and refreshed-acc
  const browser=await launch();
  try{const {context,page,errors,requests}=await openFixture(browser,'?theme=tuantuan&rosterPanel=authors#accounts');try{
   await secondPage(page);const expected=rosterParams(page),before=await roster(page).locator('tbody').textContent();
-  await assertSidebar(page,'账号变化');
-  await roster(page).getByRole('button',{name:'查看来源作品 →',exact:true}).first().click();
-  await ledger(page).waitFor({state:'visible'});await ledger(page).locator('tbody tr').first().waitFor();
-  await assertSidebar(page,'作者与作品');
-  assert.match(await ledger(page).locator('tbody').textContent(),/夹具作品031/);
-  await page.getByRole('button',{name:'返回团团名册',exact:true}).click();
+  await assertSidebar(page,'矩阵账号');
+  await roster(page).getByRole('button',{name:'查看作品 →',exact:true}).first().click();
+  const worksDialog=page.getByRole('dialog');await worksDialog.waitFor();
+  await worksDialog.getByText('夹具作品031',{exact:true}).waitFor();
+  assert.equal(new URL(page.url()).hash,'#accounts','works dialog preserves the roster route');
+  await worksDialog.getByRole('button',{name:'Close',exact:true}).click();
   await assertSecondPage(page,expected);assert.equal(await roster(page).locator('tbody').textContent(),before);
   await roster(page).getByRole('button',{name:'监控账号甲 · 查看账号变化',exact:true}).click();
   await page.getByTestId('account-detail').waitFor();
-  await assertSidebar(page,'账号变化');
+  await assertSidebar(page,'矩阵账号');
   await page.getByRole('button',{name:'重新读取已保存数据',exact:true}).click();
   await page.getByRole('button',{name:'重新读取已保存数据',exact:true}).waitFor();
   await page.getByRole('button',{name:'返回原核对页',exact:true}).click();
   await assertSecondPage(page,expected);assert.equal(await roster(page).locator('tbody').textContent(),before);
-  await assertSidebar(page,'账号变化');
+  await assertSidebar(page,'矩阵账号');
   assert.deepEqual(errors,[]);noMutations(requests);
  }finally{await context.close();}}finally{await browser.close();}
 });
 
-test('sidebar account changes is actionable from the author directory and history restores the exact task',async()=>{
+test('sidebar returns to all authors; explicit change task and browser history preserve selection',async()=>{
  const browser=await launch();
  const query=new URLSearchParams({theme:'tuantuan',classification:'slice',period:'custom',start:'2026-09-12',end:'2026-09-30',query:'监控账号甲',sourceQuery:'夹具',rosterPanel:'authors',rosterMode:'source-only'});
  try{const {context,page,errors,requests}=await openFixture(browser,'?'+query+'#accounts');try{
   await secondPage(page);const expected=rosterParams(page),authorUrl=page.url();
   const unrelated=()=>[...new URL(page.url()).searchParams].filter(([key])=>!key.startsWith('roster')).sort(([a],[b])=>a.localeCompare(b));
-  const preserved=unrelated();await assertSidebar(page,'账号变化');
-  const authorHistory=await historyLength(page);
-  await page.getByRole('button',{name:/^找全部作者/}).click();await settleFrame(page);
-  assert.equal(await historyLength(page),authorHistory,'reselecting the current author task must not add a history entry');
+  const preserved=unrelated(),authorHistory=await historyLength(page);
+  await sidebar(page).getByRole('button',{name:'矩阵账号',exact:true}).click();await settleFrame(page);
+  assert.equal(await historyLength(page),authorHistory,'reselecting the author directory adds no history');
   assert.equal(page.url(),authorUrl);
-
-  await sidebar(page).getByRole('button',{name:'账号变化',exact:true}).click();
-  await page.getByRole('heading',{name:'账号数据',exact:true}).waitFor();
-  await assertSidebar(page,'账号变化');
-  assert.equal(await roster(page).isVisible(),false);
-  assert.equal(new URL(page.url()).searchParams.has('rosterPanel'),false);
-  assert.deepEqual(rosterParams(page),expected.filter(([key])=>key!=='rosterPanel'));
-  assert.deepEqual(unrelated(),preserved,'changing task must not reset dates, classification, account search or source search');
+  await page.getByRole('button',{name:'只看已采集账号变化',exact:true}).click();
+  await page.getByRole('heading',{name:'账号变化',exact:true}).waitFor();
+  assert.equal(await roster(page).isVisible(),false);await assertSidebar(page,'矩阵账号');
+  assert.equal(new URL(page.url()).searchParams.get('rosterPanel'),'changes');
+  assert.deepEqual(rosterParams(page).filter(([k])=>k!=='rosterPanel'),expected.filter(([k])=>k!=='rosterPanel'));
+  assert.deepEqual(unrelated(),preserved);
   const changesUrl=page.url(),changesHistory=await historyLength(page);
   assert.equal(changesHistory,authorHistory+1);
-  await sidebar(page).getByRole('button',{name:'账号变化',exact:true}).click();
-  await page.getByRole('button',{name:'看账号变化',exact:true}).click();await settleFrame(page);
-  assert.equal(await historyLength(page),changesHistory,'reselecting the current task from either control is history-idempotent');
-  assert.equal(page.url(),changesUrl);
-
-  await page.goBack();await assertSecondPage(page,expected);await assertSidebar(page,'账号变化');
-  assert.equal(page.url(),authorUrl);
-  await page.goForward();await page.getByRole('heading',{name:'账号数据',exact:true}).waitFor();await assertSidebar(page,'账号变化');
-  assert.equal(page.url(),changesUrl);
-  await sidebar(page).getByRole('button',{name:'话题数据',exact:true}).click();
-  await page.getByRole('heading',{name:'话题数据',exact:true}).waitFor();await assertSidebar(page,'话题数据');
+  await page.getByRole('button',{name:'只看已采集账号变化',exact:true}).click();await settleFrame(page);
+  assert.equal(await historyLength(page),changesHistory);assert.equal(page.url(),changesUrl);
+  await page.goBack();await assertSecondPage(page,expected);assert.equal(page.url(),authorUrl);
+  await page.goForward();await page.getByRole('heading',{name:'账号变化',exact:true}).waitFor();assert.equal(page.url(),changesUrl);
+  await sidebar(page).getByRole('button',{name:'话题数据',exact:true}).click();await assertSidebar(page,'话题数据');
   const topicUrl=page.url();
-  await sidebar(page).getByRole('button',{name:'账号变化',exact:true}).click();
-  await page.getByRole('heading',{name:'账号数据',exact:true}).waitFor();await assertSidebar(page,'账号变化');
-  assert.equal(new URL(page.url()).searchParams.has('rosterPanel'),false,'an old author selection must not make the sidebar reopen the author directory');
-  assert.deepEqual(rosterParams(page),expected.filter(([key])=>key!=='rosterPanel'));
-  await page.goBack();await page.getByRole('heading',{name:'话题数据',exact:true}).waitFor();await assertSidebar(page,'话题数据');
-  assert.equal(page.url(),topicUrl);
-  await page.goBack();await page.getByRole('heading',{name:'账号数据',exact:true}).waitFor();await assertSidebar(page,'账号变化');
-  await page.goBack();await assertSecondPage(page,expected);await assertSidebar(page,'账号变化');
+  await sidebar(page).getByRole('button',{name:'矩阵账号',exact:true}).click();await assertSecondPage(page,expected);
+  await assertSidebar(page,'矩阵账号');
+  await page.goBack();await assertSidebar(page,'话题数据');assert.equal(page.url(),topicUrl);
+  await page.goBack();await page.getByRole('heading',{name:'账号变化',exact:true}).waitFor();
+  await page.goBack();await assertSecondPage(page,expected);
   assert.deepEqual(errors,[]);noMutations(requests);
  }finally{await context.close();}}finally{await browser.close();}
 });
@@ -211,15 +199,15 @@ test('overview account action moves to the page heading while in-page task chang
   await page.getByRole('button',{name:'重新读取已保存数据',exact:true}).waitFor();
   const action=page.getByTestId('source-operations').getByRole('button',{name:'查看账号变化',exact:true});
   await action.scrollIntoViewIfNeeded();assert.ok(await page.evaluate(()=>window.scrollY)>0,'the real Home handler must be exercised from a scrolled overview');
-  await action.click();await page.getByRole('heading',{name:'账号数据',exact:true}).waitFor();
+  await action.click();await page.getByRole('heading',{name:'账号变化',exact:true}).waitFor();
   await page.waitForFunction(()=>window.scrollY===0&&document.activeElement===document.querySelector('h1'));
-  assert.equal(new URL(page.url()).hash,'#accounts');await assertSidebar(page,'账号变化');
-  await page.getByRole('button',{name:/^找全部作者/}).click();await loaded(page);await settleFrame(page);
-  assert.equal(await page.getByRole('button',{name:/^找全部作者/}).evaluate(element=>document.activeElement===element),true,'changing tasks within the account page must not steal focus');
-  await assertSidebar(page,'账号变化');
-  await page.getByRole('button',{name:'看账号变化',exact:true}).click();await page.getByRole('heading',{name:'账号数据',exact:true}).waitFor();await settleFrame(page);
-  assert.equal(await page.getByRole('button',{name:'看账号变化',exact:true}).evaluate(element=>document.activeElement===element),true);
-  await assertSidebar(page,'账号变化');assert.deepEqual(errors,[]);noMutations(requests);
+  assert.equal(new URL(page.url()).hash,'#accounts');await assertSidebar(page,'矩阵账号');
+  await page.getByRole('button',{name:/^全部矩阵作者/}).click();await loaded(page);await settleFrame(page);
+  assert.equal(await page.getByRole('button',{name:/^全部矩阵作者/}).evaluate(element=>document.activeElement===element),true,'changing tasks within the account page must not steal focus');
+  await assertSidebar(page,'矩阵账号');
+  await page.getByRole('button',{name:'只看已采集账号变化',exact:true}).click();await page.getByRole('heading',{name:'账号变化',exact:true}).waitFor();await settleFrame(page);
+  assert.equal(await page.getByRole('button',{name:'只看已采集账号变化',exact:true}).evaluate(element=>document.activeElement===element),true);
+  await assertSidebar(page,'矩阵账号');assert.deepEqual(errors,[]);noMutations(requests);
  }finally{await context.close();}}finally{await browser.close();}
 });
 
@@ -227,10 +215,10 @@ test('author-directory and account-change tasks are mutually exclusive and prese
  const browser=await launch();
  try{const {context,page,errors,requests}=await openFixture(browser,'?theme=tuantuan&rosterPanel=authors#accounts');try{
   await secondPage(page);const expected=rosterParams(page);
-  assert.equal(await page.getByRole('heading',{name:'账号数据',exact:true}).count(),0);
+  assert.equal(await page.getByRole('heading',{name:'账号变化',exact:true}).count(),0);
   assert.equal(await page.getByLabel(/^选择周期/).count(),0,'date controls belong to account changes, not imported author identities');
-  await page.getByRole('button',{name:'看账号变化',exact:true}).click();
-  try{await page.getByRole('heading',{name:'账号数据',exact:true}).waitFor();}
+  await page.getByRole('button',{name:'只看已采集账号变化',exact:true}).click();
+  try{await page.getByRole('heading',{name:'账号变化',exact:true}).waitFor();}
   catch(error){
    const directory=site+'output/playwright/roster-workspace-lifecycle';await mkdir(directory,{recursive:true});
    await writeFile(directory+'/task-switch.html',await page.content());
@@ -238,10 +226,10 @@ test('author-directory and account-change tasks are mutually exclusive and prese
    await page.screenshot({path:directory+'/task-switch.png',fullPage:true});throw error;
   }
   assert.equal(await roster(page).isVisible(),false);
-  assert.equal(new URL(page.url()).searchParams.has('rosterPanel'),false,'default changes panel is canonicalized');
-  await page.getByRole('button',{name:/^找全部作者/}).click();
+  assert.equal(new URL(page.url()).searchParams.get('rosterPanel'),'changes','changes panel remains explicit because the default is all authors');
+  await page.getByRole('button',{name:/^全部矩阵作者/}).click();
   await assertSecondPage(page,expected);
-  assert.equal(await page.getByRole('heading',{name:'账号数据',exact:true}).count(),0);
+  assert.equal(await page.getByRole('heading',{name:'账号变化',exact:true}).count(),0);
   assert.equal(await page.getByLabel(/^选择周期/).count(),0);
   assert.deepEqual(errors,[]);noMutations(requests);
  }finally{await context.close();}}finally{await browser.close();}
@@ -265,19 +253,19 @@ test('invalid roster parameters show a recoverable error without silently changi
  try{const {context,page,errors,requests}=await openFixture(browser,'?theme=tuantuan&classification=slice&rosterPanel=authors&rosterPage=0#accounts');try{
   const table=roster(page);await table.getByRole('alert').filter({hasText:'页码无效'}).waitFor();
   assert.equal(new URL(page.url()).searchParams.get('rosterPage'),'0');
-  await assertSidebar(page,'账号变化');const invalidUrl=page.url();
-  await sidebar(page).getByRole('button',{name:'账号变化',exact:true}).click();
-  await page.getByRole('heading',{name:'账号数据',exact:true}).waitFor();await assertSidebar(page,'账号变化');
+  await assertSidebar(page,'矩阵账号');const invalidUrl=page.url();
+  await page.getByRole('button',{name:'只看已采集账号变化',exact:true}).click();
+  await page.getByRole('heading',{name:'账号变化',exact:true}).waitFor();await assertSidebar(page,'矩阵账号');
   assert.equal(await table.isVisible(),false,'an invalid author page must not block the separate account-change task');
   assert.equal(new URL(page.url()).searchParams.get('rosterPage'),'0','changing task must not silently reset the invalid author selection');
-  assert.equal(new URL(page.url()).searchParams.has('rosterPanel'),false);
+  assert.equal(new URL(page.url()).searchParams.get('rosterPanel'),'changes');
   await page.goBack();await table.getByRole('alert').filter({hasText:'页码无效'}).waitFor();
-  assert.equal(page.url(),invalidUrl);await assertSidebar(page,'账号变化');
+  assert.equal(page.url(),invalidUrl);await assertSidebar(page,'矩阵账号');
   await table.getByRole('button',{name:'重置名册筛选',exact:true}).click();
   await table.locator('tbody tr').first().waitFor();
   assert.equal(new URL(page.url()).searchParams.get('theme'),'tuantuan');
   assert.equal(new URL(page.url()).searchParams.get('classification'),'slice');
-  assert.equal(new URL(page.url()).searchParams.get('rosterPanel'),'authors');
+  assert.equal(new URL(page.url()).searchParams.get('rosterPanel')??'authors','authors');
   assert.equal(new URL(page.url()).searchParams.has('rosterPage'),false);
   assert.equal(await table.getByRole('alert').count(),0);
   assert.deepEqual(errors,[]);noMutations(requests);

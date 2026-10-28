@@ -33,7 +33,7 @@ const shells={
 const bundle=await build({stdin:{contents:`import React from 'react';import {createRoot} from 'react-dom/client';import Home from './app/page';window.fixture={viewMode:'complete',viewReads:[]};createRoot(document.getElementById('root')).render(<Home/>);`,resolveDir:site,sourcefile:'auto-adopt-publication-fixture.tsx',loader:'tsx'},absWorkingDir:site,bundle:true,write:false,format:'iife',platform:'browser',jsx:'automatic',tsconfig:site+'tsconfig.json',define:{'process.env.NODE_ENV':'"test"'},plugins:[{name:'publication-fixture',setup(bundle){
  bundle.onLoad({filter:/components\/[^/]+\.tsx$/},args=>{const name=args.path.split('/').at(-1).replace(/\.tsx$/,'');return shells[name]?{contents:shells[name],loader:'tsx',resolveDir:site}:null;});
  bundle.onLoad({filter:/lib\/replica-view\.mjs$/},()=>({contents:`export async function loadReplicaView({manifest,personal,topicsOnly,directoryOnly,signal}){const f=window.fixture;f.viewReads.push(manifest.asOf);signal?.throwIfAborted();if(f.viewMode==='throw')throw Error('synthetic partition failure');const complete=f.viewMode!=='incomplete';return {accounts:[${JSON.stringify(account)}],boards:[{key:'tuantuan',name:'团团'}],topics:{topics:[],items:[]},points:personal||topicsOnly||directoryOnly||!complete?[]:[${JSON.stringify(point('2026-09-12',100,200,10))},{...${JSON.stringify(point('2026-10-23',110,210,11))},followers:manifest.asOf===${JSON.stringify(generations[0])}?110:126}],summaryLoaded:!personal&&!topicsOnly&&!directoryOnly&&complete,summaryError:complete?'':'synthetic incomplete history',dateIndexed:false,topicsLoaded:!directoryOnly};}`,loader:'js'}));
- bundle.onLoad({filter:/lib\/source-part-reader\.mjs$/},()=>({contents:'export async function readSourceIndex(){throw Error("fixture source unavailable")};export function sourcePartsIdentity(){return "fixture"}',loader:'js'}));
+ bundle.onLoad({filter:/lib\/source-part-reader\.mjs$/},()=>({contents:'export async function readSourcePart(){throw Error("fixture source unavailable")};export async function readSourceIndex(){throw Error("fixture source unavailable")};export function sourcePartsIdentity(){return "fixture"}',loader:'js'}));
  bundle.onLoad({filter:/\.css$/},()=>({contents:'',loader:'empty'}));
 }}]});
 
@@ -64,7 +64,7 @@ test('new publication is adopted without a click and preserves selected scope an
 
 test('incomplete publication leaves the previous data and retries only on a later check',async()=>{
  const browser=await chromium.launch({headless:true,executablePath:process.env.MCN_TEST_CHROME||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',args:['--disable-background-networking']});
- try{const fixture=await openFixture(browser,'?period=custom&start=2026-09-12&end=2026-10-23#accounts');try{
+ try{const fixture=await openFixture(browser,'?rosterPanel=changes&period=custom&start=2026-09-12&end=2026-10-23#accounts');try{
   const {page,controls}=fixture;await page.getByTestId('metric-ledger').waitFor();await page.evaluate(()=>window.fixture.viewMode='incomplete');controls.published=1;await nextCheck(page);
   await page.getByRole('alert').filter({hasText:'保留上次已加载的数据'}).waitFor();assert.equal(await page.locator('.topbar time').getAttribute('datetime'),generations[0]);
   assert.match(await page.getByTestId('metric-ledger').innerText(),/110/);await page.evaluate(()=>window.fixture.viewMode='complete');await nextCheck(page);await waitVersion(page,1);
@@ -74,7 +74,7 @@ test('incomplete publication leaves the previous data and retries only on a late
 
 test('a lagging replica response cannot clear the newer announcement or regress the verified edition',async()=>{
  const browser=await chromium.launch({headless:true,executablePath:process.env.MCN_TEST_CHROME||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',args:['--disable-background-networking']});
- try{const fixture=await openFixture(browser,'?period=custom&start=2026-09-12&end=2026-10-23#accounts');try{
+ try{const fixture=await openFixture(browser,'?rosterPanel=changes&period=custom&start=2026-09-12&end=2026-10-23#accounts');try{
   const {page,controls}=fixture;await page.getByTestId('metric-ledger').waitFor();controls.published=1;controls.globalResponses.push(1,0);await nextCheck(page);
   await page.getByRole('alert').filter({hasText:'新版清单尚未同步'}).waitFor();
   assert.equal(await page.locator('.topbar time').getAttribute('datetime'),generations[0]);

@@ -6,7 +6,7 @@ import ts from 'typescript';
 const page=await readFile(new URL('../app/page.tsx',import.meta.url),'utf8');
 const source=ts.createSourceFile('page.tsx',page,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 
-function headingMeta(scope,rosterEligible,tuantuanRoster){
+function headingMeta(scope,rosterEligible,matrixRoster){
  let expression;
  function visit(node){
   if(ts.isVariableDeclaration(node)&&node.name.getText(source)==='accountHeadingMeta')expression=node.initializer?.getText(source);
@@ -14,17 +14,18 @@ function headingMeta(scope,rosterEligible,tuantuanRoster){
  }
  visit(source);
  assert.ok(expression,'account heading must derive its label from current roster counts');
- return Function('scope','rosterEligible','tuantuanRoster','fmt',`return (${expression})`)(
-  scope,rosterEligible,tuantuanRoster,value=>Number(value).toLocaleString('zh-CN'));
+ return Function('scope','rosterEligible','matrixRoster','fmt',`return (${expression})`)(
+  scope,rosterEligible,matrixRoster,value=>Number(value).toLocaleString('zh-CN'));
 }
 
 test('accounts heading reconciles full roster without calling each unlinked target a new person',()=>{
  assert.match(page,/tab==='topics'\?'参与人数与实际播放量 · 独立于账号筛选':accountHeadingMeta/,'heading must display the reconciled label');
  const counts={all:4782,source:4497,platformOnly:285};
  const label=headingMeta({length:696},true,{counts});
- assert.match(label,/当前范围 696 个启用监控账号/);
- assert.match(label,/团团总名册 4,782 条（表格去重作者 4,497 \+ 未关联表格的监控账号 285）/);
- assert.doesNotMatch(label,/4,782 位作者/);
+ assert.match(label,/其中 696 个已启用主页监控/);
+ assert.match(label,/全部矩阵作者 4,782 位/);
+ assert.match(label,/表格与监控身份按证据合并/);
+ assert.doesNotMatch(label,/4,782 个已启用/);
 });
 
 test('other themes and unavailable roster do not inherit the Tuantuan count',()=>{

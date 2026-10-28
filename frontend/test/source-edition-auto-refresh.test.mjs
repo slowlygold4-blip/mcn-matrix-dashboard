@@ -37,7 +37,7 @@ const shells={
 };
 const bundle=await build({stdin:{contents:'import React from "react";import {createRoot} from "react-dom/client";import Home from "./app/page";createRoot(document.getElementById("root")).render(<Home/>);',resolveDir:site,sourcefile:'source-edition-fixture.tsx',loader:'tsx'},absWorkingDir:site,bundle:true,write:false,format:'iife',platform:'browser',jsx:'automatic',tsconfig:site+'tsconfig.json',define:{'process.env.NODE_ENV':'"test"'},plugins:[{name:'fixture-shells',setup(builder){
  builder.onLoad({filter:/components\/[^/]+\.tsx$/},args=>{const name=args.path.split('/').at(-1).replace(/\.tsx$/,'');return shells[name]?{contents:shells[name],loader:'tsx',resolveDir:site}:null;});
- builder.onLoad({filter:/lib\/replica-reader\.mjs$/},()=>({contents:`export async function readReplicaPart({part}){if(part==='catalog.json')return ${JSON.stringify(catalog)};throw Error('Unexpected account partition '+part);}`,loader:'js'}));
+ builder.onLoad({filter:/lib\/replica-reader\.mjs$/},()=>({contents:`export function validateUnifiedWorksPart(items){return items;} export async function readReplicaPart({part}){if(part==='catalog.json')return ${JSON.stringify(catalog)};throw Error('Unexpected account partition '+part);}`,loader:'js'}));
  builder.onLoad({filter:/\.css$/},()=>({contents:'',loader:'empty'}));
 }}]});
 

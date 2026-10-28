@@ -779,3 +779,21 @@ test('live source projection accepts only unique rows and existing account targe
   await assert.rejects(()=>preparePublicReplicaPublication(invalid));
  }
 });
+
+test('a growing account directory above 4 MB publishes without widening work-partition limits',async()=>{
+ const source=fixture();
+ editPart(source,'catalog.json',part=>{
+  const base=part.accounts[0];
+  const count=Math.ceil(4_100_000/Buffer.byteLength(JSON.stringify(base)))+20;
+  part.accounts=Array.from({length:count},(_,i)=>({...structuredClone(base),id:i+1}));
+ });
+ const catalog=source.files.find(f=>f.path==='catalog.json');
+ const accounts=JSON.parse(catalog.content).accounts;
+ catalog.count=accounts.length;source.manifest.files.find(f=>f.path==='catalog.json').count=accounts.length;
+ source.manifest.counts.accounts=accounts.length;
+ source.manifest.counts.enabledAccounts=accounts.filter(a=>a.enabled).length;
+ assert.ok(catalog.bytes>4_000_000&&catalog.bytes<8_000_000);
+ const cloud=fakeCloud();const result=await producer(cloud).sync(source);
+ assert.equal(result.status,'success',JSON.stringify(result));
+ assert.equal(cloud.published.get(AS_OF).counts.accounts,accounts.length);
+});
