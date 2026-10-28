@@ -80,3 +80,13 @@ The same production read, stopped after exceeding 95 seconds before the fix, com
 A compile-only inventory found 10 synthetic test files whose quote/backtick delimiters were broken by an earlier archive-redaction pass. They now use explicit synthetic fixture values; no real credentials were restored. A reusable `npm run audit:source-syntax` compiles tracked JavaScript modules without evaluating them. The post-fix scan covers 1,153 tracked JS modules with zero syntax errors; all 16 tracked Python files also parse. This is syntax validation, not execution of the entire test suite.
 
 Three stale Bitable fixture checks were updated to include the real idempotency-key helper and valid synthetic record IDs, while retaining source-hash, read-completion-time and rejection assertions. The source/roster/publication combination passes 144 cases in the public checkout.
+
+## Legacy management bootstrap follow-up
+
+Default `/api/bootstrap` no longer runs a whole-database integrity audit before opening the management UI. It returns `runtimeAudit:null` and `runtimeAuditStatus:"not-requested"`; `/api/bootstrap?audit=1` preserves the explicit diagnostic path, and `/api/system-audit` remains the existing full-check action. Unperformed checks are never presented as passed.
+
+The account-period endpoint query is now an indexed per-account reader with the same counter-specific baselines, null handling, cutoff and ID tie-breakers. Report metric/activity queries materialize the already eligible target scope once instead of repeating historical enablement checks for every metric. No history, business data or endpoint values were rewritten.
+
+Real read-only endpoint parity: all six tested day/week/month and target-subset cases match the prior SQL field-for-field; SQLite reports zero writes. Synthetic mixed-history and query-plan checks exercise seven indexed endpoint seeks. Related regressions pass81 cases. Three pre-existing timezone fixture failures also reproduced before this patch: those fixtures now use normalized, source-bound profile payloads rather than unsupported quality flags, preserving the original timezone and metric assertions.
+
+The current overview-only read completes in about6.6s, versus earlier10/12/20s budget expirations. This is an internal read benchmark; actual HTTP latency and safe process loading are recorded separately. The hosted product's public replica path remains distinct from the legacy bootstrap.

@@ -1606,7 +1606,11 @@ async function handleApi(request, response, url) {
   if (request.method === "GET" && pathname === "/api/bootstrap") {
     access.requireRole(request, "viewer");
     const checkedAt = new Date();
-    const runtimeAudit = await requestScopedRead(request, response, () => systemAuditReader.read());
+    // Integrity scans traverse the saved database and backup metadata. They
+    // are an explicit diagnostic, never a prerequisite for opening the app.
+    const includeRuntimeAudit = url.searchParams.get('audit') === '1';
+    const runtimeAudit = includeRuntimeAudit
+      ? await requestScopedRead(request, response, () => systemAuditReader.read()) : null;
     const board = normalizeBoardName(url.searchParams.get("board"));
     const overview = await requestScopedRead(request, response, signal => consoleReader.bootstrapOverview({ board, timeZone: "Asia/Shanghai" }, { signal }));
     const bootstrapSourceProbe = database.getLatestSourceProbe();
@@ -1626,12 +1630,13 @@ async function handleApi(request, response, url) {
       publicProbe: bootstrapSourceProbe,
       publicProbes: database.getLatestSourceProbes(),
       sourceProbeHistory: database.getRecentSourceProbes(24),
-      runtimeAudit: {
+      runtimeAudit: runtimeAudit ? {
         ...runtimeAudit,
         checkedAt: runtimeAudit.checkFinishedAt,
         sourceStatus: bootstrapSourceDegraded ? "degraded" : bootstrapSourceProbe ? "ok" : "unknown",
         sourceDegraded: bootstrapSourceDegraded,
-      },
+      } : null,
+      runtimeAuditStatus: includeRuntimeAudit ? 'checked' : 'not-requested',
       scheduler: await readSchedulerStatus(request, response),
       runtimeAI: false,
       topicResolverMode: ["browser", "browser-first"].includes(process.env.DOUYIN_TOPIC_RESOLVER_MODE)

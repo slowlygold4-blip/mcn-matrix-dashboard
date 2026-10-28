@@ -17,14 +17,14 @@ test('phase102 actual HTTP: route signals, same-key subscriber isolation, bootst
   const target=database.createTarget({type:'account',provider:'manual',enabled:false,label:'HTTP离线取消',locator:'phase102-http'});
   const original=Object.fromEntries(['overview','account','history','bootstrapOverview'].map(key=>[key,ConsoleReader.prototype[key]]));
   const auditOriginal=SystemAuditReader.prototype.read;
-  const calls=[];let barrier=null, auditBarrier=null, auditEntered=null;
+  const calls=[];let barrier=null, auditBarrier=null, auditEntered=null, auditReads=0;
   for(const kind of Object.keys(original))ConsoleReader.prototype[kind]=async function(...args){
     const signal=(kind==='account'||kind==='history'?args[2]:args[1])?.signal;
     const record={kind,signal,reader:this};calls.push(record);
     if(barrier)await barrier.promise;
     return original[kind].apply(this,args);
   };
-  SystemAuditReader.prototype.read=async function(...args){auditEntered?.resolve();if(auditBarrier)await auditBarrier.promise;return auditOriginal.apply(this,args);};
+  SystemAuditReader.prototype.read=async function(...args){auditReads++;auditEntered?.resolve();if(auditBarrier)await auditBarrier.promise;return auditOriginal.apply(this,args);};
   const {server}=await import('../server.mjs');
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   t.after(async()=>{barrier?.resolve();auditBarrier?.resolve();await new Promise(resolve=>server.close(resolve));for(const[k,v]of Object.entries(original))ConsoleReader.prototype[k]=v;SystemAuditReader.prototype.read=auditOriginal;database.close();rmSync(dir,{recursive:true,force:true});});
@@ -42,8 +42,15 @@ test('phase102 actual HTTP: route signals, same-key subscriber isolation, bootst
     barrier.resolve();barrier=null;const result=await second.result;assert.equal(result.status,200,route);
     await tick();assert.equal(calls[offset+1].reader.jobs.size,0);
   }
+  const auditReadsBefore=auditReads;
+  const ordinaryBootstrap=await start('/api/bootstrap').result;
+  assert.equal(ordinaryBootstrap.status,200);
+  assert.equal(ordinaryBootstrap.body.runtimeAudit,null,'unperformed integrity scan cannot be represented as a passed scan');
+  assert.equal(ordinaryBootstrap.body.runtimeAuditStatus,'not-requested');
+  assert.equal(auditReads,auditReadsBefore,'opening the app must not enqueue a heavy integrity scan');
+  assert.ok(Array.isArray(ordinaryBootstrap.body.targets));
   auditBarrier=deferred();auditEntered=deferred();const before=calls.filter(c=>c.kind==='bootstrapOverview').length;
-  const bootstrap=start('/api/bootstrap');const caught=bootstrap.result.catch(error=>error);await auditEntered.promise;
+  const bootstrap=start('/api/bootstrap?audit=1');const caught=bootstrap.result.catch(error=>error);await auditEntered.promise;
   bootstrap.request.destroy();await caught;await new Promise(r=>setTimeout(r,10));
   auditBarrier.resolve();auditBarrier=null;await new Promise(r=>setTimeout(r,250));
   assert.equal(calls.filter(c=>c.kind==='bootstrapOverview').length,before,'disconnect before audit completes must not enqueue bootstrap overview');

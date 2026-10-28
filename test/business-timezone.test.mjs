@@ -6,6 +6,7 @@ const TIME_ZONES = ["UTC", "America/Los_Angeles", "Asia/Shanghai"];
 const imports = [
   ["{ MonitorDatabase }", "../lib/database.mjs"],
   ["{ MonitorScheduler }", "../lib/scheduler.mjs"],
+  ["{ normalizeCollection }", "../lib/providers/normalize.mjs"],
   ["{ localDateKey, nextDailyRun }", "../lib/utils.mjs"],
   ["{ getProductInsights, getAccountInsight }", "../lib/product-insights.mjs"],
 ].map(([binding, path]) => `import ${binding} from ${JSON.stringify(new URL(path, import.meta.url).href)};`).join("\n");
@@ -69,9 +70,15 @@ for (const timeZone of TIME_ZONES) {
         const target = database.createTarget({ type: "account", provider: "public-web",
           locator: "MS4wLjABAAAAtimezoneTestCanonicalIdentity12345", label: "时区隔离作者", metadata: { platform: "douyin" } });
         database.db.prepare("UPDATE targets SET created_at=? WHERE id=?").run("2020-01-01T00:00:00.000Z", target.id);
-        const sample = (localTime, value) => database.db.prepare(
-          "INSERT INTO snapshots(target_id,captured_at,followers,total_likes,total_posts,quality_status,account_status,works_coverage,source_checksum) VALUES(?,?,?,?,?,'validated','available','complete',?)"
-        ).run(target.id, new Date(localTime).toISOString(), value, value * 2, Math.floor(value / 5), "timezone-fixture-" + localTime);
+        // Exercise the same source/hash/identity vector required by the current
+        // read model. A trusted-looking quality flag alone is not source proof.
+        const sample = (localTime, value) => {
+          const capturedAt = new Date(localTime).toISOString();
+          const raw = { capturedAt, profile: { user: { sec_uid: target.locator, uid: '123456789',
+            follower_count: value, total_favorited: value * 2, aweme_count: Math.floor(value / 5) } },
+            works: { aweme_list: [] } };
+          database.saveCollection(target, null, normalizeCollection(target, raw, { capturedAt }));
+        };
         sample("2026-09-11T23:59:59.999", 80);
         sample("2026-09-12T23:59:59.999", 100);
         sample("2026-09-13T00:00:00.000", 110);
