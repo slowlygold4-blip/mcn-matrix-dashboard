@@ -237,3 +237,13 @@ test("backup requests coalesce, honor the cross-process lock, and prune old snap
   const locked = await new SQLiteBackupManager({ databasePath: sourcePath, backupDir, retention: 2 }).createBackup("startup");
   assert.deepEqual(locked, { status: "skipped", reason: "backup-locked" });
 });
+
+test('compressed automatic backups preserve full verification and restore, with bounded mixed retention', async t=>{
+ const {tempDir,manager}=await evidenceFixture(t,{accountEvents:true,eventCount:3});manager.retention=6;
+ const first=await manager.createBackup('compression-fixture');
+ for(let i=0;i<5;i++)await manager.createBackup('compression-fixture');
+ let names=await readdir(manager.backupDir);assert.equal(names.filter(n=>n.endsWith('.sqlite')).length,3);assert.equal(names.filter(n=>n.endsWith('.sqlite.gz')).length,3);
+ const verified=await manager.verifySnapshot(first.path+'.gz');assert.equal(verified.validation.counts.account_events,3);
+ const dest=join(tempDir,'restored-compressed.sqlite');await manager.restoreSnapshot(first.path+'.gz',dest);assert.equal(validateSQLiteSnapshot(dest).counts.account_events,3);
+ await manager.createBackup('compression-fixture');names=await readdir(manager.backupDir);assert.equal(names.filter(n=>/\.sqlite(?:\.gz)?$/.test(n)).length,6);await assert.rejects(stat(first.path+'.gz'),/ENOENT/);
+});
