@@ -147,7 +147,7 @@ test("freshness is per metric, includes zero, excludes future/paused samples and
 });
 
 test("source URL sanitizer rejects lookalikes/credentials/ports/non-sheet paths and strips tokens", () => {
-  assert.equal(safeAuthorSourceUrl("https://tenant.feishu.cn/sheets/Abcdef123456?token=[REDACTED]&sheet=abc#x"), "https://tenant.feishu.cn/sheets/Abcdef123456?sheet=abc");
+  assert.equal(safeAuthorSourceUrl("https://tenant.feishu.cn/sheets/Abcdef123456?token=SECRET&sheet=abc#x"), "https://tenant.feishu.cn/sheets/Abcdef123456?sheet=abc");
   for (const url of ["https://feishu.cn.evil.test/sheets/Abcdef123456", "https://u:p@tenant.feishu.cn/sheets/Abcdef123456", "http://tenant.feishu.cn/sheets/Abcdef123456", "https://tenant.feishu.cn:8443/sheets/Abcdef123456", "https://tenant.feishu.cn/wiki/Abcdef123456", "javascript:alert(1)"]) {
     assert.equal(safeAuthorSourceUrl(url), null, url);
   }
@@ -160,7 +160,7 @@ test("source cards are owner-scoped, deduped by sheet and board, and cannot leak
   const secondUser = Number(userInsert.run("two", now.toISOString(), now.toISOString()).lastInsertRowid);
   const create = (id, userId, revision, extra = {}) => database.createAuthorResolutionJob({
     id, userId, actorName: "PRIVATE ACTOR", clientIp: "PRIVATE IP", fileName: "/private/input.xlsx", sheetName: "作者",
-    request: { sourceType: "lark-sheet", sourceUrl: "https://tenant.feishu.cn/sheets/Abcdef123456?token=[REDACTED]", sourceSheetId: "aaa", sourceTitle: "云来源", sourceRevision: revision, sourceReadAt: now.toISOString(), defaultBoard: "团团", rows: [{ private: "DO NOT EXPOSE" }], cookie: "SECRET", ...extra },
+    request: { sourceType: "lark-sheet", sourceUrl: "https://tenant.feishu.cn/sheets/Abcdef123456?token=SECRET", sourceSheetId: "aaa", sourceTitle: "云来源", sourceRevision: revision, sourceReadAt: now.toISOString(), defaultBoard: "团团", rows: [{ private: "DO NOT EXPOSE" }], cookie: "SECRET", ...extra },
   });
   create("1", firstUser, 1);
   create("2", firstUser, 2);
@@ -194,4 +194,16 @@ test("continuity exposes timezone conversion and sanitized backup level, with no
   assert.equal(result.backup.verification, "manifest");
   assert.doesNotMatch(JSON.stringify(result.backup), /private|PRIVATE|SECRET/);
   assert.equal(readOnly.prepare("SELECT total_changes() AS n").get().n, before);
+});
+
+test('source-card projection is bounded to one metadata page before JSON extraction',t=>{
+ const {database}=fixture(t);
+ const userId=Number(database.db.prepare("INSERT INTO users(display_name,role,enabled,auth_source,created_at,updated_at) VALUES('fixture','editor',1,'test',?,?)").run(now.toISOString(),now.toISOString()).lastInsertRowid);
+ for(let i=0;i<225;i++)database.createAuthorResolutionJob({id:`page-fixture-${i}`,userId,actorName:'fixture',fileName:'fixture.xlsx',sheetName:'authors',request:{sourceType:'lark-sheet',sourceUrl:'https://tenant.feishu.cn/sheets/Abcdef123456',sourceTitle:'fixture',rows:[{private:'NEVER_RETURN_THIS_BODY'}]}});
+ let validations=0;
+ database.db.function('counted_json_valid',value=>{validations++;try{JSON.parse(value);return 1;}catch{return 0;}});
+ const adapter={db:{prepare(sql){return database.db.prepare(sql.replaceAll('json_valid(','counted_json_valid('));}}};
+ const cards=getAuthorSources(adapter,{userId,limit:1});
+ assert.equal(cards.length,1);assert.ok(validations<=900,`metadata JSON validation exceeded the100-row page: ${validations}`);
+ assert.doesNotMatch(JSON.stringify(cards),/NEVER_RETURN_THIS_BODY/);
 });

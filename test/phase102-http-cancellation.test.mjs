@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { MonitorDatabase } from '../lib/database.mjs';
 import { ConsoleReader } from '../lib/console-reader.mjs';
 import { SystemAuditReader } from '../lib/system-audit-reader.mjs';
+import { MonitorScheduler } from '../lib/scheduler.mjs';
 
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve=r; }); return {promise,resolve}; };
 const tick = () => new Promise(resolve => setImmediate(resolve));
@@ -16,8 +17,8 @@ test('phase102 actual HTTP: route signals, same-key subscriber isolation, bootst
   const database=new MonitorDatabase(join(dir,'douyin-monitor.sqlite'));
   const target=database.createTarget({type:'account',provider:'manual',enabled:false,label:'HTTP离线取消',locator:'phase102-http'});
   const original=Object.fromEntries(['overview','account','history','bootstrapOverview'].map(key=>[key,ConsoleReader.prototype[key]]));
-  const auditOriginal=SystemAuditReader.prototype.read;
-  const calls=[];let barrier=null, auditBarrier=null, auditEntered=null, auditReads=0;
+  const auditOriginal=SystemAuditReader.prototype.read, statusOriginal=MonitorScheduler.prototype.getStatusAsync;
+  const calls=[];let barrier=null, auditBarrier=null, auditEntered=null, auditReads=0, statusEntered=null;
   for(const kind of Object.keys(original))ConsoleReader.prototype[kind]=async function(...args){
     const signal=(kind==='account'||kind==='history'?args[2]:args[1])?.signal;
     const record={kind,signal,reader:this};calls.push(record);
@@ -25,9 +26,10 @@ test('phase102 actual HTTP: route signals, same-key subscriber isolation, bootst
     return original[kind].apply(this,args);
   };
   SystemAuditReader.prototype.read=async function(...args){auditReads++;auditEntered?.resolve();if(auditBarrier)await auditBarrier.promise;return auditOriginal.apply(this,args);};
+  MonitorScheduler.prototype.getStatusAsync=async function(...args){statusEntered?.resolve();return statusOriginal.apply(this,args);};
   const {server}=await import('../server.mjs');
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-  t.after(async()=>{barrier?.resolve();auditBarrier?.resolve();await new Promise(resolve=>server.close(resolve));for(const[k,v]of Object.entries(original))ConsoleReader.prototype[k]=v;SystemAuditReader.prototype.read=auditOriginal;database.close();rmSync(dir,{recursive:true,force:true});});
+  t.after(async()=>{barrier?.resolve();auditBarrier?.resolve();await new Promise(resolve=>server.close(resolve));for(const[k,v]of Object.entries(original))ConsoleReader.prototype[k]=v;SystemAuditReader.prototype.read=auditOriginal;MonitorScheduler.prototype.getStatusAsync=statusOriginal;database.close();rmSync(dir,{recursive:true,force:true});});
   const origin=`http://127.0.0.1:${server.address().port}`;
   const auth=await fetch(origin+'/api/auth/session');await auth.json();const cookie=auth.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ');
   const start=path=>{let request;const result=new Promise((resolve,reject)=>{request=httpRequest(origin+path,{headers:{Cookie:cookie}},response=>{let body='';response.on('data',chunk=>{body+=chunk;});response.on('end',()=>resolve({status:response.statusCode,body:JSON.parse(body)}));});request.on('error',reject);request.end();});return{request,result};};
@@ -43,7 +45,13 @@ test('phase102 actual HTTP: route signals, same-key subscriber isolation, bootst
     await tick();assert.equal(calls[offset+1].reader.jobs.size,0);
   }
   const auditReadsBefore=auditReads;
-  const ordinaryBootstrap=await start('/api/bootstrap').result;
+  barrier=deferred();statusEntered=deferred();
+  const opening=start('/api/bootstrap');
+  let statusTimer;
+  try{await Promise.race([statusEntered.promise,new Promise((_,reject)=>{statusTimer=setTimeout(()=>reject(Error('scheduler status was blocked behind the overview read')),1000);})]);}
+  finally{clearTimeout(statusTimer);}
+  barrier.resolve();barrier=null;
+  const ordinaryBootstrap=await opening.result;
   assert.equal(ordinaryBootstrap.status,200);
   assert.equal(ordinaryBootstrap.body.runtimeAudit,null,'unperformed integrity scan cannot be represented as a passed scan');
   assert.equal(ordinaryBootstrap.body.runtimeAuditStatus,'not-requested');

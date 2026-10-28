@@ -1612,7 +1612,12 @@ async function handleApi(request, response, url) {
     const runtimeAudit = includeRuntimeAudit
       ? await requestScopedRead(request, response, () => systemAuditReader.read()) : null;
     const board = normalizeBoardName(url.searchParams.get("board"));
-    const overview = await requestScopedRead(request, response, signal => consoleReader.bootstrapOverview({ board, timeZone: "Asia/Shanghai" }, { signal }));
+    // Independent bounded reader lanes may overlap; neither waits behind a
+    // second integrity scan or a sequential scheduler-status request.
+    const [overview, schedulerState] = await Promise.all([
+      requestScopedRead(request, response, signal => consoleReader.bootstrapOverview({ board, timeZone: "Asia/Shanghai" }, { signal })),
+      readSchedulerStatus(request, response, checkedAt),
+    ]);
     const bootstrapSourceProbe = database.getLatestSourceProbe();
     const bootstrapSourceDegraded = Boolean(bootstrapSourceProbe && (bootstrapSourceProbe.ok !== true || bootstrapSourceProbe.result?.postsEndpoint === false));
     overview.targets = overview.targets.map(publicTarget);
@@ -1637,7 +1642,7 @@ async function handleApi(request, response, url) {
         sourceDegraded: bootstrapSourceDegraded,
       } : null,
       runtimeAuditStatus: includeRuntimeAudit ? 'checked' : 'not-requested',
-      scheduler: await readSchedulerStatus(request, response),
+      scheduler: schedulerState,
       runtimeAI: false,
       topicResolverMode: ["browser", "browser-first"].includes(process.env.DOUYIN_TOPIC_RESOLVER_MODE)
         ? "authenticated-topic-dedicated-profile"

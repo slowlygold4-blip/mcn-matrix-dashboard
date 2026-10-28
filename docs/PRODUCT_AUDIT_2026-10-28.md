@@ -90,3 +90,9 @@ The account-period endpoint query is now an indexed per-account reader with the 
 Real read-only endpoint parity: all six tested day/week/month and target-subset cases match the prior SQL field-for-field; SQLite reports zero writes. Synthetic mixed-history and query-plan checks exercise seven indexed endpoint seeks. Related regressions pass81 cases. Three pre-existing timezone fixture failures also reproduced before this patch: those fixtures now use normalized, source-bound profile payloads rather than unsupported quality flags, preserving the original timezone and metric assertions.
 
 The current overview-only read completes in about6.6s, versus earlier10/12/20s budget expirations. This is an internal read benchmark; actual HTTP latency and safe process loading are recorded separately. The hosted product's public replica path remains distinct from the legacy bootstrap.
+
+### Further bootstrap path isolation
+
+The first real HTTP check still exceeded12s after the initial SQL fix; it is retained as a failed measurement, not relabeled as success. A second profile found source-card metadata took about3.0s because projection happened before a bounded page was selected. It now materializes only the page IDs before extracting metadata; source cards take about1.04s with an identical full-result SHA256 and zero DB writes. No new index, schema cache, raw-request transfer or owner-scope expansion was introduced. A fault case bounds JSON validation to one100-row page even with225 candidate jobs.
+
+Bootstrap overview and scheduler-status reads now start together in separate bounded reader lanes. Actual HTTP tests hold the overview read and verify scheduler status starts independently; abort isolation and explicit-audit cancellation remain checked. These changes retain all report periods and expose unperformed integrity checks as unknown.
