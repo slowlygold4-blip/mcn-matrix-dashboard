@@ -53,33 +53,33 @@ function response(t, item, pages) {
   return {items:[{key:item.key,status:'ok',errorCode:null,...ledger.result(pages.length)}]};
 }
 
-test('ordinary scheduler/provider persist a new-anchor continuation across disk reopen and reread the truncated request page',async t=>{
+test('scheduler checks a fresh head without losing the older disk-backed truncated-page continuation',async t=>{
   const f=setup(t); const requests=[];
   t.mock.method(PublicWebProvider.prototype,'runBrowserWorks',async item=>{
     requests.push({...item});
-    const pageSets=[[[0,100,true,1,20],[100,200,true,21,20]],[[100,200,true,21,20],[200,300,true,41,20]],[[200,0,false,41,20]]];
+    const pageSets=[[[0,100,true,1,20],[100,200,true,21,20]],[[100,200,true,21,20],[200,300,true,41,20]],[[0,100,true,1,20],[100,200,true,21,20]],[[200,0,false,41,20]]];
     return response(t,item,pageSets[requests.length-1]);
   });
   f.anchor(); await f.scheduler().tick();
   const first=f.database.db.prepare('SELECT * FROM works_observations').get();
   assert.equal(f.database.db.prepare('SELECT count(*) n FROM posts').get().n,30);
   assert.equal(JSON.parse(first.raw_json).pagination.pages.at(-1).truncated,true);
-  for(let round=1;round<3;round++) {
-    f.reopen(); t.mock.timers.setTime(NOW+round*8*3600_000); f.anchor();
+  for(const elapsed of [60_000, 8*3600_000+2000, 8*3600_000+62_000]) {
+    f.reopen(); t.mock.timers.setTime(NOW+elapsed); f.anchor();
     await f.scheduler().tick();
   }
-  assert.deepEqual(requests.map(item=>item.startCursor??0),[0,100,200]);
+  assert.deepEqual(requests.map(item=>item.startCursor??0),[0,100,0,200]);
   assert.ok(requests.every(item=>item.limit===30 && item.requestThreshold===undefined));
   assert.equal(f.database.db.prepare('SELECT count(*) n FROM posts').get().n,60);
   const rows=f.database.db.prepare('SELECT * FROM works_observations ORDER BY id').all();
-  assert.equal(rows.length,3); assert.ok(rows.every(row=>row.coverage==='limited'));
+  assert.equal(rows.length,4); assert.ok(rows.every(row=>row.coverage==='limited'));
   assert.equal(rows[0].source_checksum,first.source_checksum); assert.equal(rows[0].raw_json,first.raw_json);
   assert.notEqual(rows[0].anchor_snapshot_id,rows[1].anchor_snapshot_id);
   const raw=JSON.parse(rows[1].raw_json);
   assert.equal(raw.version,2); assert.equal(raw.continuation.sourceChecksum,first.source_checksum);
   assert.equal(raw.pagination.version,3); assert.equal(raw.pagination.pages[0].requestCursor,100);
   const verified=loadVerifiedWorksOnlyRows(f.database.db,new Date().toISOString(),f.target.id,{runIds:rows.map(row=>row.run_id)});
-  assert.equal(verified.length,3);
+  assert.equal(verified.length,4);
   assert.ok(verified.every(row=>row.coverage==='limited'), 'immutable source evidence stays limited');
   const final=verified.find(row=>row.run_id===rows.at(-1).run_id);
   assert.equal(final.works_coverage,'complete', 'a verified head-to-end chain matching every profile inventory is complete in the read model');
@@ -107,12 +107,13 @@ test('a changing profile inventory across a cursor chain remains limited',async 
   const f=setup(t); const requests=[];
   t.mock.method(PublicWebProvider.prototype,'runBrowserWorks',async item=>{
     requests.push({...item});
-    const pageSets=[[[0,100,true,1,20],[100,200,true,21,20]],[[100,200,true,21,20],[200,300,true,41,20]],[[200,0,false,41,20]]];
+    const pageSets=[[[0,100,true,1,20],[100,200,true,21,20]],[[100,200,true,21,20],[200,300,true,41,20]],[[0,100,true,1,20],[100,200,true,21,20]],[[200,0,false,41,20]]];
     return response(t,item,pageSets[requests.length-1]);
   });
   f.anchor(60); await f.scheduler().tick();
-  t.mock.timers.setTime(NOW+8*3600_000); f.anchor(61); await f.scheduler().tick();
-  t.mock.timers.setTime(NOW+16*3600_000); f.anchor(60); await f.scheduler().tick();
+  t.mock.timers.setTime(NOW+60_000); f.anchor(61); await f.scheduler().tick();
+  t.mock.timers.setTime(NOW+8*3600_000+2000); f.anchor(60); await f.scheduler().tick();
+  t.mock.timers.setTime(NOW+8*3600_000+62_000); f.anchor(60); await f.scheduler().tick();
   const final=loadVerifiedWorksOnlyRows(f.database.db,new Date().toISOString(),f.target.id)[0];
   assert.equal(final?.works_coverage,'limited');
   assert.equal(final?.coverage_evidence,undefined);
@@ -149,7 +150,7 @@ test('ordinary provider persists a legal natural head as independent evidence af
     const output=response(t,{...item,startCursor:undefined},[[0,0,false,99,1]]);
     output.items[0].continuationReset='natural-head';return output;
   });
-  f.anchor();await f.scheduler().tick();f.reopen();t.mock.timers.setTime(NOW+8*3600_000);f.anchor();await f.scheduler().tick();
+  f.anchor();await f.scheduler().tick();f.reopen();t.mock.timers.setTime(NOW+60_000);f.anchor();await f.scheduler().tick();
   assert.equal(requests[1].startCursor,100);
   const rows=f.database.db.prepare('SELECT * FROM works_observations ORDER BY id').all();assert.equal(rows.length,2);
   const latest=JSON.parse(rows[1].raw_json);assert.equal(latest.status,'accepted');assert.equal(latest.version,1);
@@ -161,7 +162,7 @@ test('ordinary provider persists a legal natural head as independent evidence af
 test('an oversized single page remains limited and cannot manufacture an advancing continuation chain',async t=>{
   const f=setup(t);const requests=[];
   t.mock.method(PublicWebProvider.prototype,'runBrowserWorks',async item=>{requests.push(item);return response(t,item,[[0,100,true,1,31]]);});
-  for(let round=0;round<3;round++){t.mock.timers.setTime(NOW+round*8*3600_000);f.anchor();await f.scheduler().tick();f.reopen();}
+  for(let round=0;round<3;round++){t.mock.timers.setTime(NOW+round*(8*3600_000+2000));f.anchor();await f.scheduler().tick();f.reopen();}
   assert.deepEqual(requests.map(item=>item.startCursor),[undefined,undefined,undefined]);
   assert.equal(f.database.db.prepare('SELECT count(*) n FROM posts').get().n,30);
   const raws=f.database.db.prepare('SELECT raw_json FROM works_observations').all().map(row=>JSON.parse(row.raw_json));

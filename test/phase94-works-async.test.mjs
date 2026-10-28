@@ -10,6 +10,7 @@ import { ConsoleReader } from '../lib/console-reader.mjs';
 import { PublicWebProvider } from '../lib/providers/public-web.mjs';
 import { normalizeCollection } from '../lib/providers/normalize.mjs';
 import { BrowserWorksPagination } from '../lib/browser-works-pagination.mjs';
+import { loadVerifiedWorksOnlyRows } from '../lib/works-observation.mjs';
 
 const NOW=Date.parse('2026-09-29T02:01:00.000Z'),SEC='MS4wLjABAAAAPhase94AsyncFixture123456',UID='12345678';
 function setup(t, options={}) {
@@ -43,16 +44,19 @@ test('actual async tick/guard/provider grows durable evidence; each same-asOf st
     return{items:[{key:item.key,status:'ok',errorCode:null,...ledger.result(1)}]};
   });
   f.anchor();await f.scheduler.tick();
-  t.mock.timers.setTime(NOW+8*3600_000);f.anchor();await f.scheduler.tick();
-  assert.equal(normal,0);assert.deepEqual(requests.map(x=>x.startCursor),[undefined,100]);
-  assert.equal(f.database.db.prepare('SELECT count(*) n FROM posts').get().n,60);
+  t.mock.timers.setTime(NOW+60_000);await f.scheduler.tick();
+  t.mock.timers.setTime(NOW+8*3600_000+2000);f.anchor();await f.scheduler.tick();
+  t.mock.timers.setTime(NOW+8*3600_000+62_000);await f.scheduler.tick();
+  assert.equal(normal,0);assert.deepEqual(requests.map(x=>x.startCursor),[undefined,100,undefined,200]);
+  assert.equal(f.database.db.prepare('SELECT count(*) n FROM posts').get().n,90);
   const at=new Date();const status=await f.scheduler.getStatusAsync(at);
   assert.equal(status.scheduledWorksLimitedTargetCount,1);assert.equal(status.scheduledWorksCompleteTargetCount,0);
   const sync=f.scheduler.getStatus(at);delete status.planningAsOf;assert.deepEqual(status,sync);
   const row=f.database.db.prepare('SELECT * FROM works_observations ORDER BY id LIMIT 1').get();
   f.database.db.exec('DROP TRIGGER works_observations_no_update');
   f.database.db.prepare('UPDATE works_observations SET source_checksum=? WHERE id=?').run('0'.repeat(64),row.id);
-  assert.equal((await f.scheduler.getStatusAsync(at)).scheduledWorksLimitedTargetCount,0);
+  assert.equal((await f.scheduler.getStatusAsync(at)).scheduledWorksLimitedTargetCount,1, 'the independent newer head remains valid');
+  assert.ok(loadVerifiedWorksOnlyRows(f.database.db, at.toISOString(), f.target.id).every(row=>!row.raw.continuation), 'the corrupted older parent invalidates its continuation');
   f.database.db.prepare('UPDATE works_observations SET source_checksum=? WHERE id=?').run(row.source_checksum,row.id);
   assert.equal((await f.scheduler.getStatusAsync(at)).scheduledWorksLimitedTargetCount,1);
   const reader=f.scheduler.planningReaders.get('status');assert.equal(reader.cache.size,0);assert.equal(reader.jobs.size,0);

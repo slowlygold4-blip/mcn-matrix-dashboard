@@ -62,7 +62,9 @@ test('Phase93 real disk SQLite depth24 cost and forced head reset after24 safe h
   }
   const buildStart=performance.now();
   for(let round=0;round<=24;round++) {
-    t.mock.timers.setTime(NOW+round*8*3600_000);
+    // Exercise the depth bound inside one fresh-head window; an expired
+    // window now intentionally resets to the head before any backfill.
+    t.mock.timers.setTime(NOW+round*60_000);
     for(const target of targets) {
       anchor(target);
       const result=await runNextWorksOnly(scheduler(),{target});
