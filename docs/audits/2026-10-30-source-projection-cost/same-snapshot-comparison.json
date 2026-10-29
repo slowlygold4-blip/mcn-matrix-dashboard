@@ -1,0 +1,73 @@
+{
+  "asOf": "2026-10-29T21:54:30.865Z",
+  "consistentTransaction": true,
+  "byteIdentical": true,
+  "records": [
+    {
+      "name": "before",
+      "elapsedMs": 7359.99575,
+      "bytes": 1217103,
+      "sha256": "9a183f934d5e497d93c469d0bdf838d380f80a7295d7fa0c1e871c59559785ca",
+      "revision": "9ad98c4233f27ac6367c39339580391bb3c4be21188245717a96b9d81d6ef9d3",
+      "stats": {
+        "sourceDocuments": 34,
+        "sourceRows": 16407,
+        "tuantuanRows": 15298,
+        "acceptedRows": 15215,
+        "unkeyedRows": 83,
+        "ambiguousRows": 0,
+        "invalidIdentityRows": 25,
+        "baseAuthorEvidence": 14327,
+        "baseWorkEvidence": 603,
+        "additionalAuthors": 129,
+        "additionalWorks": 108,
+        "otherAuthors": 435,
+        "otherWorks": 392,
+        "sourceMetricObservations": 3884,
+        "sourceMetricWorkIds": 3628,
+        "baseAuthorRows": 4481,
+        "reciprocalDuplicates": 92,
+        "baseAuthors": 4389,
+        "baseWorks": 18179,
+        "sheets": 20,
+        "pendingAuthors": 141
+      },
+      "rss": 1102086144
+    },
+    {
+      "name": "after",
+      "elapsedMs": 930.3648749999993,
+      "bytes": 1217103,
+      "sha256": "9a183f934d5e497d93c469d0bdf838d380f80a7295d7fa0c1e871c59559785ca",
+      "revision": "9ad98c4233f27ac6367c39339580391bb3c4be21188245717a96b9d81d6ef9d3",
+      "stats": {
+        "sourceDocuments": 34,
+        "sourceRows": 16407,
+        "tuantuanRows": 15298,
+        "acceptedRows": 15215,
+        "unkeyedRows": 83,
+        "ambiguousRows": 0,
+        "invalidIdentityRows": 25,
+        "baseAuthorEvidence": 14327,
+        "baseWorkEvidence": 603,
+        "additionalAuthors": 129,
+        "additionalWorks": 108,
+        "otherAuthors": 435,
+        "otherWorks": 392,
+        "sourceMetricObservations": 3884,
+        "sourceMetricWorkIds": 3628,
+        "baseAuthorRows": 4481,
+        "reciprocalDuplicates": 92,
+        "baseAuthors": 4389,
+        "baseWorks": 18179,
+        "sheets": 20,
+        "pendingAuthors": 141
+      },
+      "rss": 804225024
+    }
+  ],
+  "networkRequests": 0,
+  "databaseWrites": 0,
+  "modelCalls": 0,
+  "benchmarkCaveat": "same-process timings have warm caches; standalone peak RSS measured separately"
+}

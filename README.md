@@ -1,6 +1,6 @@
 # MCN 矩阵数据台
 
-**最新源码整理：2026-10-30（北京时间）。公开前端对应线上 v121。**
+**最新源码整理：2026-10-30（北京时间）。包含后台与公开前端源码，部署核验见开发记录。**
 
 [打开线上工作台](https://mcn-matrix-observatory.slowlygold4.chatgpt.site) · [开发交接说明](docs/DEVELOPER_HANDOFF.md)
 
@@ -36,6 +36,8 @@ npm run dev
 ```
 
 前端的持久化数据依赖 D1 / R2 配置或已有公开副本接口；只有源码不会自动拥有生产数据库、管理权限或生产部署密钥。`npm run build` 生成部署产物。
+
+来源读取和发布性能优化及核验结果见[性能审查记录](docs/SOURCE_PROJECTION_COST_20261030.md)。
 
 ## 验证与合作
 

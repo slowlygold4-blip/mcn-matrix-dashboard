@@ -1,0 +1,87 @@
+{
+  "verifiedAt": "2026-10-29T22:00:41.803735+00:00",
+  "scope": "source read/serialization performance; not collection coverage",
+  "tests": {
+    "privatePass": 62,
+    "publicPass": 131,
+    "failed": 0,
+    "overlap": "private62 included in public131",
+    "logSha256": "b01f40280a75e82894124e3de7d7c36dfd545c259509ca10901682fe199ec55a"
+  },
+  "sourceInputs": {
+    "completedJobs": 232,
+    "historicalRequestCharacters": 176259570,
+    "selectedSourceEditions": 34
+  },
+  "projectionComparison": {
+    "byteIdentical": true,
+    "bytes": 1217103,
+    "sha256": "9a183f934d5e497d93c469d0bdf838d380f80a7295d7fa0c1e871c59559785ca",
+    "sameTransaction": true
+  },
+  "catalogComparison": {
+    "at": "2026-10-29T21:56:12.967Z",
+    "consistentTransaction": true,
+    "byteIdentical": true,
+    "accounts": 4130,
+    "bytes": 1785937,
+    "sha256": "de0dab482cfbf03cda86ea388001482ebe98f72755cc813461364f6833be0602",
+    "databaseWrites": 0,
+    "networkRequests": 0,
+    "modelCalls": 0
+  },
+  "rosterState": {
+    "generatedAt": "2026-10-29T21:55:00.005Z",
+    "authorCount": 4944,
+    "counts": {
+      "monitoring": 3936,
+      "paused": 0,
+      "identity_conflict_paused": 49,
+      "identity_conflict_active": 0,
+      "resolving": 416,
+      "source_binding_needed": 2,
+      "previous_resolution_failed": 147,
+      "identity_search_needed": 337,
+      "identifier_repair_needed": 57
+    },
+    "queue": {
+      "itemCount": 19380,
+      "counts": {
+        "rejected": 7295,
+        "resolved": 7811,
+        "pending": 3274,
+        "retry": 1000
+      },
+      "matchedItemCount": 18773
+    },
+    "sourceMode": "live-database-projections",
+    "samplingCoverageEvaluated": false,
+    "databaseWrites": 0,
+    "modelCalls": 0
+  },
+  "observedStandaloneCost": {
+    "before": {
+      "elapsedSeconds": 12.82,
+      "maximumRssBytes": 1388773376
+    },
+    "after": {
+      "elapsedSeconds": 4.36,
+      "maximumRssBytes": 1064042496
+    },
+    "caveat": "background load and warm caches not controlled; observations not a guarantee"
+  },
+  "publisherReload": {
+    "oldPid": 65106,
+    "newPid": 75674,
+    "processLive": true,
+    "priority": 10,
+    "oldIdleRssKiB": 2063616,
+    "newIdleRssKiB": 110144,
+    "samePublishedAsOf": "2026-10-29T21:45:03.431Z",
+    "nextExportPeakValidated": false
+  },
+  "databaseWrites": 0,
+  "platformRequests": 0,
+  "modelCalls": 0,
+  "newTimers": 0
+}

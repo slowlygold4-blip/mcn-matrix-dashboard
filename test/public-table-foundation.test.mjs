@@ -34,6 +34,61 @@ test('supplementary sources come from the current DB without writes, zero-fillin
  assert.equal(db.prepare('SELECT total_changes() n').get().n,changes);
  for(const forbidden of ['PRIVATE_SECRET','private.feishu.cn','metadata_json','sourceUrl'])assert.equal(JSON.stringify(result).includes(forbidden),false,forbidden);
 });
+
+test('completed source history is streamed while revision selection remains exact',t=>{
+ const {db,job}=fixture(t),common={sourceUrl:'https://private.feishu.cn/sheets/same-source'};
+ job('first','2026-10-25T00:00:00Z',[{platform:'douyin',board:'一条小团团切片矩阵',name:'older',douyinId:'old_id'}],{...common,sourceRevision:2});
+ job('second','2026-10-26T00:00:00Z',[{platform:'douyin',board:'一条小团团切片矩阵',name:'latest',douyinId:'latest_id'}],{...common,sourceRevision:3});
+ job('third','2026-10-27T00:00:00Z',[{platform:'douyin',board:'一条小团团切片矩阵',name:'lower',douyinId:'lower_id'}],{...common,sourceRevision:1});
+ let iterators=0,visited=0,payloadReads=0;
+ const wrapped={
+  get isTransaction(){return db.isTransaction;},exec:db.exec.bind(db),
+  prepare(sql){
+   const statement=db.prepare(sql);
+   if(sql.startsWith('SELECT id,created_at,finished_at,')&&sql.includes('FROM author_resolution_jobs'))return {
+    all(){throw Error('eager-source-history-read');},
+    *iterate(...args){iterators++;for(const row of statement.iterate(...args)){visited++;yield row;}}
+   };
+   if(sql==='SELECT request_json FROM author_resolution_jobs WHERE id=?')return {get(...args){payloadReads++;return statement.get(...args);}};
+   return statement;
+  }
+ };
+ const result=readPublicTableFoundation(wrapped,at);
+ assert.equal(iterators,1);assert.equal(visited,3);
+ assert.equal(payloadReads,1,'only the selected source edition materializes its complete registration rows');
+ assert.deepEqual(result.authors.map(row=>row.douyinId),['latest_id']);
+ assert.equal(result.stats.sourceDocuments,1);
+});
+
+test('duplicate JSON metadata keys and row fields preserve the original last-key semantics',t=>{
+ const {db,job,read}=fixture(t),url='https://private.feishu.cn/sheets/duplicate-key-source';
+ const entry=id=>({platform:'douyin',board:'一条小团团切片矩阵',name:'fixture',douyinId:id});
+ job('baseline','2026-10-25T00:00:00Z',[entry('baseline_id')],{sourceUrl:url,sourceRevision:2});
+ job('duplicate','2026-10-26T00:00:00Z',[],{});
+ const replace=raw=>db.prepare('UPDATE author_resolution_jobs SET request_json=? WHERE id=?').run(raw,'duplicate');
+ replace('{"sourceUrl":'+JSON.stringify(url)+',"sourceRevision":100,"sourceRevision":1,"rows":'+JSON.stringify([entry('wrong_id')])+'}');
+ assert.deepEqual(read().authors.map(row=>row.douyinId),['baseline_id']);
+ replace('{"sourceUrl":'+JSON.stringify(url)+',"sourceRevision":3,"rows":null,"rows":'+JSON.stringify([entry('last_rows_id')])+'}');
+ assert.deepEqual(read().authors.map(row=>row.douyinId),['last_rows_id']);
+ replace('{"sourceUrl":'+JSON.stringify(url)+',"sourceRevision":3,"rows":'+JSON.stringify([entry('wrong_id')])+',"rows":null}');
+ assert.deepEqual(read().authors.map(row=>row.douyinId),['baseline_id']);
+ replace('{"sourceUrl":'+JSON.stringify(url)+',"sourceRevision":3,"rows":'+JSON.stringify([entry('wrong_id')])+',"ro\\u0077s":null}');
+ assert.deepEqual(read().authors.map(row=>row.douyinId),['baseline_id']);
+});
+
+test('malformed jobs and non-array rows retain the original inclusion rules',t=>{
+ const {db,job,read}=fixture(t);
+ job('valid','2026-10-25T00:00:00Z',[{platform:'douyin',board:'一条小团团切片矩阵',name:'fixture',douyinId:'valid_id'}]);
+ job('invalid','2026-10-26T00:00:00Z',[],{});
+ for(const raw of ['{broken','123','[]','{"rows":null}','{"rows":{}}']){
+  db.prepare('UPDATE author_resolution_jobs SET request_json=? WHERE id=?').run(raw,'invalid');
+  assert.deepEqual(read().authors.map(row=>row.douyinId),['valid_id']);
+ }
+ // A null top-level payload used to fail the projection. Optimization must
+ // not silently convert that existing source-integrity failure into success.
+ db.prepare('UPDATE author_resolution_jobs SET request_json=? WHERE id=?').run('null','invalid');
+ assert.throws(()=>read(),TypeError);
+});
 test('future jobs, imports and metric observations cannot enter an earlier export cutoff',t=>{
  const {imported,row,observation,job,read}=fixture(t);
  imported(2);row('08',2,['未来作者','future_id',null,null,null,null,1,1,0,0,0,200,3,null,null],2);
