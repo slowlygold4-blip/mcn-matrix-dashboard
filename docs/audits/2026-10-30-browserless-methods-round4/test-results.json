@@ -1,0 +1,29 @@
+{
+  "verifiedAt": "2026-10-29T21:26:24.397547+00:00",
+  "type": "synthetic-response-and-local-regression",
+  "productionAccountsTested": 0,
+  "douyinPlatformRequests": 0,
+  "modelCalls": 0,
+  "databaseWrites": 0,
+  "privateTests": [
+    {
+      "file": "probe-tests.log",
+      "passed": 35,
+      "failed": 0,
+      "sha256": "731c8ade4549dc82bc3c4cf5bf0faae55892529d181644fa4bc54d4ae2168dc2"
+    },
+    {
+      "file": "policy-tests.log",
+      "passed": 7,
+      "failed": 0,
+      "sha256": "59f5d9373ffb6a87ccd6ca59a70a5f0cf0404bc7497aa382694a31a7d20c6b9c"
+    }
+  ],
+  "publicCheckoutTests": {
+    "passed": 42,
+    "failed": 0,
+    "command": "node --test --test-concurrency=2 test/douyin-miniapp-video-probe.test.mjs test/douyin-open-api-probe.test.mjs test/douyin-official-daily-probe.test.mjs test/douyin-browser-disabled.test.mjs test/public-web-microbatch-backpressure.test.mjs",
+    "sha256": "ffb1bda9ded888130628c56ece788ceb56ce9ac119fc5a1b3f9094b43d555ebe"
+  },
+  "note": "Private35 plus7 and public42 repeat the same42 cases; not84 distinct tests or live account successes."
+}

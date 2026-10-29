@@ -64,4 +64,4 @@ node scripts/probe-douyin-open-api.mjs --miniapp --run --account-key KEY
 - 新官方路线还需要真实获批应用、作者授权、应用内作品ID与本库身份映射，才能完成一个账号的真实验证；现有询问仍待回复，不重复索取密钥。
 - 当前全作品403、全部作者身份关联、完整每日发布覆盖仍未解决。研究与隔离代码完成不等于生产采集修复，不修改覆盖率或把缺失数据填零。
 
-证据见 `docs/audits/2026-10-30-browserless-methods-round4/`：公开源码SHA/文件哈希、readiness、测试日志。接下来仍优先真正不同的上游/授权能力和已有原表自动同步，不反复安装相同Web接口的不同包装。
+证据见 `docs/audits/2026-10-30-browserless-methods-round4/`：公开源码SHA/文件哈希、readiness、`test-results.json`。原始测试日志保留在本地，不加入Git；私有目录35+7项与公开副本42项是同一批用例的复验，不是84项独立测试。接下来仍优先真正不同的上游/授权能力和已有原表自动同步，不反复安装相同Web接口的不同包装。
