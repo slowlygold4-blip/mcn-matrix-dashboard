@@ -18,7 +18,7 @@
 
 ## 启动本地服务
 
-需要 Node.js **24+**（使用 `node:sqlite`）和 Python 3。默认停用抖音浏览器采集；HTTP 采集与来源表同步不需要打开抖音网页。前端浏览器测试另需本机 Chrome，仅用于模拟数据或本控制台验收。
+需要 Node.js **24+**（使用 `node:sqlite`）和 Python 3。默认停用抖音浏览器采集；HTTP 采集与来源表同步不需要打开抖音网页。前端浏览器测试另需本机 Chrome，仅用于模拟数据或本控制台验收。 当前无浏览器采集的[源码核验与官方新接口验证](docs/COLLECTION_METHODS_BROWSERLESS_ROUND4_20261030.md)已整理；`node scripts/probe-douyin-open-api.mjs --miniapp`只检查配置，不发平台请求。需要真实获批应用及作者授权后才能显式运行该隔离接口。
 
 ```sh
 npm ci

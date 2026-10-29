@@ -1,0 +1,315 @@
+{
+  "checkedAt": "2026-10-29T21:24:20.943977+00:00",
+  "repositories": [
+    {
+      "repo": "ltppp/douyin-ingest",
+      "sha": "4c8e6542f4670235e889c13f043c359d66626f59",
+      "pushed_at": "2026-07-14T05:48:08Z",
+      "truncated": false
+    },
+    {
+      "repo": "wanzicong/MediaCrawler_Dy",
+      "sha": "592f8d6a0351950aa913e2cffdec9f8632ec8ccb",
+      "pushed_at": "2026-10-09T22:45:38Z",
+      "truncated": false
+    },
+    {
+      "repo": "LIghtJUNction/douyin",
+      "sha": "c70a41e6a8007c09c9d955548f7ab63f25b26df1",
+      "pushed_at": "2026-09-27T01:09:25Z",
+      "truncated": false
+    },
+    {
+      "repo": "why20261/douyin-data-research",
+      "sha": "1b14b2a27604081c1fa9e053b381e99560cadb6f",
+      "pushed_at": "2026-09-28T09:52:43Z",
+      "truncated": false
+    },
+    {
+      "repo": "redfox-data/redfox-community",
+      "sha": "d2e24f02340a440a73a96aa6ad6a65f681fba89f",
+      "pushed_at": "2026-10-28T04:07:17Z",
+      "truncated": false
+    },
+    {
+      "repo": "43college/43-agent-skills",
+      "sha": "385773aecd59e38e1d82e8237e122baec1b685a7",
+      "pushed_at": "2026-09-12T05:41:09Z",
+      "truncated": false
+    },
+    {
+      "repo": "Super-Bull/douyin-to-feishu",
+      "sha": "917dd6ba1319493e8b80240b63ff52f7c8ee25d0",
+      "pushed_at": "2026-10-15T08:03:38Z",
+      "truncated": false
+    },
+    {
+      "repo": "Evil0ctal/Douyin_TikTok_Download_API",
+      "sha": "b5505e3830a2e4b9b8608962f58e96dfe75f23c5",
+      "pushed_at": "2026-10-27T11:31:56Z",
+      "truncated": false
+    }
+  ],
+  "files": [
+    {
+      "repo": "ltppp/douyin-ingest",
+      "path": "README.md",
+      "sha": "4c8e6542f4670235e889c13f043c359d66626f59",
+      "bytes": 19242,
+      "sha256": "13af047222ea84c41e1268372e8e69b86040abff59f82b1d20ce921ba44911a1",
+      "url": "https://github.com/ltppp/douyin-ingest/blob/4c8e6542f4670235e889c13f043c359d66626f59/README.md"
+    },
+    {
+      "repo": "ltppp/douyin-ingest",
+      "path": "skills/douyin-content-ingest/SKILL.md",
+      "sha": "4c8e6542f4670235e889c13f043c359d66626f59",
+      "bytes": 5214,
+      "sha256": "ecf545a085914982bf1cf6e1fb7265be91f50a020d1475b079d2c6e38c9e1f40",
+      "url": "https://github.com/ltppp/douyin-ingest/blob/4c8e6542f4670235e889c13f043c359d66626f59/skills/douyin-content-ingest/SKILL.md"
+    },
+    {
+      "repo": "ltppp/douyin-ingest",
+      "path": "project/api.py",
+      "sha": "4c8e6542f4670235e889c13f043c359d66626f59",
+      "bytes": 10821,
+      "sha256": "caad67549fcd2ff617bd5c484a0aad53983ace6d720d7820d58f156967c33261",
+      "url": "https://github.com/ltppp/douyin-ingest/blob/4c8e6542f4670235e889c13f043c359d66626f59/project/api.py"
+    },
+    {
+      "repo": "ltppp/douyin-ingest",
+      "path": "project/config.py",
+      "sha": "4c8e6542f4670235e889c13f043c359d66626f59",
+      "bytes": 2091,
+      "sha256": "75829fbb5116bf905333537db5652fe666a260707448528929a65a2b18dfc27d",
+      "url": "https://github.com/ltppp/douyin-ingest/blob/4c8e6542f4670235e889c13f043c359d66626f59/project/config.py"
+    },
+    {
+      "repo": "wanzicong/MediaCrawler_Dy",
+      "path": "README.md",
+      "sha": "592f8d6a0351950aa913e2cffdec9f8632ec8ccb",
+      "bytes": 29777,
+      "sha256": "8d4cc4d15b0246debaba28750decf79a7cfec0307574f9f989c02947516603fe",
+      "url": "https://github.com/wanzicong/MediaCrawler_Dy/blob/592f8d6a0351950aa913e2cffdec9f8632ec8ccb/README.md"
+    },
+    {
+      "repo": "wanzicong/MediaCrawler_Dy",
+      "path": "modules/douyin-client/src/crawler/douyin_client/http/client.py",
+      "sha": "592f8d6a0351950aa913e2cffdec9f8632ec8ccb",
+      "bytes": 49947,
+      "sha256": "bf245eccb9e738f54311b0d83935939ace29901f32645c6665e31be5ef8c751f",
+      "url": "https://github.com/wanzicong/MediaCrawler_Dy/blob/592f8d6a0351950aa913e2cffdec9f8632ec8ccb/modules/douyin-client/src/crawler/douyin_client/http/client.py"
+    },
+    {
+      "repo": "wanzicong/MediaCrawler_Dy",
+      "path": "modules/business/src/crawler/business/douyin/tasks/crawler.py",
+      "sha": "592f8d6a0351950aa913e2cffdec9f8632ec8ccb",
+      "bytes": 49278,
+      "sha256": "9a41d8b14208dbe73c596223e190930f10270f42bc0a0529997e8deb9064ae57",
+      "url": "https://github.com/wanzicong/MediaCrawler_Dy/blob/592f8d6a0351950aa913e2cffdec9f8632ec8ccb/modules/business/src/crawler/business/douyin/tasks/crawler.py"
+    },
+    {
+      "repo": "LIghtJUNction/douyin",
+      "path": "USAGE.md",
+      "sha": "c70a41e6a8007c09c9d955548f7ab63f25b26df1",
+      "bytes": 10688,
+      "sha256": "d86101dca4889f0cf7c630b472bccd510cc7b0c10731a062df14f0f003615950",
+      "url": "https://github.com/LIghtJUNction/douyin/blob/c70a41e6a8007c09c9d955548f7ab63f25b26df1/USAGE.md"
+    },
+    {
+      "repo": "LIghtJUNction/douyin",
+      "path": ".agents/skills/douyin/SKILL.md",
+      "sha": "c70a41e6a8007c09c9d955548f7ab63f25b26df1",
+      "bytes": 3880,
+      "sha256": "0c5a18ac8ec203faea4f0f3130a7d321ae8380e2a055c87598b52e6b8b051276",
+      "url": "https://github.com/LIghtJUNction/douyin/blob/c70a41e6a8007c09c9d955548f7ab63f25b26df1/.agents/skills/douyin/SKILL.md"
+    },
+    {
+      "repo": "why20261/douyin-data-research",
+      "path": "SKILL.md",
+      "sha": "1b14b2a27604081c1fa9e053b381e99560cadb6f",
+      "bytes": 16776,
+      "sha256": "0128008d574a6e7df0e91ca687bbab15d5789ee8d4fffca2672b4ef0d60fb206",
+      "url": "https://github.com/why20261/douyin-data-research/blob/1b14b2a27604081c1fa9e053b381e99560cadb6f/SKILL.md"
+    },
+    {
+      "repo": "why20261/douyin-data-research",
+      "path": "src/api/post.js",
+      "sha": "1b14b2a27604081c1fa9e053b381e99560cadb6f",
+      "bytes": 1570,
+      "sha256": "22eb009b24759a4bd543d328f2933d9b2542781b4ec28ef82563e917bce0c48b",
+      "url": "https://github.com/why20261/douyin-data-research/blob/1b14b2a27604081c1fa9e053b381e99560cadb6f/src/api/post.js"
+    },
+    {
+      "repo": "why20261/douyin-data-research",
+      "path": "package.json",
+      "sha": "1b14b2a27604081c1fa9e053b381e99560cadb6f",
+      "bytes": 1038,
+      "sha256": "0ab570549b4fa5c820644069dae4e8f1764ded08f85a7e4030b9d66dc4f118fc",
+      "url": "https://github.com/why20261/douyin-data-research/blob/1b14b2a27604081c1fa9e053b381e99560cadb6f/package.json"
+    },
+    {
+      "repo": "redfox-data/redfox-community",
+      "path": "skills/douyin-works-crawler/SKILL.md",
+      "sha": "d2e24f02340a440a73a96aa6ad6a65f681fba89f",
+      "bytes": 16916,
+      "sha256": "8324c84ea604a548bf4d5b7611156de63657559a29e90f10cd37f4965f74b40d",
+      "url": "https://github.com/redfox-data/redfox-community/blob/d2e24f02340a440a73a96aa6ad6a65f681fba89f/skills/douyin-works-crawler/SKILL.md"
+    },
+    {
+      "repo": "redfox-data/redfox-community",
+      "path": "skills/douyin-works-crawler/scripts/douyin_works_fetcher.py",
+      "sha": "d2e24f02340a440a73a96aa6ad6a65f681fba89f",
+      "bytes": 19511,
+      "sha256": "66f70a6084e7c324e7b6e5b32798b95bf600d81e9655239ec35d48731352f530",
+      "url": "https://github.com/redfox-data/redfox-community/blob/d2e24f02340a440a73a96aa6ad6a65f681fba89f/skills/douyin-works-crawler/scripts/douyin_works_fetcher.py"
+    },
+    {
+      "repo": "43college/43-agent-skills",
+      "path": "social-media-scout/SKILL.md",
+      "sha": "385773aecd59e38e1d82e8237e122baec1b685a7",
+      "bytes": 18485,
+      "sha256": "5f956b5f597393e06b24f97f54527faac578fdd726b31c0c195916efa24d2d55",
+      "url": "https://github.com/43college/43-agent-skills/blob/385773aecd59e38e1d82e8237e122baec1b685a7/social-media-scout/SKILL.md"
+    },
+    {
+      "repo": "43college/43-agent-skills",
+      "path": "social-media-scout/scripts/tikhub_client.py",
+      "sha": "385773aecd59e38e1d82e8237e122baec1b685a7",
+      "bytes": 24595,
+      "sha256": "fbf5a1a2d8a403952ee8f7551587834381587e27a7ff77107976e04139cd679b",
+      "url": "https://github.com/43college/43-agent-skills/blob/385773aecd59e38e1d82e8237e122baec1b685a7/social-media-scout/scripts/tikhub_client.py"
+    },
+    {
+      "repo": "Super-Bull/douyin-to-feishu",
+      "path": "douyin-to-feishu/SKILL.md",
+      "sha": "917dd6ba1319493e8b80240b63ff52f7c8ee25d0",
+      "bytes": 5179,
+      "sha256": "c00f97d194532f45cf85c629a204330724531f9145a63b184971484952444e67",
+      "url": "https://github.com/Super-Bull/douyin-to-feishu/blob/917dd6ba1319493e8b80240b63ff52f7c8ee25d0/douyin-to-feishu/SKILL.md"
+    },
+    {
+      "repo": "Super-Bull/douyin-to-feishu",
+      "path": "douyin-to-feishu/references/douyin-collect.md",
+      "sha": "917dd6ba1319493e8b80240b63ff52f7c8ee25d0",
+      "bytes": 3464,
+      "sha256": "65a906836f25bcd867a17e87cf837ebb4a2d6eaec22b21ec18ac43290ab2ed59",
+      "url": "https://github.com/Super-Bull/douyin-to-feishu/blob/917dd6ba1319493e8b80240b63ff52f7c8ee25d0/douyin-to-feishu/references/douyin-collect.md"
+    },
+    {
+      "repo": "Evil0ctal/Douyin_TikTok_Download_API",
+      "path": "documents/zh/11-api.md",
+      "sha": "b5505e3830a2e4b9b8608962f58e96dfe75f23c5",
+      "bytes": 76541,
+      "sha256": "42960f89a761cba2f22b2ad39134017f223c9be4a67dcda8874b09d8ae9eb13e",
+      "url": "https://github.com/Evil0ctal/Douyin_TikTok_Download_API/blob/b5505e3830a2e4b9b8608962f58e96dfe75f23c5/documents/zh/11-api.md"
+    },
+    {
+      "repo": "Evil0ctal/Douyin_TikTok_Download_API",
+      "path": "src/dtk/platforms/douyin/endpoints.py",
+      "sha": "b5505e3830a2e4b9b8608962f58e96dfe75f23c5",
+      "bytes": 21233,
+      "sha256": "2e1dc1a1768ca39225a12d0c93222d5db96ae42807e637e3b6e3b34fd766f40a",
+      "url": "https://github.com/Evil0ctal/Douyin_TikTok_Download_API/blob/b5505e3830a2e4b9b8608962f58e96dfe75f23c5/src/dtk/platforms/douyin/endpoints.py"
+    },
+    {
+      "repo": "Evil0ctal/Douyin_TikTok_Download_API",
+      "path": "src/dtk/platforms/douyin/adapter.py",
+      "sha": "b5505e3830a2e4b9b8608962f58e96dfe75f23c5",
+      "bytes": 9774,
+      "sha256": "d3e1e90a0af7652854c27dffccc5fe20a6aed73ae186e717d8869dc2ab1b53fd",
+      "url": "https://github.com/Evil0ctal/Douyin_TikTok_Download_API/blob/b5505e3830a2e4b9b8608962f58e96dfe75f23c5/src/dtk/platforms/douyin/adapter.py"
+    },
+    {
+      "repo": "Evil0ctal/Douyin_TikTok_Download_API",
+      "path": "src/dtk/transport/classify.py",
+      "sha": "b5505e3830a2e4b9b8608962f58e96dfe75f23c5",
+      "bytes": 34633,
+      "sha256": "4541c5685d518cabd4f1faf022abce8702a1149aed3080da31f79c0bd77a1443",
+      "url": "https://github.com/Evil0ctal/Douyin_TikTok_Download_API/blob/b5505e3830a2e4b9b8608962f58e96dfe75f23c5/src/dtk/transport/classify.py"
+    },
+    {
+      "repo": "ltppp/douyin-ingest",
+      "path": "project/capture.py",
+      "sha": "4c8e6542f4670235e889c13f043c359d66626f59",
+      "bytes": 13414,
+      "sha256": "0e153032b05f70db2894d1b78c098940a261e52f8db4094e3c49f7b1c4e89e43",
+      "url": "https://github.com/ltppp/douyin-ingest/blob/4c8e6542f4670235e889c13f043c359d66626f59/project/capture.py"
+    },
+    {
+      "repo": "ltppp/douyin-ingest",
+      "path": "project/parser.py",
+      "sha": "4c8e6542f4670235e889c13f043c359d66626f59",
+      "bytes": 10474,
+      "sha256": "e43a4420872986f8ddbf4d98f5271113c50d4e6613d7644faa472e3657238a1e",
+      "url": "https://github.com/ltppp/douyin-ingest/blob/4c8e6542f4670235e889c13f043c359d66626f59/project/parser.py"
+    },
+    {
+      "repo": "ltppp/douyin-ingest",
+      "path": "project/service.py",
+      "sha": "4c8e6542f4670235e889c13f043c359d66626f59",
+      "bytes": 8011,
+      "sha256": "26c9190dac9e4f1025d45ef8693c2212e48090107489f930a4c203bd79f8f403",
+      "url": "https://github.com/ltppp/douyin-ingest/blob/4c8e6542f4670235e889c13f043c359d66626f59/project/service.py"
+    },
+    {
+      "repo": "wanzicong/MediaCrawler_Dy",
+      "path": "modules/douyin-client/src/crawler/douyin_client/http/scenarios/user.py",
+      "sha": "592f8d6a0351950aa913e2cffdec9f8632ec8ccb",
+      "bytes": 5384,
+      "sha256": "d50677c26b951303d90c5f2fde51a9350f32a0b507b7e423e5bc5fa0aa89aabd",
+      "url": "https://github.com/wanzicong/MediaCrawler_Dy/blob/592f8d6a0351950aa913e2cffdec9f8632ec8ccb/modules/douyin-client/src/crawler/douyin_client/http/scenarios/user.py"
+    },
+    {
+      "repo": "wanzicong/MediaCrawler_Dy",
+      "path": "modules/douyin-client/src/crawler/douyin_client/session/context.py",
+      "sha": "592f8d6a0351950aa913e2cffdec9f8632ec8ccb",
+      "bytes": 1761,
+      "sha256": "3144cb50811a8b33fcaa79dadab7fa353c6783f9939654b6cf0f236d8c665ba2",
+      "url": "https://github.com/wanzicong/MediaCrawler_Dy/blob/592f8d6a0351950aa913e2cffdec9f8632ec8ccb/modules/douyin-client/src/crawler/douyin_client/session/context.py"
+    },
+    {
+      "repo": "LIghtJUNction/douyin",
+      "path": "src/api.rs",
+      "sha": "c70a41e6a8007c09c9d955548f7ab63f25b26df1",
+      "bytes": 16798,
+      "sha256": "2a16d733fc4fc30caf066652425ce0234997fe1811e030eb578d2d38d7bd3e4d",
+      "url": "https://github.com/LIghtJUNction/douyin/blob/c70a41e6a8007c09c9d955548f7ab63f25b26df1/src/api.rs"
+    },
+    {
+      "repo": "LIghtJUNction/douyin",
+      "path": "src/crawler.rs",
+      "sha": "c70a41e6a8007c09c9d955548f7ab63f25b26df1",
+      "bytes": 48535,
+      "sha256": "b5f645ecdc65395fd1b4e0beb4dd4997c0e69cd8ced87113d7cff9422132d2cf",
+      "url": "https://github.com/LIghtJUNction/douyin/blob/c70a41e6a8007c09c9d955548f7ab63f25b26df1/src/crawler.rs"
+    },
+    {
+      "repo": "LIghtJUNction/douyin",
+      "path": "src/openapi.rs",
+      "sha": "c70a41e6a8007c09c9d955548f7ab63f25b26df1",
+      "bytes": 12608,
+      "sha256": "b184e5545bdaf121d0ae6c9bb85f8c19cba57dd13130b40f13a213bfb832828e",
+      "url": "https://github.com/LIghtJUNction/douyin/blob/c70a41e6a8007c09c9d955548f7ab63f25b26df1/src/openapi.rs"
+    },
+    {
+      "repo": "why20261/douyin-data-research",
+      "path": "src/config/constants.js",
+      "sha": "1b14b2a27604081c1fa9e053b381e99560cadb6f",
+      "bytes": 222,
+      "sha256": "1ad27c64654d234a5db1b6afdc6e9ca1fceb040f1477be66226a302fa4b09c29",
+      "url": "https://github.com/why20261/douyin-data-research/blob/1b14b2a27604081c1fa9e053b381e99560cadb6f/src/config/constants.js"
+    },
+    {
+      "repo": "why20261/douyin-data-research",
+      "path": "src/utils/request.js",
+      "sha": "1b14b2a27604081c1fa9e053b381e99560cadb6f",
+      "bytes": 5056,
+      "sha256": "aa245dfa5ba21803a5abeb1423d47c2e7a2482f93e68b10bfb97e42123cedc09",
+      "url": "https://github.com/why20261/douyin-data-research/blob/1b14b2a27604081c1fa9e053b381e99560cadb6f/src/utils/request.js"
+    }
+  ],
+  "scope": "Fixed source snapshots; targeted source inspection, not full repository audit or execution",
+  "thirdPartyCodeExecuted": false,
+  "thirdPartyInstalled": false,
+  "douyinBrowserStarted": false
+}
