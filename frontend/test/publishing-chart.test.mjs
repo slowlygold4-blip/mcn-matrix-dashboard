@@ -110,6 +110,26 @@ test('publishing chart renders real React controls and keeps dated work drilldow
     await assertDay('2026-09-14',2);
     assert.deepEqual(errors,[]);
    });
+
+   await t.test('missing and genuine-zero days never fabricate a peak of one', async()=>{
+    await page.evaluate(()=>window.fixture.setDays([{date:'2026-10-27',works:null,tracks:{}}]));
+    await page.waitForFunction(()=>document.querySelector('.source-ops-chart-selection select')?.value==='2026-10-27');
+    assert.match(await page.locator('.source-ops-chart-foot').textContent(),/尚无有效发布记录/);
+    assert.equal(await page.getByRole('button',{name:'查看当天作品 →',exact:true}).isDisabled(),true);
+    await page.evaluate(()=>window.fixture.setDays([{date:'2026-10-27',works:0,tracks:{}}]));
+    await page.waitForFunction(()=>document.querySelector('.source-ops-chart-selection strong')?.textContent==='0');
+    assert.match(await page.locator('.source-ops-chart-foot').textContent(),/最高 0 条/);
+   });
+
+   await t.test('latest-known shortcut leaves a missing day explicit and opens only the chosen real date',async()=>{
+    await page.evaluate(()=>window.fixture.setDays([{date:'2026-10-27',works:31,tracks:{}},{date:'2026-10-28',works:null,tracks:{}}]));
+    await page.waitForFunction(()=>document.querySelector('.source-ops-chart-selection select')?.value==='2026-10-28');
+    const latest=page.getByRole('button',{name:'最近有记录：2026-10-27'});
+    await latest.click();await assertDay('2026-10-27',31);
+    assert.equal(await latest.count(),0);
+    await page.getByRole('button',{name:'查看当天作品 →',exact:true}).click();
+    assert.equal((await page.evaluate(()=>window.inspections.at(-1))).startDate,'2026-10-27');
+   });
   } finally { await context.close(); }
  } finally { await browser.close(); }
 });
