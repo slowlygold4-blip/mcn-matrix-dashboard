@@ -1,0 +1,36 @@
+{
+  "evidenceStartedAt": "2026-10-29T20:11:02.381387+00:00",
+  "recordedAt": "2026-10-29T20:17:06.134877+00:00",
+  "evidencePhaseMinutes": 6.1,
+  "repositoriesChecked": 8,
+  "newToFourPriorReports": 5,
+  "filesDownloaded": 22,
+  "scopeOfReview": "targeted implementation review; generated SDK not fully reviewed",
+  "relatedTests": {
+    "passed": 70,
+    "failed": 0,
+    "kind": "synthetic/local regression"
+  },
+  "liveDailyProbe": {
+    "mode": "readiness",
+    "accessTokenPresent": false,
+    "openIdPresent": false,
+    "userDataScopeDeclared": false,
+    "platformPermissionVerified": false,
+    "identityBindingVerified": false,
+    "networkRequests": 0,
+    "databaseWrites": 0,
+    "modelCalls": 0
+  },
+  "service": {
+    "httpStatus": 200,
+    "status": "ready",
+    "runtimeAI": false
+  },
+  "newProductionMeasurements": 0,
+  "newSchedules": 0,
+  "newCollectionProcesses": 0,
+  "serviceRestarts": 0,
+  "browserUsed": false,
+  "collectionFixed": false
+}
