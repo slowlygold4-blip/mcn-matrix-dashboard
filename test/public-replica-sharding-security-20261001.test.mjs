@@ -6,12 +6,14 @@ import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { DatabaseSync } from 'node:sqlite';
+import {pathToFileURL} from 'node:url';
+import {resolve} from 'node:path';
 import { preparePublicReplicaPublication, createPublicReplicaSync,
   PUBLIC_REPLICA_SUMMARY_FIELDS } from '../lib/public-replica-sync.mjs';
 
 const AS_OF = '2026-09-20T12:00:00.000Z';
 const AT = '2026-09-20T02:00:00.000Z';
-const SITE = new URL('../../mcn-public-site/', import.meta.url);
+const SITE = process.env.MCN_SITE_ROOT?pathToFileURL(resolve(process.env.MCN_SITE_ROOT)+'/'):new URL('../../mcn-public-site/', import.meta.url);
 const hash = text => createHash('sha256').update(text).digest('hex');
 const common = { version: 1, asOf: AS_OF, timeZone: 'Asia/Shanghai' };
 const clone = value => structuredClone(value);
@@ -92,16 +94,21 @@ async function routeHarness() {
   const ts = require('typescript');
   const sqlite = new DatabaseSync(':memory:');
   sqlite.exec('CREATE TABLE replica_files(generation TEXT,path TEXT,checksum TEXT,bytes INTEGER,PRIMARY KEY(generation,path)); CREATE TABLE replica_generations(generation TEXT PRIMARY KEY,manifest TEXT,published_at TEXT);');
+  sqlite.exec(await readFile(new URL('drizzle/0001_swift_morph.sql',SITE),'utf8'));
   const objects = new Map(); let hook = null;
   const db = { prepare(sql) { let args = []; return {
     bind(...values) { args = values; return this; },
+    execute() { return sqlite.prepare(sql).run(...args); },
     async first() { await hook?.(sql, args); return sqlite.prepare(sql).get(...args) ?? null; },
     async all() { await hook?.(sql, args); return { results: sqlite.prepare(sql).all(...args) }; },
     async run() { await hook?.(sql, args); return sqlite.prepare(sql).run(...args); },
-  }; } };
+  }; },async batch(statements){
+    sqlite.exec('BEGIN');try{const results=statements.map(statement=>{statement.execute();return {success:true};});sqlite.exec('COMMIT');return results;}
+    catch(error){sqlite.exec('ROLLBACK');throw error;}
+  } };
   const bucket = { async put(key, body) { objects.set(key, body); }, async get(key) {
     if (!objects.has(key)) return null; const body = objects.get(key);
-    return { body, async text() { return body; }, async json() { return JSON.parse(body); } };
+    return { size:Buffer.byteLength(body),body:new Response(body).body,async text() { return body; }, async json() { return JSON.parse(body); } };
   } };
   // Synthetic credential never leaves this process and is not printed.
   const environment = { DB: db, BUCKET: bucket, REPLICA_INGEST_SECRET: '0'.repeat(64) };
@@ -109,7 +116,7 @@ async function routeHarness() {
     { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const context = { exports: {}, Request, Response, URL, TextEncoder, crypto: webcrypto,
     __syntheticEnvironment: environment,
-    require: specifier => ['@/lib/replica-summary.mjs', '@/lib/replica-date-audit.mjs', '@/lib/replica-publishing.mjs'].includes(specifier)
+    require: specifier => /^@\/lib\/[a-z0-9-]+\.mjs$/.test(specifier)
       ? require(new URL(specifier.slice(2), SITE).pathname) : require(specifier) };
   vm.runInNewContext(code, context, { filename: 'synthetic-replica-route.cjs' });
   return { sqlite, objects, setHook(value) { hook = value; },
@@ -455,7 +462,7 @@ test('independent date route: surviving metadata cannot conceal a missing date o
       .get(AS_OF, file.path).checksum, file.sha256);
     h.objects.delete(`${AS_OF}/${file.sha256}`);
     const response = await h.activate(publication); assert.equal(response.status, 409);
-    assert.match((await response.json()).error, /全量来源核对/);
+    assert.match((await response.json()).error, /存储分片缺失或损坏/);
     assert.equal(h.sqlite.prepare('SELECT COUNT(*) n FROM replica_generations').get().n, 0);
     // Activation failed, so this generation does not exist. A 404 is the
     // established missing-generation response, not a readable partial index.

@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mergeAuthorWorks,orderAuthorWorks} from '../lib/author-unified-works.mjs';
-import {readFileSync,readdirSync} from 'node:fs';
 const author={name:'甲',douyinId:'a',douyinIds:['a','old-a'],targetIds:[9,10]};
 const old={contentId:'7300000000000000001',douyinId:'old-a',likes:10,plays:100,title:'原作品',publishDate:'2026-09-12'};
 const sample={id:1,targetId:9,externalId:old.contentId,likes:12,plays:0,lastObservedAt:'2026-10-26T08:00:00.000Z',playsEvidence:{mayBePlaceholder:true},publishedAt:'2026-09-12T04:00:00.000Z'};
@@ -18,8 +17,11 @@ test('sort uses displayed adopted values, missing last both directions; search u
  const rows=[{externalId:'1',caption:'旧作',adoptedLikes:null},{externalId:'2',caption:'新作',adoptedLikes:0},{externalId:'3',caption:'新作',adoptedLikes:20}];
  assert.deepEqual(orderAuthorWorks(rows,'adoptedLikes','desc').map(r=>r.externalId),['3','2','1']);assert.deepEqual(orderAuthorWorks(rows,'adoptedLikes','asc').map(r=>r.externalId),['2','3','1']);assert.equal(orderAuthorWorks(rows,'adoptedLikes','desc','新作').length,2);
 });
-test('real sealed data keeps source-only author works available',()=>{
- const base='public/creator-source/';const sources=readdirSync(base).filter(p=>/^works-.*json$/.test(p)).flatMap(p=>JSON.parse(readFileSync(base+p)).items);sources.push(...JSON.parse(readFileSync('public/table-foundation/works.json')).items);
- const a=JSON.parse(readFileSync(base+'authors.json')).items.find(a=>a.douyinId==='41548399093');assert.ok(a);
- const rows=mergeAuthorWorks({author:a,sourceWorks:sources,platformWorks:[]});assert.equal(rows.length,2);assert.equal(rows.reduce((n,r)=>n+r.adoptedLikes,0),47000);assert.equal(rows.reduce((n,r)=>n+r.adoptedPlays,0),1297000);
+test('source-only works remain usable without private workbook files or monitored target bindings',()=>{
+ const rows=mergeAuthorWorks({author:{name:'Fixture',douyinId:'fixture_author',targetIds:[]},sourceWorks:[
+  {contentId:'7300000000000000010',douyinId:'fixture_author',likes:10,plays:100,publishDate:'2026-09-12'},
+  {contentId:'7300000000000000011',douyinId:'fixture_author',likes:null,plays:200,publishDate:null},
+ ],platformWorks:[]});
+ assert.equal(rows.length,2);assert.equal(rows.reduce((n,r)=>n+(r.adoptedLikes??0),0),10);
+ assert.equal(rows.reduce((n,r)=>n+r.adoptedPlays,0),300);assert.equal(rows[1].adoptedLikes,null);
 });

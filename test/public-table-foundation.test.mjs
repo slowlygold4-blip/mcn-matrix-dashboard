@@ -30,7 +30,7 @@ test('supplementary sources come from the current DB without writes, zero-fillin
  db.prepare("INSERT INTO targets(type,label,locator,provider,metadata_json,created_at,updated_at) VALUES('account','untrusted','MS4wLjABAAAAFalseHandleOnly','public-web',?,'2026-10-01','2026-10-01')").run(JSON.stringify({douyinId:'new_id'}));
  const changes=db.prepare('SELECT total_changes() n').get().n,result=read();
  assert.equal(result.stats.additionalAuthors,1);assert.equal(result.stats.additionalWorks,1);assert.deepEqual(result.authors[0].targetIds,[]);
- assert.deepEqual(result.observations.map(o=>[o.likes,o.plays,o.observedAt]),[[0,0,'2026-10-23T00:00:00.000Z'],[null,null,null]]);
+ assert.deepEqual(result.observations.map(o=>[o.likes,o.plays,o.observedAt]),[[0,0,null],[null,null,null]]);
  assert.equal(db.prepare('SELECT total_changes() n').get().n,changes);
  for(const forbidden of ['PRIVATE_SECRET','private.feishu.cn','metadata_json','sourceUrl'])assert.equal(JSON.stringify(result).includes(forbidden),false,forbidden);
 });
@@ -40,6 +40,16 @@ test('future jobs, imports and metric observations cannot enter an earlier expor
  job('future','2026-10-30T00:00:00Z',[{platform:'douyin',board:'一条小团团切片矩阵',name:'未来作者',douyinId:'future_id'}]);
  observation(0,999,999,'2026-10-30T00:00:00Z');
  const result=read();assert.equal(result.stats.baseAuthors,1);assert.equal(result.stats.sourceDocuments,0);assert.equal(result.stats.sourceMetricObservations,0);assert.equal(JSON.stringify(result).includes('future_id'),false);
+});
+
+test('original column header determines whether a timestamp is submission or measurement evidence',t=>{
+ const {db,observation,read}=fixture(t);
+ const headers=Array(14).fill('');headers[13]='提交时间';
+ db.prepare('INSERT INTO creator_source_sheets(import_id,sheet_id,sheet_name,row_count,restricted,headers_json) VALUES(1,\'10\',\'作品记录\',1,0,?)').run(JSON.stringify(headers));
+ observation(0,5,50,'2026-10-23T00:00:00Z');
+ const submitted=read().observations[0];assert.equal(submitted.observedAt,null);assert.equal(submitted.recordedAt,'2026-10-23T00:00:00.000Z');assert.equal(submitted.timeBasis,'submission-time');
+ headers[13]='指标采样时间';db.prepare('UPDATE creator_source_sheets SET headers_json=?').run(JSON.stringify(headers));
+ const measured=read().observations[0];assert.equal(measured.timeBasis,'metric-observation');assert.equal(measured.observedAt,measured.recordedAt);
 });
 test('publication clocks alone do not create a new content revision; changing a source does',t=>{
  const {job,read}=fixture(t),first=read();

@@ -1,12 +1,13 @@
 import {presentUnifiedWorkMetric} from './unified-work-presentation.mjs';
 import {workPublicationDay} from './replica-work-publication.mjs';
+import {indexWorkObservations,observationsForWork,workOwnerKey} from './work-metric-adoption.mjs';
 const known=v=>Number.isSafeInteger(v)&&v>=0?v:null;
 /** Same content ID is one work. Sources are evidence, never independent addends. */
-export function mergeAuthorWorks({author,sourceWorks,platformWorks}){
- const ids=new Set([author.douyinId,...(author.douyinIds||[])].map(String));
+export function mergeAuthorWorks({author,sourceWorks,platformWorks,sourceObservations=[],asOf}){
+ const ids=new Set([author.douyinId,...(author.douyinIds||[])].map(workOwnerKey).filter(Boolean));
  const targets=new Set(author.targetIds||[]), works=new Map();
  for(const [index,row] of sourceWorks.entries()){
-  if(!ids.has(String(row.douyinId)))continue;
+  if(!ids.has(workOwnerKey(row.douyinId)))continue;
   const key=String(row.contentId||'');
   if(!/^\d{15,25}$/.test(key))throw Error('作者作品 ID 无效，停止合并');
   if(works.has(key))throw Error('原始作品索引存在重复 ID，需核对');
@@ -30,7 +31,13 @@ export function mergeAuthorWorks({author,sourceWorks,platformWorks}){
    sourcePublishedOn:saved.sourcePublishedOn||row.sourcePublishedOn||null,
    ...(!workPublicationDay(row)&&saved.publishedOn?{publishedOn:saved.publishedOn,publicationDateBasis:'creator-source-date-only'}:{})});
  }
- return [...works.values()].map(row=>({...row,publicationDay:workPublicationDay(row),adoptedLikes:presentUnifiedWorkMetric(row,'likes').value,adoptedPlays:presentUnifiedWorkMetric(row,'plays').value,likesObservedAt:presentUnifiedWorkMetric(row,'likes').observedAt,playsObservedAt:presentUnifiedWorkMetric(row,'plays').observedAt}));
+ const observations=indexWorkObservations(sourceObservations,asOf);
+ return [...works.values()].map(row=>{
+  const merged={...row,sourceObservations:observationsForWork(observations,row.externalId,[...ids]),metricAsOf:asOf};
+  const likes=presentUnifiedWorkMetric(merged,'likes'),plays=presentUnifiedWorkMetric(merged,'plays');
+  return {...merged,publicationDay:workPublicationDay(row),adoptedLikes:likes.value,adoptedPlays:plays.value,
+   likesObservedAt:likes.observedAt,playsObservedAt:plays.observedAt,likesOrigin:likes.origin,playsOrigin:plays.origin};
+ });
 }
 export function orderAuthorWorks(rows,field='publicationDay',direction='desc',query=''){
  if(!['publicationDay','adoptedLikes','adoptedPlays'].includes(field)||!['asc','desc'].includes(direction))throw Error('作品排序无效');

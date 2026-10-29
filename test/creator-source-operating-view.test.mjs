@@ -13,6 +13,48 @@ const locator = `https://www.douyin.com/user/${sec}`;
 const targetMetadata = douyinId => JSON.stringify({ platform: 'douyin', douyinId,
   identityVerification: { accountId: locator } });
 
+test('提交时间不冒充指标采样时间，列表和作者合计保留有效观测值',()=>{
+ const db=fixture(),id='7300000000000000061';platformFixture(db);
+ const source=[id,'同名作者','handle_a','2026-10-21','video','切片激励','切片激励',50,5,'','观测作品'];
+ db.prepare('INSERT INTO creator_source_rows VALUES(1,?,?,?)').run('09',7,JSON.stringify(source));
+ addPlatformWork(db,{id,postId:661,metricAt:'2026-10-22T08:00:00Z',likes:7,plays:70});
+ const obs=[];obs[2]='同名作者';obs[3]='handle_a';obs[5]=id;obs[8]=3;obs[9]=null;obs[13]='2026-10-23T08:00:00Z';
+ db.prepare('INSERT INTO creator_source_rows VALUES(1,?,?,?)').run('10',2,JSON.stringify(obs));
+ try{
+  const query={q:id,asOf:'2026-10-28T08:00:00.000Z'};
+  const result=readCreatorOperatingView(db,{...query,view:'works'});assert.equal(result.total,1);
+  assert.equal(result.items[0].latestLikes,7);assert.equal(result.items[0].latestPlays,70);
+  assert.equal(result.items[0].cumulativeLikes,5,'原始累计证据不改写');
+  assert.equal(result.summary.cumulativeLikes,7);assert.equal(result.summary.cumulativePlays,70);
+  assert.equal(result.daily[0].cumulativeLikes,7);
+  assert.equal(readCreatorOperatingView(db,{...query,view:'authors'}).items[0].cumulativeLikes,7);
+  const previous=readCreatorOperatingView(db,{...query,view:'works',asOf:'2026-10-22T12:00:00.000Z'});
+  assert.equal(previous.items[0].latestLikes,7);
+ }finally{db.close();}
+});
+
+test('补充来源独有作品按ID进入统一发布台账；观测日期不伪造成发布日期',()=>{
+ const db=fixture(),id='7300000000000000062',row=[];row[2]='同名作者';row[3]='handle_a';row[5]=id;row[8]=0;row[9]=20;row[13]='2026-10-23T08:00:00Z';
+ db.prepare('INSERT INTO creator_source_rows VALUES(1,?,?,?)').run('10',2,JSON.stringify(row));
+ try{
+  const asOf='2026-10-28T08:00:00.000Z',rows=readUnifiedPublicationWorks(db,asOf);
+  assert.equal(rows.filter(work=>work.contentId===id).length,1);assert.equal(rows.find(work=>work.contentId===id).publishedOn,'');
+  const view=readCreatorOperatingView(db,{asOf,view:'works',q:id});assert.equal(view.total,1);assert.equal(view.items[0].latestLikes,0);
+  assert.equal(view.items[0].latestPlays,20);assert.equal(view.summary.works,1);
+ }finally{db.close();}
+});
+
+test('补充观测重叠平台作品仍只计一次，保留平台真实发布日期而非丢到无日期',()=>{
+ const db=fixture(),id='7300000000000000063';platformFixture(db);
+ addPlatformWork(db,{id,postId:663});
+ const row=[];row[2]='同名作者';row[3]='handle_a';row[5]=id;row[8]=20;row[13]='2026-10-23T08:00:00Z';
+ db.prepare('INSERT INTO creator_source_rows VALUES(1,?,?,?)').run('10',2,JSON.stringify(row));
+ try{
+  const works=readUnifiedPublicationWorks(db,'2026-10-28T08:00:00.000Z').filter(w=>w.contentId===id);
+  assert.equal(works.length,1);assert.equal(works[0].publishedOn,'2026-10-22');assert.equal(works[0].targetId,10);
+ }finally{db.close();}
+});
+
 test('原表新版直接进入同一作品查询与账号详情，缓存按来源版本刷新，历史截止不漂移',()=>{
   const db=fixture();db.exec('PRAGMA foreign_keys=ON');
   const videoId='7300000000000000099',url='https://fixture.feishu.cn/sheets/FixtureWorkbook123456';
@@ -277,7 +319,7 @@ test('同作品来源a1与平台a1.1合成一条，平台新值优先且缺失�
     assert.equal(item.sourceComparison.likes.difference, 5);
     assert.equal(item.sourceComparison.likes.chronologicalOrderVerified, false);
     assert.equal(item.sourceComparison.notDailyGrowth, true);
-    assert.equal(result.summary.cumulativeLikes, 4);
+    assert.equal(result.summary.cumulativeLikes, 9,'合计与列表采用同一观测值，原始累计4保留在sourceCumulativeLikes');
     assert.equal(result.reconciliation.knownWorkOverlap, 1);
     assert.equal(result.reconciliation.identityMatchedWorkOverlap, 1);
     assert.equal(result.reconciliation.newSourceWorks, 0);
@@ -315,12 +357,12 @@ test('严格关联的新平台作品进入同一作品视图，原表累计与�
     assert.equal(all.globalSummary.works, 5);
     assert.equal(all.summary.sourceWorks, 4);
     assert.equal(all.summary.platformOnlyWorks, 1);
-    assert.equal(all.summary.cumulativePlays, 300, '原表累计汇总仍只来自原表');
+    assert.equal(all.summary.cumulativePlays, 645, '四条原作品与一条平台独有作品按ID合计，采用列表值');
     assert.equal(all.reconciliation.newPlatformWorks, 1);
     const day = readCreatorOperatingView(db, { view: 'works', start: '2026-10-22', end: '2026-10-22' });
     assert.deepEqual(day.daily.map(row => row.day), ['2026-10-22']);
     assert.equal(day.summary.works, 1);
-    assert.equal(day.summary.cumulativePlays, null);
+    assert.equal(day.summary.cumulativePlays, 345);
     assert.match(day.semantics.date, /不代表该日/);
     assert.equal('dailyGrowth' in day, false);
     assert.equal(readCreatorOperatingView(db, { view: 'works', authorKey: 'source-author:1:2', q: id }).total, 1);

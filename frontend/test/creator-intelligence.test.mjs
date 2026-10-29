@@ -129,7 +129,7 @@ test('later source observations choose a unique latest value and quarantine same
     {contentId:'1234567890123457',observedAt:'2026-10-19T10:00:00Z',plays:600,likes:5},
     {contentId:'not-a-work',observedAt:'2026-10-19T10:00:00Z',plays:999,likes:9},
   ];
-  const summary=summarizeSourceObservations(rows);
+  const summary=summarizeSourceObservations(rows.map(row=>({...row,timeBasis:'metric-observation'})));
   assert.deepEqual([summary.rows,summary.uniqueWorks,summary.usableWorks,summary.ambiguousWorks],[5,2,1,1]);
   assert.deepEqual(summary.topWorks.map(row=>[row.contentId,row.plays]),[['1234567890123456',120]]);
 });
@@ -139,6 +139,6 @@ test('sealed supplemental source sample exposes conflicts without replacing the 
   const result=summarizeSourceObservations(body.items);
   assert.equal(result.rows,3884);
   assert.equal(result.uniqueWorks,3628);
-  assert.equal(result.ambiguousWorks,59);
-  assert.equal(result.usableWorks,3569);
+  assert.equal(result.ambiguousWorks,105);
+  assert.equal(result.usableWorks,3523);assert.equal(result.latestAt,null,'提交时间或旧版未说明的时间不能作为指标采样时间');
 });
