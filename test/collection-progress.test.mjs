@@ -27,3 +27,35 @@ test('in-flight coverage reads only committed matching audits, never counts prog
  assert.equal(r.worksComplete,2,'valid work proof can remain independent of a missing profile counter');
  assert.equal(r.attempted,4);db.close();
 });
+
+
+test('structured HTTP works refusals and deferred requests remain visible independently of successful profiles',()=>{
+ const db=new DatabaseSync(':memory:');db.exec(`CREATE TABLE runs(id INTEGER,trigger_type TEXT,started_at TEXT,finished_at TEXT,status TEXT,target_count INTEGER,processed_count INTEGER,success_count INTEGER,error_count INTEGER,warning_count INTEGER,skipped_count INTEGER,heartbeat_at TEXT,current_target_id INTEGER,details_json TEXT);CREATE TABLE targets(id INTEGER,type TEXT,label TEXT,enabled INTEGER);CREATE TABLE author_resolution_queue(status TEXT);INSERT INTO targets VALUES(1,'account','blocked',1),(2,'account','cooldown',1),(3,'account','recovered',1),(4,'account','private-code',1);`);
+ const put=(id,details)=>{const at='2026-10-29T0'+id+':00:00.000Z';db.prepare("INSERT INTO runs VALUES(?,'scheduled',?,?,'success',4,4,4,0,4,0,?,NULL,?)").run(id,at,at,at,JSON.stringify(details));};
+ put(1,[{targetId:1,profileUsable:true,worksCoverage:'unavailable',worksErrorCode:'blocked'},{targetId:2,profileUsable:true,worksCoverage:'unavailable',worksErrorCode:'deferred'},{targetId:3,worksCoverage:'unavailable',errorCode:'network_error'},{targetId:4,worksCoverage:'unavailable',errorCode:'PRIVATE_SENTINEL'}]);
+ put(2,[{targetId:3,profileUsable:true,worksCoverage:'limited',worksErrorCode:null}]);
+ const result=collectionProgress(db,{now:'2026-10-29T03:00:00.000Z'});
+ assert.equal(result.rolling.profiles,3);assert.equal(result.rolling.worksComplete,0);assert.equal(result.rolling.worksLimited,1);
+ assert.deepEqual(new Map(result.rolling.reasons.map(r=>[r.code,r.count])),new Map([['blocked',1],['transport-cooldown',1],['unknown',1]]));
+ assert.equal(result.rolling.workIssues,3);assert.equal(JSON.stringify(result).includes('PRIVATE_SENTINEL'),false);db.close();
+});
+
+
+test('future clocks and corrupt detail containers cannot falsify or break the current status',()=>{
+ const db=new DatabaseSync(':memory:');db.exec(`CREATE TABLE runs(id INTEGER,trigger_type TEXT,started_at TEXT,finished_at TEXT,status TEXT,target_count INTEGER,processed_count INTEGER,success_count INTEGER,error_count INTEGER,warning_count INTEGER,skipped_count INTEGER,heartbeat_at TEXT,current_target_id INTEGER,details_json TEXT);CREATE TABLE targets(id INTEGER,type TEXT,label TEXT,enabled INTEGER);CREATE TABLE author_resolution_queue(status TEXT);INSERT INTO targets VALUES(1,'account','real',1),(2,'account','future',1);`);
+ const put=(id,start,end,details)=>db.prepare("INSERT INTO runs VALUES(?,'scheduled',?,?,'success',2,2,2,0,0,0,?,NULL,?)").run(id,start,end,start,JSON.stringify(details));
+ put(1,'2026-10-29T01:00:00Z','2026-10-29T01:00:10Z',[{targetId:1,profileUsable:true,worksCoverage:'limited'}]);
+ put(2,'2026-10-29T01:10:00Z','2026-10-29T01:10:10Z',{invalid:'container'});
+ put(3,'2026-10-29T01:20:00Z','2026-10-29T01:20:10Z',[null,7]);
+ put(4,'2026-10-30T01:00:00Z','2026-10-30T01:00:10Z',[{targetId:2,profileUsable:true,worksCoverage:'complete'}]);
+ put(5,'2026-10-29T01:30:00Z','2026-10-30T01:00:00Z',[{targetId:2,profileUsable:true,worksCoverage:'complete'}]);
+ const result=collectionProgress(db,{now:'2026-10-29T03:00:00.000Z'});
+ assert.equal(result.run.id,3);assert.equal(result.coverage.runId,3);assert.equal(result.rolling.profiles,1);assert.equal(result.rolling.worksLimited,1);assert.equal(result.rolling.worksComplete,0);db.close();
+});
+
+test('rolling window includes legacy UTC-space runs after the exact cutoff without admitting older runs',()=>{
+ const db=new DatabaseSync(':memory:');db.exec(`CREATE TABLE runs(id INTEGER,trigger_type TEXT,started_at TEXT,finished_at TEXT,status TEXT,target_count INTEGER,processed_count INTEGER,success_count INTEGER,error_count INTEGER,warning_count INTEGER,skipped_count INTEGER,heartbeat_at TEXT,current_target_id INTEGER,details_json TEXT);CREATE TABLE targets(id INTEGER,type TEXT,label TEXT,enabled INTEGER);CREATE TABLE author_resolution_queue(status TEXT);INSERT INTO targets VALUES(1,'account','within',1),(2,'account','outside',1);`);
+ const put=(id,start,targetId)=>db.prepare("INSERT INTO runs VALUES(?,'scheduled',?,?,'success',1,1,1,0,0,0,?,NULL,?)").run(id,start,start,start,JSON.stringify([{targetId,profileUsable:true,worksCoverage:'limited'}]));
+ put(1,'2026-10-28 23:30:00',1);put(2,'2026-10-28 02:59:59',2);
+ const r=collectionProgress(db,{now:'2026-10-29T03:00:00.000Z'}).rolling;assert.equal(r.profiles,1);assert.equal(r.worksLimited,1);assert.equal(r.attempted,1);db.close();
+});

@@ -44,3 +44,27 @@ During a graceful publisher reload, the persisted state still described the prev
 At 07:33–07:35 UTC, the existing proxy route reset TLS to the public Site before any HTTP response; a direct diagnostic received Cloudflare HTTP 403. GitHub through the same proxy returned 200. The next generation remains checkpointed at 96/342 batches, while the earlier generation had been fully read back at 07:16 UTC. Existing bounded retry continues; no checkpoint reset, duplicate publisher, global proxy change or challenge handling. Public availability at the final observation is not claimed. This Site connectivity problem is separate from the Douyin works API failure.
 
 The preparation-status patch passes related tests and is committed, but is not yet loaded in the active publisher; it awaits a safe idle reload. Agent Reach reports v1.6.0 available; no tool upgrade was performed during this investigation.
+
+
+## Fifth concrete review: HTTP libraries and advertised skills
+
+Reviewed source was fetched at fixed commits without installing or executing upstream code. This pass provides no new successful Douyin works sample.
+
+| Candidate | Primary source | Actual finding |
+|---|---|---|
+| CharlesPikachu/videodl | [Douyin parser](https://github.com/CharlesPikachu/videodl/blob/da382f1b4782146bc712245a1d62d07ec45fdc86/videodl/modules/sources/douyin.py) | Parses a single public share video's `_ROUTER_DATA`/`loaderData`; does not enumerate an author's inventory. The same public HTML data hypothesis was already tested independently and returned generic HTML. No repeat request or download was started. |
+| z-mio/ParseHub | [HTTP implementation](https://github.com/z-mio/ParseHub/blob/ce48ba06264553743c862dc2456a87a480ce7685/src/parsehub/provider_api/douyin.py) | Web single-video detail requires cookie/UIFID and generated signatures. Mobile fallback registers and rotates device identities. Not an authorized arbitrary-account monitoring API; identity rotation was not adopted. |
+| mashukui/douyin_one_spider | [User-post implementation](https://github.com/mashukui/douyin_one_spider/blob/dce7e2bbcd2c84f66716ce76de92bd63c1b3731a/src/douyin_user_post.py) | The publicly supplied `get_user_post` explicitly says proprietary implementation removed and only initializes CSV/displays a message. This is not executable collection functionality. |
+| zJay26/douyin-skills | [SKILL.md](https://github.com/zJay26/douyin-skills/blob/09e9ccb6c484c59d69e11dbb4bc975c47e5510e5/SKILL.md) | Explicitly drives local Chrome/CDP and disclaims bulk user-profile collection. Conflicts with the user's browser prohibition; not installed. |
+
+Official SDK discovery also found [ByteDance's Go SDK](https://github.com/bytedance/douyin-openapi-sdk-go). Its existence does not supply application approval or authorization for every account; no app/account was registered.
+
+## Works-error telemetry correction (Site v112)
+
+Ordinary scheduled runs persist `worksErrorCode` independently from usable profile metrics. The status projection previously inspected only older `errorCode`, leaving obsolete browser diagnostics on screen. It now consumes both schemas, separates endpoint cooldown from an actual refusal, clears obsolete errors after a later limited/complete observation, and publishes only fixed reason codes. Unknown arbitrary stored strings cannot leak through telemetry. Invalid/future run clocks and malformed detail containers are rejected; `latest-public-window` counts as limited coverage only with current dated evidence.
+
+Frontend translations distinguish refusal, rate limiting, login authorization, cooldown, network/format/business errors. A cooldown is not a new failed HTTP request. The profile progress percentage still explicitly excludes works completeness. Actual-component desktop/phone/anonymous-control checks pass, together with backend regression checks. These are test and diagnostic fixes, **not improved platform collection success**.
+
+Live readback at 2026-10-29 15:09 UTC: 4,072/4,081 profiles and 4/4 topics refreshed in 24 hours; complete works 0, limited works 374; latest issues 3,977 deferred cooldown and 81 blocked. Ordinary scripts continue with runtime AI disabled. Main service was safely reloaded, source/publisher daemons retained. A later UTC-space cutoff edge-case correction is tested in source but awaits a future normal main-service reload; it does not change the current sampled-run counts.
+
+Site v112 successfully deployed. Its public collection endpoint returned HTTP 200 through the product's configured transport, with the same live counters and anonymous control disabled. Generic Python proxy routing separately returned 403; no claim of every-network reachability is made. Public data publication is still delayed: the existing publisher retains 342/342 uploaded batches of generation 10:54 UTC, but activation is not confirmed. Worker logs show an activation 409 and client timeout evidence; the exact validation stage remains to be isolated. Do not reset the checkpoint or re-upload blindly.

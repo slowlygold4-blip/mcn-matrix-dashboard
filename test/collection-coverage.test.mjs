@@ -144,3 +144,10 @@ test('invalid works dates never become current-day coverage', () => {
     assert.equal(result.worksState, 'missing');
   }
 });
+
+
+test('a current latest-public-window is partial coverage, never unknown or complete',()=>{
+ const current=account({worksObservation:observed('latest-public-window')});
+ assert.equal(accountCollectionCoverage(current,date).worksState,'limited');
+ for(const extra of [{carriedForward:true},{observedAt:priorTimestamp},{observedAt:null}])assert.equal(accountCollectionCoverage(account({worksObservation:observed('latest-public-window',extra)}),date).worksState,'unknown');
+});

@@ -1,6 +1,6 @@
 # MCN 矩阵工作台
 
-**最新源码整理：2026-10-29。公开前端对应线上 v111。**
+**最新源码整理：2026-10-29。公开前端对应线上 v112。**
 
 [打开线上工作台](https://mcn-matrix-observatory.slowlygold4.chatgpt.site) · [开发交接说明](docs/DEVELOPER_HANDOFF.md)
 
