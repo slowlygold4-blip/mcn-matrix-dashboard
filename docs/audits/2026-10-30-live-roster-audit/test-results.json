@@ -1,0 +1,25 @@
+{
+  "verifiedAt": "2026-10-29T21:40:04.706831+00:00",
+  "privateRelated": {
+    "passed": 52,
+    "failed": 0,
+    "logSha256": "5c55750aaac4633a758e87d84ba28e13cbe3231b8df85b10e10001f1676c55f8"
+  },
+  "publicRelated": {
+    "passed": 121,
+    "failed": 0,
+    "logSha256": "bf8e2bce7ccce017909d93db18999b8039d3165d1504ac441346db2fe81f2f6c",
+    "includesPrivateCases": true
+  },
+  "initialPublicRun": "Frontend typescript dependency absent. Compared exact package.json and package-lock.json; reused existing matching Site dependencies with owned temporary symlink; passed and removed link.",
+  "productionAudit": {
+    "readOnly": true,
+    "modelCalls": 0,
+    "networkRequests": 0,
+    "writes": 0,
+    "samplingCoverageEvaluated": false,
+    "reportPermissions": "0600",
+    "unchangedStateCountsAcrossTwoReads": true
+  },
+  "note": "Private52 are included in public121, not173 distinct tests. Production author report remains private."
+}

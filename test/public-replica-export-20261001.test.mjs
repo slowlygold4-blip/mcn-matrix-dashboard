@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { MonitorDatabase } from '../lib/database.mjs';
 import { normalizeCollection } from '../lib/providers/normalize.mjs';
-import { exportPublicReplica, serializePublicReplica, writePublicReplica } from '../lib/public-replica-export.mjs';
+import { exportPublicReplica, serializePublicReplica, writePublicReplica, readPublicAccountRoster } from '../lib/public-replica-export.mjs';
 import { preparePublicReplicaPublication } from '../lib/public-replica-sync.mjs';
 import { buildMasterRosterSnapshot, installMasterRoster } from '../lib/master-roster.mjs';
 
@@ -72,6 +72,19 @@ test('public replica: private source/config/locator fields are absent while legi
   assert.equal(replica.catalog.accounts[0].classification.theme.confirmed, true);
   assert.ok(replica.catalog.accounts[0].classification.labels.some(item => item.key === 'original'));
   assert.equal(replica.policy.worksMetricEvidence, 'saved-record-not-independently-verified');
+});
+
+test('lightweight current account roster matches the public export catalog without sampling or writes', t => {
+  const { database, sample, read } = fixture(t); sample(2);
+  const fields = ['id', 'label', 'platform', 'enabled', 'boardKeys', 'classification'];
+  const before = database.db.prepare('SELECT total_changes() n').get().n;
+  const roster = readPublicAccountRoster(database);
+  const projected = read().catalog.accounts.filter(account => account.sourceOnly !== true)
+    .map(account => Object.fromEntries(fields.map(key => [key, account[key]])));
+  assert.deepEqual(roster, projected);
+  assert.equal(database.db.prepare('SELECT total_changes() n').get().n, before);
+  assert.ok(!Object.hasOwn(roster[0], 'latest'));
+  assert.ok(!Object.hasOwn(roster[0], 'historyRevision'));
 });
 
 test('publication export includes verified account works before any creator table import and records account scope',t=>{

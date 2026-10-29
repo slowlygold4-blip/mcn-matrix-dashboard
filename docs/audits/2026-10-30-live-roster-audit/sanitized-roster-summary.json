@@ -1,0 +1,29 @@
+{
+  "generatedAt": "2026-10-29T21:34:00.164Z",
+  "authorCount": 4944,
+  "counts": {
+    "monitoring": 3936,
+    "paused": 0,
+    "identity_conflict_paused": 49,
+    "identity_conflict_active": 0,
+    "resolving": 416,
+    "source_binding_needed": 2,
+    "previous_resolution_failed": 147,
+    "identity_search_needed": 337,
+    "identifier_repair_needed": 57
+  },
+  "queue": {
+    "itemCount": 19380,
+    "counts": {
+      "rejected": 7295,
+      "resolved": 7811,
+      "pending": 3274,
+      "retry": 1000
+    },
+    "matchedItemCount": 18773
+  },
+  "sourceMode": "live-database-projections",
+  "samplingCoverageEvaluated": false,
+  "databaseWrites": 0,
+  "modelCalls": 0
+}
