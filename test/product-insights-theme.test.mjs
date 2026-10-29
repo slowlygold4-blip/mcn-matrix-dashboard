@@ -103,8 +103,13 @@ test("roster classifications are not applied after a saved locator no longer mat
   }] }, { fileName: "MCN总表.xlsx", sha256: "b".repeat(64) }));
   database.db.prepare("UPDATE targets SET locator=? WHERE id=?").run(`${target.locator}-changed`, target.id);
   const result = read({ theme: "tuantuan" });
-  assert.deepEqual(result.accounts, []);
-  assert.equal(read().accounts[0].classification.theme.key, "unassigned");
+  assert.deepEqual(result.accounts.filter(account => !account.sourceOnly), []);
+  assert.equal(result.accounts.length, 1, "the original source author remains discoverable after identity detaches");
+  assert.equal(result.accounts[0].sourceOnly, true);
+  assert.equal(result.accounts[0].linkedTargetId, null);
+  assert.equal(result.summary.enabledCount, 0);
+  assert.equal(result.summary.metrics.followers.value, null);
+  assert.equal(read().accounts.find(account => account.id === target.id).classification.theme.key, "unassigned");
 });
 
 test("multiple same-theme memberships never double count an account or its metrics", (t) => {

@@ -1,0 +1,144 @@
+(node:80473) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("/tmp/mcn-coverage-quality-baseline-loader.mjs", pathToFileURL("./")); register("/tmp/mcn-coverage-quality-baseline-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ Beijing midnight preserves a separate common recorded period without inventing today (24.740167ms)
+✖ missing month-start baseline uses explicit observed dates, not full-month growth (11.136375ms)
+✔ different author windows are not added together (10.780917ms)
+✔ one day cannot manufacture a multi-day recorded change (12.389667ms)
+✖ complete strict period stays strict and zero is a real observed change (11.917084ms)
+✔ day and comparison keep strict endpoints (12.467667ms)
+✖ latest valid sample per metric is used, rejected and future samples excluded (10.16125ms)
+✖ 90 percent paired coverage is explicit, absent author stays null (17.812125ms)
+(node:80474) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("/tmp/mcn-coverage-quality-baseline-loader.mjs", pathToFileURL("./")); register("/tmp/mcn-coverage-quality-baseline-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ alternative reveals a separate common cohort without replacing strict positive, zero or negative metrics (3.428625ms)
+✔ alternative rejects foreign, duplicate, mismatched or non-reconciled cohorts and proxy values (0.764ms)
+✔ alternative rejects future dates, invalid timestamps, wrong baseline and comparison/custom/day contexts (0.505667ms)
+✖ alternative offers no redundant window when strict coverage is already at least as broad (0.661917ms)
+✔ fully missing strict metrics still reveal a separate accurate common window (0.655792ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 7
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 269.634458
+
+✖ failing tests:
+
+test at test/period-recorded-window.test.mjs:26:1
+✖ Beijing midnight preserves a separate common recorded period without inventing today (24.740167ms)
+  TypeError: Cannot read properties of null (reading 'baselineDate')
+      at TestContext.<anonymous> (file://<project>/test/period-recorded-window.test.mjs:33:20)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.start (node:internal/test_runner/test:1177:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+test at test/period-recorded-window.test.mjs:40:1
+✖ missing month-start baseline uses explicit observed dates, not full-month growth (11.136375ms)
+  TypeError: Cannot read properties of null (reading 'baselineDate')
+      at TestContext.<anonymous> (file://<project>/test/period-recorded-window.test.mjs:45:38)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3)
+
+test at test/period-recorded-window.test.mjs:64:1
+✖ complete strict period stays strict and zero is a real observed change (11.917084ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  null !== 0
+
+      at TestContext.<anonymous> (file://<project>/test/period-recorded-window.test.mjs:69:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/period-recorded-window.test.mjs:81:1
+✖ latest valid sample per metric is used, rejected and future samples excluded (10.16125ms)
+  TypeError: Cannot read properties of null (reading 'metrics')
+      at TestContext.<anonymous> (file://<project>/test/period-recorded-window.test.mjs:88:20)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7)
+
+test at test/period-recorded-window.test.mjs:92:1
+✖ 90 percent paired coverage is explicit, absent author stays null (17.812125ms)
+  TypeError: Cannot read properties of null (reading 'comparableCount')
+      at TestContext.<anonymous> (file://<project>/test/period-recorded-window.test.mjs:99:20)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7)
+
+test at test/recorded-window-alternative-20261001.test.mjs:56:1
+✖ alternative offers no redundant window when strict coverage is already at least as broad (0.661917ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + {
+  +   baselineDate: '2026-09-14',
+  +   comparableCount: 9,
+  +   enabledCount: 10,
+  +   endDate: '2026-10-01',
+  +   metrics: {
+  +     estimatedPlays: {
+  +       delta: 2700
+  +     },
+  +     followers: {
+  +       delta: 18
+  +     },
+  +     likes: {
+  +       delta: 27
+  +     },
+  +     posts: {
+  +       delta: -9
+  +     }
+  +   },
+  +   requestedRange: {
+  +     endDate: '2026-10-01',
+  +     startDate: '2026-09-12'
+  +   }
+  + }
+  - null
+
+      at TestContext.<anonymous> (file://<project>/test/recorded-window-alternative-20261001.test.mjs:58:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { baselineDate: '2026-09-14', endDate: '2026-10-01', requestedRange: { startDate: '2026-09-12', endDate: '2026-10-01' }, enabledCount: 10, comparableCount: 9, metrics: { followers: [Object], likes: [Object], estimatedPlays: [Object], posts: [Object] } },
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

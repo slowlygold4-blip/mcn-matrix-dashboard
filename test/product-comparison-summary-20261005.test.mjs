@@ -52,7 +52,7 @@ function fixture(t) {
       key: `target:${account.id}`, targetId: account.id, platform: "douyin", enabled: true,
       currentName: account.name, names: [account.name], ids: [], locators: [account.locator],
       sources: [], boards: [{ name: account.boardName, category: account.category }],
-      classification: { theme: { key: "tuantuan", label: "团团" }, labels: [
+      classification: { theme: account.boardName.includes("玉麒麟") ? { key: "yuqilin", label: "玉麒麟" } : { key: "tuantuan", label: "团团" }, labels: [
         { key: account.category === "切片" ? "slice" : "original", label: account.category },
       ] },
     })) }, { fileName: "MCN总表.xlsx", sha256: "c".repeat(64) });
@@ -73,7 +73,7 @@ test("summary comparison projection preserves the full B range, header, and aggr
   const active = addAccount({ name: "切片持续采样", boardName: "一条小团团切片矩阵", category: "切片" });
   const pausedAfterB = addAccount({ name: "区间后暂停切片", boardName: "一条小团团切片矩阵", category: "切片" });
   const missingBEnd = addAccount({ name: "缺少B期末采样", boardName: "一条小团团切片矩阵", category: "切片" });
-  const original = addAccount({ name: "不属于切片分类", boardName: "一条小团团原创矩阵", category: "原创" });
+  const original = addAccount({ name: "其他主题原创作者", boardName: "玉麒麟原创矩阵", category: "原创" });
 
   for (const [target, rows] of [
     [active, [["2026-08-31", [50, 100, 2]], ["2026-09-03", [60, 0, 3]],
@@ -91,7 +91,7 @@ test("summary comparison projection preserves the full B range, header, and aggr
 
   const full = getProductInsights(database, comparisonOptions);
   assert.ok(Array.isArray(full.comparison.accounts), "the default full comparison API retains account projections");
-  assert.equal(full.comparison.summary.memberCount, 3, "B applies the content classification to its own historical cohort");
+  assert.equal(full.comparison.summary.memberCount, 3, "B applies the selected theme/classification to its own historical cohort");
   assert.equal(full.summary.memberCount, 3);
   assert.equal(full.comparison.summary.enabledCount, 3, "the account paused after B remains enabled at B's end");
   assert.equal(full.summary.enabledCount, 2, "the same account is paused at A's end");

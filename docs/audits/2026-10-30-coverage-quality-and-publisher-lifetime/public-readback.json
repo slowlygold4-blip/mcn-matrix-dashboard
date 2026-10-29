@@ -1,0 +1,13 @@
+{
+  "checkedAt": "2026-10-29T23:01:50.787Z",
+  "httpStatus": 200,
+  "anonymous": true,
+  "network": "existing-publisher-env-proxy",
+  "directNetworkHttpStatus": 403,
+  "asOf": "2026-10-29T22:46:09.387Z",
+  "manifestSha256": "129452158de7b471e8cc2bd3fb25a633b16fa95dc2c71e3eb8c96a71f56afd69",
+  "hashMatches": true,
+  "parts": 11819,
+  "publisherReadbackCount": 41,
+  "publisherSyncStatus": "success"
+}

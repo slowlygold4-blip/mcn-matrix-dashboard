@@ -1,0 +1,13 @@
+{
+  "checkedAt": "2026-10-29T23:07:42.832Z",
+  "abortedRead": {
+    "cancelled": true,
+    "elapsedMs": 55
+  },
+  "followingReadHttpStatus": 200,
+  "followingReadHasAccount": true,
+  "health": "ready",
+  "runtimeAI": false,
+  "readOnly": true,
+  "collectionCommandSent": false
+}

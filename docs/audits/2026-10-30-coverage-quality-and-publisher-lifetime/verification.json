@@ -1,0 +1,25 @@
+{
+  "checkedAt": "2026-10-29T23:03:20.302161+00:00",
+  "relatedTests": 218,
+  "failedTests": 0,
+  "publicCopyRepeatedSame218": true,
+  "newMainPid": 82680,
+  "publisherPid": 82899,
+  "codeFiles": {
+    "lib/product-insights.mjs": "42f49a8c61d8e4d946cb7591605e0703bf24513367e0c737ed559c6c6ce5f72f",
+    "lib/console-reader-worker.mjs": "f8c0c739128837d7946ab38870137eb2096915edfff77763fa6e6b3c9d8b06a0",
+    "scripts/public-replica-publisher.mjs": "0e622563635340c42980c6626ef13f0266c0d2ccda159f0e98392b8052b171ce"
+  },
+  "naturalGeneration": "2026-10-29T22:46:09.387Z",
+  "publicationConfirmed": true,
+  "readbackParts": 41,
+  "observedPeakRssKiB": 3905920,
+  "postPublicationRssKiB": 611136,
+  "visualBrowserVerified": false,
+  "collectorModelCallsAdded": 0,
+  "collectorScheduleChanged": false,
+  "newRecurringTasks": 0,
+  "fullWorkCollectionFixed": false,
+  "longRangeCapFixed": false,
+  "allNetworksVerified": false
+}

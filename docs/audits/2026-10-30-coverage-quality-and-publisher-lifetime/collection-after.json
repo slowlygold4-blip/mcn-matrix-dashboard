@@ -1,0 +1,40 @@
+{
+  "at": "2026-10-29T22:44:09.166049+00:00",
+  "runtimeAI": false,
+  "accounts": 4081,
+  "topics": 4,
+  "rolling": {
+    "since": "2026-10-28T22:44:09.034Z",
+    "total": 4085,
+    "attempted": 4085,
+    "profileTotal": 4081,
+    "profiles": 4072,
+    "topics": 4,
+    "updated": 4076,
+    "notUpdated": 9,
+    "worksComplete": 0,
+    "worksLimited": 120,
+    "workIssues": 4058,
+    "reasons": [
+      {
+        "code": "transport-cooldown",
+        "count": 3977
+      },
+      {
+        "code": "blocked",
+        "count": 81
+      }
+    ]
+  },
+  "run": {
+    "id": 26569,
+    "status": "running",
+    "startedAt": "2026-10-29T22:43:02.807Z",
+    "finishedAt": null,
+    "total": 62,
+    "processed": 32,
+    "success": 31,
+    "warnings": 32,
+    "failed": 0
+  }
+}

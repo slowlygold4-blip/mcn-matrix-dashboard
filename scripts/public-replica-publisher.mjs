@@ -7,6 +7,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
+import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { exportPublicReplica, writePublicReplica, PUBLIC_REPLICA_EXPORT_REVISION } from '../lib/public-replica-export.mjs';
 import { createPublicReplicaSync, preparePublicReplicaPublication, sealPublicReplicaSource } from '../lib/public-replica-sync.mjs';
 import { readCommittedTargetPublication, isCommittedTargetPublication, COMMITTED_TARGET_PUBLICATION,
@@ -224,8 +225,39 @@ async function configure(){
   await privateWrite(join(home,'state.json'),{version:1,active:{directory:input.initialDirectory,asOf:publication.manifest.asOf,manifestHash:hash(publication.manifest),marker:null,source:null},coveredMarker:null,coveredSource:null,lastConfirmedPublishedAt:null,status:'configured'});
   console.log(JSON.stringify({configured:true,credentialMode:'0600',runtimeAI:false}));
 }
-async function run(){
-  await privateDirectory(home);await acquirePublisherLock(join(home,'lock.json'));
+/** A disposable V8 isolate owns each export/sync cycle. Once its final state
+ * is durable, termination releases the large source/validation heap instead of
+ * retaining it in the idle daemon. The parent alone owns the process lock. */
+export function runPublisherCycleWorker(owner, {signal,dataDir=data,workerFactory=options=>new Worker(new URL(import.meta.url),options)}={}){
+  if(!isMainThread||owner?.pid!==process.pid||typeof owner?.instance!=='string'||!owner.instance) return Promise.reject(Object.assign(new Error('invalid-publisher-worker-owner'),{code:'invalid-publisher-worker-owner'}));
+  if(signal?.aborted)return Promise.reject(Object.assign(new Error('publisher-worker-aborted'),{code:'publisher-worker-aborted'}));
+  return new Promise((ok,no)=>{
+    let worker,completed=false,failed=false;
+    const stop=()=>{try{worker?.postMessage('stop');}catch{}};
+    const cleanup=()=>signal?.removeEventListener('abort',stop);
+    try{worker=workerFactory({workerData:{kind:'publisher-cycle',ownerInstance:owner.instance},env:{...process.env,DATA_DIR:resolve(dataDir)}});}
+    catch{no(Object.assign(new Error('publisher-worker-failed'),{code:'publisher-worker-failed'}));return;}
+    worker.on('message',message=>{
+      if(message!=='publisher-cycle-complete')return;
+      completed=true;
+      // The cycle includes state persistence and retention. No generation
+      // writes remain in flight when this completion message is emitted.
+      Promise.resolve(worker.terminate()).catch(()=>{});
+    });
+    worker.once('error',()=>{failed=true;});
+    worker.once('exit',()=>{
+      cleanup();
+      if(completed&&!failed)ok({status:'completed'});
+      else no(Object.assign(new Error('publisher-worker-failed'),{code:'publisher-worker-failed'}));
+    });
+    signal?.addEventListener('abort',stop,{once:true});
+    if(signal?.aborted)stop();
+  });
+}
+async function runPublisherCycle(ownerInstance){
+  await privateDirectory(home);
+  const owner=await privateRead(join(home,'lock.json'));
+  if(isMainThread||owner.pid!==process.pid||owner.instance!==ownerInstance)fail('invalid-publisher-worker-owner');
   const statePath=join(home,'state.json');let state=await privateRead(statePath);if(state.version!==1)fail('invalid-state');
   let busy=false,stopping=false,immutableStage=null;const signal=new AbortController();
   const sync=createPublicReplicaSync({activationTimeoutMs:300_000,compressRequests:true,reuseUnchanged:true,getCredential:()=>privateRead(join(home,'credential'),{credential:true}),
@@ -276,14 +308,38 @@ async function run(){
     }catch(e){state.status='failed';state.code=['invalid-source','invalid-summary','unsafe-private-file','invalid-staging-directory'].includes(e.code)?e.code:'publisher-check-failed';state.checkedAt=new Date().toISOString();await privateWrite(statePath,state).catch(()=>{});console.log(JSON.stringify({status:'failed',code:state.code,runtimeAI:false}));}
     finally{busy=false;}
   };
-  // This timer reconciles saved local receipts only. It never collects platform data or invokes AI.
+  const stop=message=>{if(message==='stop'){stopping=true;signal.abort();}};
+  parentPort.on('message',stop);
+  try{await tick();}finally{parentPort.off('message',stop);}
+}
+async function run(){
+  await privateDirectory(home);const owner=await acquirePublisherLock(join(home,'lock.json'));
+  const statePath=join(home,'state.json');
+  let busy=false,stopping=false;const signal=new AbortController();
+  const tick=async()=>{
+    if(busy||stopping)return;busy=true;
+    try{
+      // Source/receipt watchers may fire in bursts. Retain the cheap cooldown
+      // gate in the parent so an ineligible event never starts a heavy isolate.
+      const state=await privateRead(statePath);
+      if(!state.active&&!canPreparePublicReplica(state))return;
+      await runPublisherCycleWorker(owner,{signal:signal.signal});
+    }
+    catch{console.error(JSON.stringify({status:'deferred',code:'publisher-worker-failed',runtimeAI:false}));}
+    finally{busy=false;}
+  };
+  // Keep the existing reconciliation timer/watchers; there is at most one
+  // cycle worker. It never collects platform data or invokes AI.
   const timer=setInterval(()=>void tick(),60000);const watchers=[];
   for(const directory of [join(data,'ingestion-reviews'),join(data,'source-poll')]){try{const w=watch(directory,()=>void tick());w.on('error',()=>{});watchers.push(w);}catch{}}
   process.once('SIGTERM',()=>{stopping=true;signal.abort();clearInterval(timer);watchers.forEach(w=>w.close());});
   process.once('SIGINT',()=>process.emit('SIGTERM'));
   await tick();
 }
-if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
+if(!isMainThread&&workerData?.kind==='publisher-cycle'){
+  try{await runPublisherCycle(workerData.ownerInstance);parentPort.postMessage('publisher-cycle-complete');}
+  catch{process.exitCode=1;parentPort.close();}
+}else if(isMainThread&&process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   if(ensurePublisherBackgroundPriority().status==='deferred')console.error(JSON.stringify({code:'publisher-background-priority-deferred',runtimeAI:false}));
   try{if(process.argv.includes('--configure'))await configure();else await run();}
   catch(e){console.error(JSON.stringify({status:'stopped',code:['publisher-already-running','uncertain-publisher-lock','unsafe-private-file','unsafe-private-directory'].includes(e.code)?e.code:'publisher-start-failed',runtimeAI:false}));process.exitCode=1;}

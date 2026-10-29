@@ -1,0 +1,15 @@
+{
+  "checkedAt": "2026-10-29T22:42:47.800056+00:00",
+  "health": {
+    "httpStatus": 200,
+    "status": "ready",
+    "runtimeAI": false
+  },
+  "account": {
+    "httpStatus": 200,
+    "status": null,
+    "runtimeAI": null,
+    "hasAccount": true,
+    "qualityMethodology": "日总量和日变化只有在 100% 启用账号提供对应指标时才标记为完整；90% 仅为同一批已观测账号的比较阈值，不代表全矩阵总量。部分覆盖保留真实合计及覆盖人数；不同账号集合不得连线或外推"
+  }
+}

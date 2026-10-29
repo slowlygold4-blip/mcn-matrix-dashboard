@@ -54,8 +54,15 @@ test('alternative rejects future dates, invalid timestamps, wrong baseline and c
   assert.equal(buildRecordedWindowAlternative(data, { period: 'since', compare: true }), null);
 });
 test('alternative offers no redundant window when strict coverage is already at least as broad', () => {
-  const data = fixture(); data.summary.metrics.followers.comparableCount = 9;
+  const data = fixture();
+  for (const key of keys) data.summary.metrics[key].comparableCount = 9;
   assert.equal(buildRecordedWindowAlternative(data, { period: 'since' }), null);
+});
+test('one broad strict metric does not hide the useful recorded window for other missing metrics', () => {
+  const data = fixture(); data.summary.metrics.followers.comparableCount = 9;
+  const before = structuredClone(data);
+  assert.equal(buildRecordedWindowAlternative(data, { period: 'since' }).comparableCount, 9);
+  assert.deepEqual(data, before);
 });
 test('fully missing strict metrics still reveal a separate accurate common window', () => {
   const data = fixture();

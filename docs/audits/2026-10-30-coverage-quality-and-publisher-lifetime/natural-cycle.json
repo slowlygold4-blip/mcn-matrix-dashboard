@@ -1,0 +1,1148 @@
+{
+  "status": "verified",
+  "pid": 82899,
+  "initialAsOf": "2026-10-29T22:15:44.457Z",
+  "targetAsOf": "2026-10-29T22:46:09.387Z",
+  "maxRssKiB": 3905920,
+  "finalRssKiB": 611136,
+  "postCompleteSeconds": 30.1,
+  "samples": [
+    {
+      "at": "2026-10-29T22:46:24.397029+00:00",
+      "rssKiB": 1844496,
+      "cpuPercent": 103.7,
+      "status": "preparing",
+      "activeAsOf": null,
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:46:29.412907+00:00",
+      "rssKiB": 1893808,
+      "cpuPercent": 103.4,
+      "status": "preparing",
+      "activeAsOf": null,
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:46:34.427475+00:00",
+      "rssKiB": 1946000,
+      "cpuPercent": 100.6,
+      "status": "preparing",
+      "activeAsOf": null,
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:46:39.442532+00:00",
+      "rssKiB": 1995312,
+      "cpuPercent": 100.3,
+      "status": "preparing",
+      "activeAsOf": null,
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:46:44.457374+00:00",
+      "rssKiB": 2050288,
+      "cpuPercent": 102.0,
+      "status": "preparing",
+      "activeAsOf": null,
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:46:49.463847+00:00",
+      "rssKiB": 2135488,
+      "cpuPercent": 102.9,
+      "status": "preparing",
+      "activeAsOf": null,
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:46:54.473800+00:00",
+      "rssKiB": 2209264,
+      "cpuPercent": 100.0,
+      "status": "preparing",
+      "activeAsOf": null,
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:46:59.481722+00:00",
+      "rssKiB": 2800784,
+      "cpuPercent": 112.7,
+      "status": "preparing",
+      "activeAsOf": null,
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:47:04.486877+00:00",
+      "rssKiB": 3164512,
+      "cpuPercent": 105.1,
+      "status": "preparing",
+      "activeAsOf": null,
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:47:09.497601+00:00",
+      "rssKiB": 3234272,
+      "cpuPercent": 110.1,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:47:14.506018+00:00",
+      "rssKiB": 3306832,
+      "cpuPercent": 102.4,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:47:19.520572+00:00",
+      "rssKiB": 3905920,
+      "cpuPercent": 99.6,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:47:24.535623+00:00",
+      "rssKiB": 3837872,
+      "cpuPercent": 99.7,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:47:29.553250+00:00",
+      "rssKiB": 3287552,
+      "cpuPercent": 20.3,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:47:34.560384+00:00",
+      "rssKiB": 3338544,
+      "cpuPercent": 0.1,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:47:39.573719+00:00",
+      "rssKiB": 2108752,
+      "cpuPercent": 1.8,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:47:44.583090+00:00",
+      "rssKiB": 2143936,
+      "cpuPercent": 11.6,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:47:49.591413+00:00",
+      "rssKiB": 2093728,
+      "cpuPercent": 0.5,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:47:54.607866+00:00",
+      "rssKiB": 2108864,
+      "cpuPercent": 0.4,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:47:59.622427+00:00",
+      "rssKiB": 2119648,
+      "cpuPercent": 8.9,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:48:04.638806+00:00",
+      "rssKiB": 2129856,
+      "cpuPercent": 0.1,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:48:09.654566+00:00",
+      "rssKiB": 2129792,
+      "cpuPercent": 11.7,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:48:14.668529+00:00",
+      "rssKiB": 2132128,
+      "cpuPercent": 4.1,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:48:19.686792+00:00",
+      "rssKiB": 2138528,
+      "cpuPercent": 0.7,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:48:24.701954+00:00",
+      "rssKiB": 2142992,
+      "cpuPercent": 0.2,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:48:29.718451+00:00",
+      "rssKiB": 2134448,
+      "cpuPercent": 1.2,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:48:34.735241+00:00",
+      "rssKiB": 2139728,
+      "cpuPercent": 2.2,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:48:39.752844+00:00",
+      "rssKiB": 2141056,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:48:44.765945+00:00",
+      "rssKiB": 2147248,
+      "cpuPercent": 2.7,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:48:49.783495+00:00",
+      "rssKiB": 2151856,
+      "cpuPercent": 0.1,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:48:54.792868+00:00",
+      "rssKiB": 2156000,
+      "cpuPercent": 3.3,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:48:59.802312+00:00",
+      "rssKiB": 2160240,
+      "cpuPercent": 2.8,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:49:04.818204+00:00",
+      "rssKiB": 2165552,
+      "cpuPercent": 0.3,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:49:09.835397+00:00",
+      "rssKiB": 2168480,
+      "cpuPercent": 2.4,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:49:14.840715+00:00",
+      "rssKiB": 2172576,
+      "cpuPercent": 3.9,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:49:19.850378+00:00",
+      "rssKiB": 2175424,
+      "cpuPercent": 8.1,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:49:24.866329+00:00",
+      "rssKiB": 2179424,
+      "cpuPercent": 1.7,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:49:29.883670+00:00",
+      "rssKiB": 2182544,
+      "cpuPercent": 0.3,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:49:34.901240+00:00",
+      "rssKiB": 2188288,
+      "cpuPercent": 2.3,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:49:39.918435+00:00",
+      "rssKiB": 2192256,
+      "cpuPercent": 1.5,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:49:44.936022+00:00",
+      "rssKiB": 2195760,
+      "cpuPercent": 3.7,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:49:49.948162+00:00",
+      "rssKiB": 2082576,
+      "cpuPercent": 0.3,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:49:54.957846+00:00",
+      "rssKiB": 2082832,
+      "cpuPercent": 0.1,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:49:59.971876+00:00",
+      "rssKiB": 2143824,
+      "cpuPercent": 66.7,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:50:04.989207+00:00",
+      "rssKiB": 2218320,
+      "cpuPercent": 3.3,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:50:10.007118+00:00",
+      "rssKiB": 2289984,
+      "cpuPercent": 2.2,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:50:15.015080+00:00",
+      "rssKiB": 2164352,
+      "cpuPercent": 1.6,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:50:20.023547+00:00",
+      "rssKiB": 2169360,
+      "cpuPercent": 1.2,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:50:25.031165+00:00",
+      "rssKiB": 2175568,
+      "cpuPercent": 4.4,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:50:30.039347+00:00",
+      "rssKiB": 2181840,
+      "cpuPercent": 2.8,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:50:35.056716+00:00",
+      "rssKiB": 2188288,
+      "cpuPercent": 0.1,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:50:40.066130+00:00",
+      "rssKiB": 2195584,
+      "cpuPercent": 0.1,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:50:45.078683+00:00",
+      "rssKiB": 2208496,
+      "cpuPercent": 10.7,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:50:50.094382+00:00",
+      "rssKiB": 2182496,
+      "cpuPercent": 1.8,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:50:55.112868+00:00",
+      "rssKiB": 2212576,
+      "cpuPercent": 7.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:51:00.131292+00:00",
+      "rssKiB": 2232832,
+      "cpuPercent": 15.3,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:51:05.141675+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:51:10.159124+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:51:15.174008+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:51:20.181333+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:51:25.191926+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:51:30.199815+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.1,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:51:35.209255+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:51:40.226404+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.1,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:51:45.243011+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:51:50.251518+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:51:55.269373+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:52:00.285712+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:52:05.302656+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:52:10.310543+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:52:15.326043+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:52:20.339674+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:52:25.355677+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:52:30.374633+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:52:35.389999+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:52:40.400719+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:52:45.418196+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.1,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:52:50.435346+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.1,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:52:55.453140+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:53:00.463961+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:53:05.481204+00:00",
+      "rssKiB": 2232880,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:53:10.493345+00:00",
+      "rssKiB": 2232896,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:53:15.505095+00:00",
+      "rssKiB": 2232896,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:53:20.515259+00:00",
+      "rssKiB": 2232896,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:53:25.532560+00:00",
+      "rssKiB": 2232896,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:53:30.550772+00:00",
+      "rssKiB": 2232896,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:53:35.557922+00:00",
+      "rssKiB": 2232896,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:53:40.574812+00:00",
+      "rssKiB": 1490848,
+      "cpuPercent": 0.0,
+      "status": "failed",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:53:45.588402+00:00",
+      "rssKiB": 595664,
+      "cpuPercent": 0.3,
+      "status": "failed",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:53:50.602063+00:00",
+      "rssKiB": 595664,
+      "cpuPercent": 0.0,
+      "status": "failed",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:53:55.617251+00:00",
+      "rssKiB": 595664,
+      "cpuPercent": 0.0,
+      "status": "failed",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:54:00.627671+00:00",
+      "rssKiB": 1530720,
+      "cpuPercent": 130.6,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:54:05.640899+00:00",
+      "rssKiB": 1757376,
+      "cpuPercent": 99.4,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:54:10.655049+00:00",
+      "rssKiB": 1919616,
+      "cpuPercent": 100.4,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:54:15.669801+00:00",
+      "rssKiB": 3261760,
+      "cpuPercent": 99.7,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:54:20.681542+00:00",
+      "rssKiB": 1749488,
+      "cpuPercent": 93.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:54:25.697592+00:00",
+      "rssKiB": 1752144,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:54:30.706792+00:00",
+      "rssKiB": 1752144,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:54:35.723842+00:00",
+      "rssKiB": 1752144,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:54:40.740388+00:00",
+      "rssKiB": 1177520,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:54:45.748703+00:00",
+      "rssKiB": 1177520,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:54:50.760818+00:00",
+      "rssKiB": 1177536,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:54:55.768457+00:00",
+      "rssKiB": 1177536,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:55:00.781700+00:00",
+      "rssKiB": 1177536,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:55:05.795224+00:00",
+      "rssKiB": 1177536,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:55:10.806349+00:00",
+      "rssKiB": 1177536,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:55:15.817699+00:00",
+      "rssKiB": 1177536,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:55:20.835214+00:00",
+      "rssKiB": 1177552,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:55:25.852841+00:00",
+      "rssKiB": 1177552,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:55:30.870331+00:00",
+      "rssKiB": 1177552,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:55:35.880379+00:00",
+      "rssKiB": 1177552,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:55:40.889982+00:00",
+      "rssKiB": 1177552,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:55:45.901043+00:00",
+      "rssKiB": 1177568,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:55:50.919067+00:00",
+      "rssKiB": 1177568,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:55:55.937982+00:00",
+      "rssKiB": 1177568,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:56:00.955508+00:00",
+      "rssKiB": 1177568,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:56:05.972355+00:00",
+      "rssKiB": 1177568,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:56:10.989335+00:00",
+      "rssKiB": 1177568,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:56:16.001218+00:00",
+      "rssKiB": 1177584,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:56:21.020521+00:00",
+      "rssKiB": 1177584,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:56:26.036850+00:00",
+      "rssKiB": 1177584,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:56:31.053720+00:00",
+      "rssKiB": 1177584,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:56:36.062314+00:00",
+      "rssKiB": 1177600,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:56:41.080635+00:00",
+      "rssKiB": 1177600,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:56:46.096877+00:00",
+      "rssKiB": 1177600,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:56:51.112694+00:00",
+      "rssKiB": 1177600,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:56:56.130812+00:00",
+      "rssKiB": 1177600,
+      "cpuPercent": 0.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:57:01.148501+00:00",
+      "rssKiB": 1194560,
+      "cpuPercent": 2.6,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:57:06.158741+00:00",
+      "rssKiB": 1199344,
+      "cpuPercent": 3.5,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:57:11.169429+00:00",
+      "rssKiB": 1203472,
+      "cpuPercent": 0.3,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:57:16.182244+00:00",
+      "rssKiB": 1203680,
+      "cpuPercent": 1.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:57:21.200633+00:00",
+      "rssKiB": 1203344,
+      "cpuPercent": 0.6,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:57:26.218765+00:00",
+      "rssKiB": 1205152,
+      "cpuPercent": 1.0,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:57:31.230515+00:00",
+      "rssKiB": 1203360,
+      "cpuPercent": 0.8,
+      "status": "syncing",
+      "activeAsOf": "2026-10-29T22:46:09.387Z",
+      "publishedAsOf": "2026-10-29T22:15:44.457Z"
+    },
+    {
+      "at": "2026-10-29T22:57:36.247277+00:00",
+      "rssKiB": 897712,
+      "cpuPercent": 2.8,
+      "status": "success",
+      "activeAsOf": null,
+      "publishedAsOf": "2026-10-29T22:46:09.387Z"
+    },
+    {
+      "at": "2026-10-29T22:57:41.259282+00:00",
+      "rssKiB": 897712,
+      "cpuPercent": 0.0,
+      "status": "success",
+      "activeAsOf": null,
+      "publishedAsOf": "2026-10-29T22:46:09.387Z"
+    },
+    {
+      "at": "2026-10-29T22:57:46.268561+00:00",
+      "rssKiB": 611136,
+      "cpuPercent": 0.0,
+      "status": "success",
+      "activeAsOf": null,
+      "publishedAsOf": "2026-10-29T22:46:09.387Z"
+    },
+    {
+      "at": "2026-10-29T22:57:51.273876+00:00",
+      "rssKiB": 611136,
+      "cpuPercent": 0.0,
+      "status": "success",
+      "activeAsOf": null,
+      "publishedAsOf": "2026-10-29T22:46:09.387Z"
+    },
+    {
+      "at": "2026-10-29T22:57:56.290985+00:00",
+      "rssKiB": 611136,
+      "cpuPercent": 0.0,
+      "status": "success",
+      "activeAsOf": null,
+      "publishedAsOf": "2026-10-29T22:46:09.387Z"
+    },
+    {
+      "at": "2026-10-29T22:58:01.307740+00:00",
+      "rssKiB": 611136,
+      "cpuPercent": 0.0,
+      "status": "success",
+      "activeAsOf": null,
+      "publishedAsOf": "2026-10-29T22:46:09.387Z"
+    },
+    {
+      "at": "2026-10-29T22:58:06.325167+00:00",
+      "rssKiB": 611136,
+      "cpuPercent": 0.0,
+      "status": "success",
+      "activeAsOf": null,
+      "publishedAsOf": "2026-10-29T22:46:09.387Z"
+    }
+  ],
+  "sync": {
+    "status": "success",
+    "parts": 11819,
+    "batchesTotal": 343,
+    "batchesCompleted": 343,
+    "manifestSha256": "129452158de7b471e8cc2bd3fb25a633b16fa95dc2c71e3eb8c96a71f56afd69",
+    "sourceFilesValidated": 11765,
+    "storageReceipts": null
+  }
+}

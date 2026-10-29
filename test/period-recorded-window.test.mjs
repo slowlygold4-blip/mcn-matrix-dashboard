@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { MonitorDatabase } from '../lib/database.mjs';
 import { getProductInsights } from '../lib/product-insights.mjs';
+import { checksum } from '../lib/utils.mjs';
 
 function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), 'recorded-period-'));
@@ -15,9 +16,15 @@ function fixture(t) {
     database.db.prepare('UPDATE targets SET created_at=? WHERE id=?').run('2020-01-01T00:00:00.000Z', target.id);
     return target;
   };
-  const sample = (target, date, values, time = '02:00:00', quality = 'validated') => database.db.prepare(`INSERT INTO snapshots
-    (target_id,captured_at,followers,total_likes,total_posts,quality_status,account_status,works_coverage,source_checksum)
-    VALUES(?,?,?,?,?,?,'available','unavailable',?)`).run(target.id, `${date}T${time}Z`, ...values, quality, `source-${target.id}-${date}-${time}`);
+  const sample = (target, date, values, time = '02:00:00', quality = 'validated') => {
+    const capturedAt = new Date(`${date}T${time}Z`).toISOString();
+    const raw = { capturedAt, profile: { user: { sec_uid: target.locator, uid: String(100000 + target.id),
+      follower_count: values[0], total_favorited: values[1], aweme_count: values[2] } }, works: { aweme_list: [] } };
+    database.db.prepare(`INSERT INTO snapshots
+      (target_id,captured_at,followers,total_likes,total_posts,quality_status,account_status,works_coverage,source_checksum,raw_json)
+      VALUES(?,?,?,?,?,?,'available','unavailable',?,?)`)
+      .run(target.id, capturedAt, ...values, quality, checksum(raw), JSON.stringify(raw));
+  };
   const read = (options = {}) => getProductInsights(database, {period:'custom',startDate:'2026-09-23',endDate:'2026-09-29',
     reference:new Date('2026-09-28T16:01:00Z'),timeZone:'Asia/Shanghai',...options});
   return {database,account,sample,read};
@@ -98,5 +105,8 @@ test('90 percent paired coverage is explicit, absent author stays null', t => {
   const win = read().recordedWindow;
   assert.equal(win.comparableCount,9); assert.equal(win.enabledCount,10);
   assert.equal(win.metrics.followers.delta,90); assert.equal(win.metrics.followers.coveragePercent,90);
+  assert.equal(win.metrics.followers.deltaQuality.status,'partial');
+  assert.equal(win.metrics.followers.deltaQuality.complete,false);
+  assert.equal(win.metrics.followers.deltaReliable,true);
   assert.equal(win.accounts.at(-1).metrics.followers.delta,null);
 });

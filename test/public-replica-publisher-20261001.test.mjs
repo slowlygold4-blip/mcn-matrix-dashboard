@@ -2,6 +2,10 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {mkdtemp,writeFile,chmod,symlink,readFile,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';
 import {privateRead,privateWrite,recordPublisherPreparation,recordPublisherSyncStart,validatedReceipt,completedSourceMarker,acquirePublisherLock,shouldPreparePublicDateIndex,ensurePublisherBackgroundPriority} from '../scripts/public-replica-publisher.mjs';
 import {PUBLIC_REPLICA_EXPORT_REVISION} from '../lib/public-replica-export.mjs';
+import {runPublisherCycleWorker} from '../scripts/public-replica-publisher.mjs';
+import {Worker} from 'node:worker_threads';
+import {EventEmitter} from 'node:events';
+import {mkdir} from 'node:fs/promises';
 test('publisher startup lowers only its own priority and keeps an already quieter worker unchanged',()=>{
  let priority=0,writes=0;const write=value=>{priority=value;writes++;};
  assert.deepEqual(ensurePublisherBackgroundPriority({read:()=>priority,write}),{status:'applied',priority:10});assert.equal(writes,1);
@@ -46,4 +50,61 @@ test('synchronization records current activity instead of retaining a previous f
   await recordPublisherSyncStart(path,state,at);assert.deepEqual(state.lastSync,old,'an interrupted running status must not replace the last terminal result');
   for(const [input,time]of [[{...state,active:null},at],[state,'invalid'],[state,'2026-10-29T15:00:00.000Z']])await assert.rejects(recordPublisherSyncStart(path,input,time),/invalid-sync-start/);
  }finally{await rm(dir,{recursive:true,force:true});}
+});
+
+test('disposable real worker exits on a fresh idle cycle without DB, credential or publication writes',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'mcn-publisher-cycle-')),home=join(dir,'public-replica-publisher');
+ try{
+  await mkdir(home,{mode:0o700});const owner={pid:process.pid,instance:'fixture-cycle-owner'};
+  await privateWrite(join(home,'lock.json'),owner);
+  const at=new Date().toISOString(),state={version:1,status:'success',active:null,lastConfirmedPublishedAt:at,publishedAsOf:at,exportRevision:PUBLIC_REPLICA_EXPORT_REVISION};
+  await privateWrite(join(home,'state.json'),state);const before=await readFile(join(home,'state.json'),'utf8');
+  let child;
+  const result=await runPublisherCycleWorker(owner,{dataDir:dir,workerFactory:options=>{
+   child=new Worker(new URL('../scripts/public-replica-publisher.mjs',import.meta.url),options);return child;
+  }});
+  assert.equal(result.status,'completed');assert.equal(child.threadId,-1,'completion includes isolate exit');
+  assert.equal(await readFile(join(home,'state.json'),'utf8'),before);
+  await assert.rejects(readFile(join(dir,'douyin-monitor.sqlite')),{code:'ENOENT'});
+  await assert.rejects(readFile(join(home,'credential')),{code:'ENOENT'});
+  await assert.rejects(readFile(join(home,'checkpoint.json')),{code:'ENOENT'});
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
+
+test('worker persists a failed immutable generation before exit and never reports publication success',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'mcn-publisher-cycle-failure-')),home=join(dir,'public-replica-publisher');
+ try{
+  await mkdir(home,{mode:0o700});const owner={pid:process.pid,instance:'fixture-failed-owner'};
+  await privateWrite(join(home,'lock.json'),owner);
+  const at='2026-01-01T00:00:00.000Z',active={directory:join(dir,'public-replica-staging','absent-generation'),asOf:at,manifestHash:'fixture'};
+  await privateWrite(join(home,'state.json'),{version:1,status:'staged',active,publishedAsOf:'2025-12-31T00:00:00.000Z'});
+  assert.equal((await runPublisherCycleWorker(owner,{dataDir:dir})).status,'completed');
+  const state=await privateRead(join(home,'state.json'));
+  assert.equal(state.status,'failed');assert.deepEqual(state.active,active);
+  assert.equal(state.publishedAsOf,'2025-12-31T00:00:00.000Z');
+  assert.equal(state.code,'publisher-check-failed');
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
+
+test('different lock ownership rejects worker execution without touching saved state',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'mcn-publisher-owner-')),home=join(dir,'public-replica-publisher');
+ try{
+  await mkdir(home,{mode:0o700});await privateWrite(join(home,'lock.json'),{pid:process.pid,instance:'other-owner'});
+  await privateWrite(join(home,'state.json'),{version:1,status:'must-remain'});
+  await assert.rejects(runPublisherCycleWorker({pid:process.pid,instance:'wrong-owner'},{dataDir:dir}),{code:'publisher-worker-failed'});
+  assert.deepEqual(await privateRead(join(home,'state.json')),{version:1,status:'must-remain'});
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
+
+test('cycle worker abort is relayed; exits without completion and errors cannot leak private messages',async()=>{
+ const owner={pid:process.pid,instance:'fixture'},controller=new AbortController();let created=0;
+ const factory=()=>{created++;const child=new EventEmitter();child.postMessage=message=>{
+  assert.equal(message,'stop');queueMicrotask(()=>child.emit('exit',1));
+ };return child;};
+ const running=runPublisherCycleWorker(owner,{signal:controller.signal,workerFactory:factory});controller.abort();
+ await assert.rejects(running,{code:'publisher-worker-failed'});assert.equal(created,1);
+ await assert.rejects(runPublisherCycleWorker(owner,{signal:controller.signal,workerFactory:factory}),{code:'publisher-worker-aborted'});
+ assert.equal(created,1);
+ await assert.rejects(runPublisherCycleWorker(owner,{workerFactory:()=>{throw Error('private secret');}}),{code:'publisher-worker-failed',message:'publisher-worker-failed'});
+ await assert.rejects(runPublisherCycleWorker({pid:1,instance:'foreign'},{workerFactory:factory}),{code:'invalid-publisher-worker-owner'});
 });

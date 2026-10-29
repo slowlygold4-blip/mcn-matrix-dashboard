@@ -5,24 +5,73 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import {existsSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {createHash} from 'node:crypto';
-import {join} from 'node:path';
+import {join,resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
 import vm from 'node:vm';
-import {shouldStagePublicReplica,shouldPreparePublicDateIndex,completedSourceMarker,validatedReceipt} from '../scripts/public-replica-publisher.mjs';
+import {shouldStagePublicReplica,shouldPreparePublicDateIndex,completedSourceMarker,validatedReceipt,canPreparePublicReplica} from '../scripts/public-replica-publisher.mjs';
 import {PUBLIC_REPLICA_EXPORT_REVISION as REVISION} from '../lib/public-replica-export.mjs';
 
 const source=await readFile(new URL('../scripts/public-replica-publisher.mjs',import.meta.url),'utf8');
-const requireSite=createRequire(new URL('../../mcn-public-site/package.json',import.meta.url)),ts=requireSite('typescript');
+const sitePackages=process.env.MCN_SITE_ROOT?[resolve(process.env.MCN_SITE_ROOT,'package.json')]
+ :[fileURLToPath(new URL('../frontend/package.json',import.meta.url)),fileURLToPath(new URL('../../mcn-public-site/package.json',import.meta.url))];
+const sitePackage=sitePackages.find(path=>existsSync(path));assert.ok(sitePackage,'Install frontend dependencies or configure MCN_SITE_ROOT');
+const requireSite=createRequire(sitePackage),ts=requireSite('typescript');
 const ast=ts.createSourceFile('public-replica-publisher.mjs',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
-let tickExpression,runDeclaration;
-function visit(n){if(ts.isVariableDeclaration(n)&&n.name.getText(ast)==='tick')tickExpression=n.initializer.getText(ast);if(ts.isFunctionDeclaration(n)&&n.name?.text==='run')runDeclaration=n.getText(ast);ts.forEachChild(n,visit);}visit(ast);
+let tickExpression,parentTickExpression,runDeclaration;const cycleHelpers={};
+function visit(n){
+ if(ts.isFunctionDeclaration(n)&&n.name?.text==='runPublisherCycle'){
+  const findTick=child=>{if(ts.isVariableDeclaration(child)&&child.name.getText(ast)==='tick')tickExpression=child.initializer.getText(ast);ts.forEachChild(child,findTick);};
+  findTick(n);
+ }
+ if(ts.isFunctionDeclaration(n)&&n.name?.text==='run'){
+  runDeclaration=n.getText(ast);
+  const findParentTick=child=>{if(ts.isVariableDeclaration(child)&&child.name.getText(ast)==='tick')parentTickExpression=child.initializer.getText(ast);ts.forEachChild(child,findParentTick);};
+  findParentTick(n);
+ }
+ if(ts.isFunctionDeclaration(n)&&['recordPublisherPreparation','recordPublisherSyncStart'].includes(n.name?.text))cycleHelpers[n.name.text]=n.getText(ast);
+ ts.forEachChild(n,visit);
+}visit(ast);
 assert.ok(tickExpression&&runDeclaration,'Actual publisher tick/run must be found');
+assert.match(tickExpression,/exportPublicReplica\(/,'exercise the real generation transaction, not the outer worker launcher');
+assert.match(parentTickExpression,/runPublisherCycleWorker\(/,'parent admission executes the actual disposable worker launcher');
 const MINUTE=60000,COOLDOWN=30*MINUTE,T=Date.parse('2026-10-01T12:00:00.000Z');
 const iso=t=>new Date(t).toISOString(),clone=x=>structuredClone(x),hash=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const observed=(id=2)=>({running:false,events:[{id,finishedAt:iso(T+id*MINUTE)}],source:'synthetic-completed-source-'+id});
 const marker=o=>hash({events:o.events,source:o.source});
 const state=(overrides={})=>({version:1,active:null,coveredMarker:marker(observed(1)),coveredSource:observed(1).source,exportRevision:REVISION,publishedAsOf:iso(T),lastConfirmedPublishedAt:iso(T+120*MINUTE),status:'success',...overrides});
+
+test('parent admits one cycle until actual worker exit and remains stopped after shutdown',async()=>{
+ let release,calls=0;const owner={pid:123,instance:'synthetic-owner'},signal=new AbortController();
+ const context=vm.createContext({busy:false,stopping:false,owner,signal,statePath:'synthetic-state',privateRead:async()=>({active:{}}),
+  runPublisherCycleWorker:async(actual,options)=>{assert.equal(actual,owner);assert.equal(options.signal,signal.signal);calls++;await new Promise(resolve=>{release=resolve;});},
+  console:{error:()=>assert.fail('successful cycle must not report failure')},
+ });
+ const tick=vm.runInContext('('+parentTickExpression+')',context),first=tick();await tick();assert.equal(calls,1);
+ release();await first;const second=tick();await new Promise(resolve=>setImmediate(resolve));assert.equal(calls,2);release();await second;
+ context.stopping=true;await tick();assert.equal(calls,2);assert.equal(context.busy,false);
+});
+
+test('parent worker failure releases admission without exposing private exceptions or faking success',async()=>{
+ const logs=[],context=vm.createContext({busy:false,stopping:false,owner:{},signal:new AbortController(),statePath:'synthetic-state',privateRead:async()=>({active:{}}),
+  runPublisherCycleWorker:async()=>{throw Error('private credential');},console:{error:line=>logs.push(JSON.parse(line))},
+ });
+ const tick=vm.runInContext('('+parentTickExpression+')',context);await tick();
+ assert.equal(context.busy,false);assert.deepEqual(logs,[{status:'deferred',code:'publisher-worker-failed',runtimeAI:false}]);
+});
+
+test('a burst of cooldown events starts no export worker and still reads the latest durable state',async()=>{
+ let reads=0,workers=0;const at=new Date().toISOString();
+ const context=vm.createContext({busy:false,stopping:false,owner:{},signal:new AbortController(),statePath:'synthetic-state',
+  privateRead:async()=>{reads++;return{active:null,lastConfirmedPublishedAt:at,publishedAsOf:at,exportRevision:REVISION};},
+  canPreparePublicReplica,runPublisherCycleWorker:async()=>{workers++;},console:{error:()=>assert.fail('cooldown must not fail')},
+ });
+ const tick=vm.runInContext('('+parentTickExpression+')',context);
+ for(let event=0;event<64;event++)await tick();
+ assert.equal(reads,64);assert.equal(workers,0);assert.equal(context.busy,false);
+});
 
 test('phase65 a delayed confirmation of an old generation no longer imposes another 30-minute wait',()=>{
  const s=state(),o={running:false,marker:marker(observed())},now=T+121*MINUTE;
@@ -97,7 +146,13 @@ function harness(initial=state(),{initialObserved=observed(),now=T+121*MINUTE,pu
  const stages=[],syncs=[],writes=[],reads=[],dbOps=[],logs=[];let persisted=clone(initial);
  class Clock extends Date{constructor(...args){super(...(args.length?args:[control.now]));}static now(){return control.now;}}
  class ReadonlyDB{constructor(path,options){assert.equal(options.readOnly,true);dbOps.push({open:path});}exec(sql){assert.ok(['PRAGMA query_only=ON;BEGIN','ROLLBACK'].includes(sql));dbOps.push(sql);}prepare(sql){assert.equal(sql,'SELECT total_changes() n');return{get:()=>({n:0})};}close(){dbOps.push('close');}}
- const context=vm.createContext({state:clone(initial),busy:false,stopping:false,Date:Clock,join,data:'/in-memory-fixture-only',statePath:'in-memory-state',DatabaseSync:ReadonlyDB,PUBLIC_REPLICA_EXPORT_REVISION:REVISION,signal:{signal:new AbortController().signal},hash,
+ const context=vm.createContext({state:clone(initial),busy:false,stopping:false,immutableStage:null,Date:Clock,join,data:'/in-memory-fixture-only',statePath:'in-memory-state',DatabaseSync:ReadonlyDB,PUBLIC_REPLICA_EXPORT_REVISION:REVISION,signal:{signal:new AbortController().signal},hash,
+  iso:value=>typeof value==='string'&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString()===value,
+  fail:code=>{throw Object.assign(Error(code),{code});},canPreparePublicReplica:s=>canPreparePublicReplica(s,control.now),
+  // These are the same synthetic immutable bytes supplied by storage/export
+  // doubles below. Real source validation runs in the separate sync suite.
+  sealPublicReplicaSource:publication=>Object.freeze(publication),
+  prunePublicReplicaStaging:async()=>({status:'synthetic-storage',removed:[]}),
   observe:async()=>clone(control.observed),shouldStagePublicReplica:(s,o)=>shouldStagePublicReplica(s,o,control.now),
   shouldPreparePublicDateIndex,
   COMMITTED_TARGET_PUBLICATION:'synthetic-no-committed-target-proof',
@@ -112,7 +167,7 @@ function harness(initial=state(),{initialObserved=observed(),now=T+121*MINUTE,pu
   async privateWrite(path,value){assert.equal(path,'in-memory-state');if(control.saveError)throw Error('synthetic-storage-failed');persisted=clone(value);writes.push(clone(value));},
   console:{log:line=>logs.push(JSON.parse(line))},
  });
- const tick=vm.runInContext('('+tickExpression+')',context);
+ const tick=vm.runInContext(Object.values(cycleHelpers).map(source=>source.replace(/^export\s+/, '')).join('\n')+'\n('+tickExpression+')',context);
  return{control,stages,syncs,writes,reads,dbOps,logs,publications,tick,state:()=>clone(context.state),durable:()=>clone(persisted),setBusy:v=>context.busy=v,setStopping:v=>context.stopping=v};
 }
 function seededActive(options={}){
@@ -137,7 +192,7 @@ test('phase65 real tick sees continuously changing data but stages no faster tha
 
 test('phase65 completion arriving during upload cannot be marked covered by the earlier staged generation',async()=>{
  let release;const gate=new Promise(resolve=>{release=resolve;}),h=harness();h.control.hold=gate;
- const started=h.tick();for(let pass=0;pass<20&&h.syncs.length===0;pass++)await Promise.resolve();assert.equal(h.syncs.length,1);
+ const started=h.tick();await new Promise(resolve=>setImmediate(resolve));assert.equal(h.syncs.length,1);
  const active=clone(h.state().active);assert.equal(active.marker,marker(observed(2)));h.control.observed=observed(3);h.control.now+=MINUTE;await h.tick();assert.equal(h.stages.length,1);release();await started;
  assert.equal(h.state().coveredMarker,marker(observed(2)),'success must cover only the marker sealed before upload');assert.equal(h.state().publishedAsOf,active.asOf);
  h.control.hold=null;await h.tick();assert.equal(h.stages.length,1,'new completion does not bypass a fresh generation cooldown');

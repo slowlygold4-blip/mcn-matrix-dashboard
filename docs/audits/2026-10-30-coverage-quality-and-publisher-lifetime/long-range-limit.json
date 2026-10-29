@@ -1,0 +1,15 @@
+{
+  "synthetic": true,
+  "accounts": 4081,
+  "days": 50,
+  "totalPoints": 204050,
+  "selectedBytes": 51012500,
+  "descriptorContractValid": true,
+  "sourceRowsRead": 0,
+  "modelCalls": 0,
+  "productionWrites": 0,
+  "rejected": true,
+  "error": "日期历史与来源不一致，未替换已读取数据",
+  "selectedShardReadCalls": 0,
+  "narrowRequestPassesBudget": true
+}

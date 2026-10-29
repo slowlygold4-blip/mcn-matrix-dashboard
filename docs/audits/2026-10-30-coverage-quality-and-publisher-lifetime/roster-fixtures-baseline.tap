@@ -1,0 +1,235 @@
+(node:81081) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("/tmp/mcn-coverage-quality-baseline-loader.mjs", pathToFileURL("./")); register("/tmp/mcn-coverage-quality-baseline-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ summary comparison projection preserves the full B range, header, and aggregate while skipping B-only directory work (40.042583ms)
+✔ default/invalid projection and account detail keep the existing full comparison contract (19.735583ms)
+(node:81082) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("/tmp/mcn-coverage-quality-baseline-loader.mjs", pathToFileURL("./")); register("/tmp/mcn-coverage-quality-baseline-loader.mjs", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ theme filter combines confirmed Tuantuan boards and supplemental source lists (32.968667ms)
+✔ latest imported roster supplies verified theme and explicit labels to operating filters without changing metric rows (16.104583ms)
+✖ roster classifications are not applied after a saved locator no longer matches the target (15.811792ms)
+✔ multiple same-theme memberships never double count an account or its metrics (13.439209ms)
+✔ theme, board and secondary content filters intersect without changing theme directory counts (14.767291ms)
+✔ paused theme members stay in the directory but do not inflate metric totals (15.653792ms)
+✔ theme selection is retained in date comparisons and unknown themes cannot leak accounts (20.005125ms)
+✔ mixed-IP source filename alone must not confirm Tuantuan ownership (14.476375ms)
+✔ explicit row board disambiguates a mixed-IP workbook without being overridden by keyword order (12.793667ms)
+✔ specific worksheet disambiguates a mixed-IP workbook when no row board exists (12.524375ms)
+✔ different explicit IP memberships must not silently become the first theme in the rule list (14.239875ms)
+✔ board counts returned with a theme filter describe the same filtered population as board metrics (17.566416ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 12
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 357.187167
+
+✖ failing tests:
+
+test at test/product-comparison-summary-20261005.test.mjs:71:1
+✖ summary comparison projection preserves the full B range, header, and aggregate while skipping B-only directory work (40.042583ms)
+  AssertionError [ERR_ASSERTION]: B applies the content classification to its own historical cohort
+
+  4 !== 3
+
+      at TestContext.<anonymous> (file://<project>/test/product-comparison-summary-20261005.test.mjs:94:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.start (node:internal/test_runner/test:1177:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 4,
+    expected: 3,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/product-insights-theme.test.mjs:96:1
+✖ roster classifications are not applied after a saved locator no longer matches the target (15.811792ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+  + [
+  +   {
+  +     boards: [
+  +       {
+  +         key: '一条小团团切片矩阵',
+  +         name: '一条小团团切片矩阵',
+  +         source: {
+  +           note: '由已登记团团来源归属，未按昵称推断。',
+  +           type: 'source-confirmed-roster'
+  +         }
+  +       }
+  +     ],
+  +     classification: {
+  +       confidence: 1,
+  +       labels: [
+  +         {
+  +           color: 'violet',
+  +           confidence: 1,
+  +           key: 'slice',
+  +           label: '切片',
+  +           sourceConfirmed: true
+  +         }
+  +       ],
+  +       mode: 'source-confirmed-matrix',
+  +       primaryKey: 'slice',
+  +       primaryLabel: '切片',
+  +       theme: {
+  +         confirmed: true,
+  +         key: 'tuantuan',
+  +         label: '团团',
+  +         mode: 'master-roster-source'
+  +       }
+  +     },
+  +     collection: {
+  +       profile: false,
+  +       status: 'source-only',
+  +       works: false
+  +     },
+  +     enabled: false,
+  +     id: 'roster:588de1ef19c1ae4b42ee40a8632150be',
+  +     identityAliases: undefined,
+  +     identityEvidence: undefined,
+  +     label: '测试作者1',
+  +     lifecycle: undefined,
+  +     linkedTargetId: null,
+  +     metrics: {
+  +       estimatedPlays: {
+  +         baselineAt: null,
+  +         comparable: false,
+  +         comparableCount: undefined,
+  +         currentAt: null,
+  +         dailyComparable: false,
+  +         delta: null,
+  +         deltaQuality: undefined,
+  +         deltaReliable: false,
+  +         fullPeriodComparable: false,
+  +         knownValue: null,
+  +         observedCount: undefined,
+  +         observedInPeriod: false,
+  +         observedOnEndDate: false,
+  +         observedWindow: null,
+  +         percent: null,
+  +         reason: '来源资料已入库；没有该账号对应的真实平台观测，不补零或推算增长。',
+  +         reliable: false,
+  +         value: null,
+  +         valueQuality: undefined
+  +       },
+  +       followers: {
+  +         baselineAt: null,
+  +         comparable: false,
+  +         comparableCount: undefined,
+  +         comparisonLabel: undefined,
+  +         currentAt: null,
+  +         dailyComparable: false,
+  +         delta: null,
+  +         deltaQuality: undefined,
+  +         deltaReliable: false,
+  +         fullPeriodComparable: false,
+  +         knownValue: null,
+  +         observedCount: undefined,
+  +         observedInPeriod: false,
+  +         observedOnEndDate: false,
+  +         observedWindow: null,
+  +         percent: null,
+  +         reason: '来源资料已入库；没有该账号对应的真实平台观测，不补零或推算增长。',
+  +         reliable: false,
+  +         value: null,
+  +         valueQuality: undefined
+  +       },
+  +       likes: {
+  +         baselineAt: null,
+  +         comparable: false,
+  +         comparableCount: undefined,
+  +         currentAt: null,
+  +         dailyComparable: false,
+  +         delta: null,
+  +         deltaQuality: undefined,
+  +         deltaReliable: false,
+  +         fullPeriodComparable: false,
+  +         knownValue: null,
+  +         observedCount: undefined,
+  +         observedInPeriod: false,
+  +         observedOnEndDate: false,
+  +         observedWindow: null,
+  +         percent: null,
+  +         reason: '来源资料已入库；没有该账号对应的真实平台观测，不补零或推算增长。',
+  +         reliable: false,
+  +         value: null,
+  +         valueQuality: undefined
+  +       },
+  +       posts: {
+  +         baselineAt: null,
+  +         comparable: false,
+  +         comparableCount: undefined,
+  +         currentAt: null,
+  +         dailyComparable: false,
+  +         delta: null,
+  +         deltaQuality: undefined,
+  +         deltaReliable: false,
+  +         fullPeriodComparable: false,
+  +         knownValue: null,
+  +         observedCount: undefined,
+  +         observedInPeriod: false,
+  +         observedOnEndDate: false,
+  +         observedWindow: null,
+  +         percent: null,
+  +         reason: '来源资料已入库；没有该账号对应的真实平台观测，不补零或推算增长。',
+  +         reliable: false,
+  +         value: null,
+  +         valueQuality: undefined
+  +       }
+  +     },
+  +     platform: 'douyin',
+  +     profileUrl: 'https://www.douyin.com/user/MS4wLjABAAAAtheme2abcdefghijklmnop',
+  +     publicId: '000123',
+  +     publishedSamples: {
+  +       value: 0
+  +     },
+  +     rosterKey: 'target:1',
+  +     rosterKeys: [
+  +       'target:1'
+  +     ],
+  +     sourceOnly: true,
+  +     sourceProvenance: [],
+  +     sourceSummary: null,
+  +     sources: undefined,
+  +     status: {
+  +       error: null,
+  +       key: 'source-only',
+  +       label: '来源资料已入库',
+  +       lastAttemptAt: null,
+  +       lastSuccessAt: null,
+  +       provenanceWarning: '没有当前区间平台观测；来源累计值在同一行单独标注。',
+  +       sourceExcludedCount: undefined,
+  +       stale: false
+  +     },
+  +     submittedAccountId: '000123',
+  +     submittedName: '测试作者1',
+  +     trend: [],
+  +     worksObservation: null
+  +   }
+  + ]
+  - []
+
+      at TestContext.<anonymous> (file://<project>/test/product-insights-theme.test.mjs:106:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { id: 'roster:588de1ef19c1ae4b42ee40a8632150be', label: '测试作者1', platform: 'douyin', publicId: '000123', profileUrl: 'https://www.douyin.com/user/MS4wLjABAAAAtheme2abcdefghijklmnop', enabled: false, boards: [Array], submittedName: '测试作者1', submittedAccountId: '000123', sourceOnly: true, sourceSummary: null, rosterKey: 'target:1', rosterKeys: [Array], sourceProvenance: [], linkedTargetId: null, lifecycle: undefined, identityAliases: undefined, identityEvidence: undefined, classification: [Object], collection: [Object], metrics: [Object], trend: [], status: [Object], publishedSamples: [Object], worksObservation: null, sources: undefined } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

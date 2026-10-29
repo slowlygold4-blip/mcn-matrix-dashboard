@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { MonitorDatabase } from "../lib/database.mjs";
 import { getProductInsights, getAccountInsight } from "../lib/product-insights.mjs";
 import { checksum } from "../lib/utils.mjs";
+import { ConsoleReader } from "../lib/console-reader.mjs";
 
 const at = (date, hour = 12) => new Date(`${date}T${String(hour).padStart(2, "0")}:00:00`).toISOString();
 const reference = new Date(at("2026-09-13", 18));
@@ -469,7 +470,7 @@ test("account sources and profile URLs never expose imported secrets or raw resp
   const target = addAccount("safe", true, {
     cookie: "never-return-secret", authorization: "never-return-auth",
     importSource: { type: "lark-sheet", fileName: "名单", sourceRow: 2,
-      sourceUrl: "https://tenant.feishu.cn/sheets/abc?sheet=one&token=[REDACTED]" },
+      sourceUrl: "https://tenant.feishu.cn/sheets/abc?sheet=one&token=never-return-token" },
     sourceMetadata: { sourceUrl: "https://user:never-return-password@tenant.feishu.cn/sheets/abc" },
   });
   const detail = getAccountInsight(database, target.id, { reference });
@@ -633,5 +634,45 @@ test("aggregate totals expose coverage quality and do not present a partial coho
   assert.equal(second.likesReliable, true);
   assert.equal(second.estimatedPlaysReliable, true);
   assert.equal(result.summary.metrics.estimatedPlays.valueMeaning.includes("不是区间新增播放"), true);
-  assert.equal(result.methodology.dailyQuality.includes("90%"), true);
+  assert.match(result.methodology.dailyQuality, /100%/);
+});
+
+test("90 percent observed cohorts stay partial while their real totals and comparable changes remain visible", async (t) => {
+  const { database, addAccount, sample } = fixture(t);
+  const accounts = Array.from({ length: 10 }, (_, i) => addAccount(`near-full-${i}`));
+  for (const account of accounts.slice(0, 9)) {
+    sample(account, "2026-09-11", [100, 1000, 10]);
+    sample(account, "2026-09-12", [100, 1000, 10]);
+    sample(account, "2026-09-13", [110, 990, 11]);
+  }
+  const result = getProductInsights(database, { reference, period: "custom", startDate: "2026-09-12", endDate: "2026-09-13" });
+  for (const name of ["followers", "likes", "posts", "estimatedPlays"]) {
+    const metric = result.summary.metrics[name];
+    assert.equal(metric.valueQuality.status, "partial");
+    assert.equal(metric.deltaQuality.status, "partial");
+    assert.equal(metric.valueQuality.complete, false);
+    assert.equal(metric.valueQuality.missingCount, 1);
+    assert.equal(metric.deltaQuality.complete, false);
+    assert.equal(metric.reliable, true, "90% remains a comparable observed cohort, never a complete matrix");
+    assert.equal(metric.observedCount, 9); assert.equal(metric.comparableCount, 9);
+    assert.match(metric.valueQuality.reason, /9\/10/);
+    const point = result.summary.trend.find(p => p.date === "2026-09-13");
+    assert.equal(point[`${name}Quality`], "partial");
+    assert.equal(point[`${name}Complete`], false);
+    assert.equal(point[`${name}DeltaQuality`], "partial");
+  }
+  assert.equal(result.summary.metrics.followers.value, 990);
+  assert.equal(result.summary.metrics.followers.delta, 90);
+  assert.equal(result.summary.metrics.likes.delta, -90);
+  assert.equal(result.summary.metrics.posts.delta, 9);
+  assert.equal(result.summary.metrics.estimatedPlays.delta, -9000);
+  const reader = new ConsoleReader({ databasePath: database.filePath });
+  try {
+    const wire = await reader.overview({ reference: reference.toISOString(), period: "custom", startDate: "2026-09-12", endDate: "2026-09-13" });
+    const point = wire.summary.trend.find(p => p.date === "2026-09-13");
+    assert.equal(point.followersQuality, "partial"); assert.equal(point.followersComplete, false);
+    assert.equal(point.likesDeltaQuality, "partial"); assert.equal(point.likesDeltaComplete, false);
+    assert.equal(point.likesDelta, -90); assert.equal(point.likesDeltaReliable, true);
+    assert.equal(point.estimatedPlaysReliable, true, "proxy curve retains the same availability flags as likes");
+  } finally { await reader.close(); }
 });

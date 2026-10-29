@@ -1,0 +1,26 @@
+{
+  "checkedAt": "2026-10-29T23:01:14.750Z",
+  "events": [
+    {
+      "time": "2026-10-29T22:54:21.252Z",
+      "id": "6f75dc25685c5187ab93ba934a1404e0",
+      "method": "GET",
+      "path": "/api/replica",
+      "status": 404,
+      "outcome": "ok",
+      "wallTimeMs": 146,
+      "cpuTimeMs": 8
+    },
+    {
+      "time": "2026-10-29T22:53:36.266Z",
+      "id": "45c895700b4ad82b8a9839b89e8887ba",
+      "method": "POST",
+      "path": "/api/replica",
+      "status": null,
+      "outcome": "canceled",
+      "wallTimeMs": 156317,
+      "cpuTimeMs": 5695
+    }
+  ],
+  "interpretation": "Publisher recorded activation HTTP 503. Worker log outcome canceled; exact underlying cause unproven."
+}
