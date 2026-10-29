@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { createPublicReplicaSync, preparePublicReplicaPublication, PUBLIC_REPLICA_ORIGIN,
+import { createPublicReplicaSync, sealPublicReplicaSource, preparePublicReplicaPublication, PUBLIC_REPLICA_ORIGIN,
   PUBLIC_REPLICA_SUMMARY_FIELDS } from '../lib/public-replica-sync.mjs';
 import { describeWorkPlays } from '../lib/work-play-semantics.mjs';
 import { preparePublishedSnapshotBaseline } from '../lib/committed-target-publication.mjs';
@@ -814,4 +814,65 @@ test('a growing account directory above 4 MB publishes without widening work-par
  const cloud=fakeCloud();const result=await producer(cloud).sync(source);
  assert.equal(result.status,'success',JSON.stringify(result));
  assert.equal(cloud.published.get(AS_OF).counts.accounts,accounts.length);
+});
+
+
+test('sealed retries reuse only an immutable validated plan and keep remote readback fresh', async () => {
+  const raw=fixture(), sealed=sealPublicReplicaSource(raw), cloud=fakeCloud();
+  raw.manifest.asOf='corrupted';raw.files[0].content='corrupted';
+  assert.equal(sealed.manifest.asOf,AS_OF);
+  assert.throws(()=>{sealed.manifest.counts.accounts=999;},TypeError);
+  assert.throws(()=>{sealed.files[0].content='changed';},TypeError);
+  cloud.failActivationResponse=true;const sync=producer(cloud);
+  const first=await sync.sync(sealed);assert.equal(first.status,'failed');assert.equal(first.sourceValidation,'full');
+  const uploads=cloud.uploads,second=await sync.sync(sealed);
+  assert.equal(second.status,'success');assert.equal(second.sourceValidation,'reused-immutable');assert.equal(cloud.uploads,uploads);
+  cloud.corruptPart='catalog.json';const corrupt=await sync.sync(sealed);
+  assert.equal(corrupt.status,'failed');assert.equal(corrupt.code,'readback-hash-mismatch');
+  assert.equal(corrupt.sourceValidation,'reused-immutable');
+});
+
+test('mutable or newly sealed input cannot reuse validation capabilities',async()=>{
+  const cloud=fakeCloud(),sync=producer(cloud),raw=fixture();
+  assert.equal((await sync.sync(raw)).status,'success');const uploads=cloud.uploads;
+  raw.files[0].content='{}';const changed=await sync.sync(raw);
+  assert.equal(changed.status,'failed');assert.equal(changed.sourceValidation,'full');assert.equal(cloud.uploads,uploads);
+  const sealed=sealPublicReplicaSource(fixture());
+  assert.equal((await sync.sync(sealed)).sourceValidation,'full');
+  assert.equal((await sync.sync(sealPublicReplicaSource(fixture()))).sourceValidation,'full');
+  assert.equal((await producer(cloud).sync(sealed)).sourceValidation,'full');
+  const bad=fixture();bad.files[0].content='{}';const calls=cloud.calls.length;
+  const invalid=await sync.sync(sealPublicReplicaSource(bad));assert.equal(invalid.status,'failed');
+  assert.equal(cloud.calls.length,calls);
+});
+
+test('sealed mode changes and aborted retries cannot bypass fresh validation or cancellation',async()=>{
+  const sealed=sealPublicReplicaSource(fixture()),cloud=fakeCloud();
+  const sync=producer(cloud,{getCredential:async()=>{throw Error('unavailable');}});
+  const first=await sync.sync(sealed);assert.equal(first.sourceValidation,'full');
+  assert.equal((await sync.sync(sealed)).sourceValidation,'reused-immutable');
+  assert.equal((await sync.sync(sealed,{dateIndex:true})).sourceValidation,'full');
+  assert.equal((await sync.sync(sealed,{dateIndex:true})).sourceValidation,'reused-immutable');
+  const calls=cloud.calls.length;const controller=new AbortController();controller.abort();
+  assert.equal((await sync.sync(sealed,{signal:controller.signal})).code,'aborted');assert.equal(cloud.calls.length,calls);
+});
+
+test('lost checkpoint replays required batches instead of sharing mutable cached receipts',async()=>{
+  let checkpoint=null;const cloud=fakeCloud(),sealed=sealPublicReplicaSource(fixture());
+  const sync=producer(cloud,{loadCheckpoint:async()=>clone(checkpoint),saveCheckpoint:async x=>{checkpoint=clone(x);}});
+  cloud.rejectActivationOnce=true;const first=await sync.sync(sealed);assert.equal(first.status,'failed');
+  const uploads=cloud.uploads;checkpoint=null;
+  const second=await sync.sync(sealed);assert.equal(second.status,'success');
+  assert.equal(second.sourceValidation,'reused-immutable');assert.ok(cloud.uploads>uploads);
+});
+
+
+test('synthetic retry timing excludes real HTTP and models',async()=>{
+  const raw=fixture({accounts:1000}),sealed=sealPublicReplicaSource(raw),cloud=fakeCloud();
+  const sync=producer(cloud,{getCredential:async()=>{throw Error('unavailable');}});
+  const before=performance.now();const cold=await sync.sync(sealed);const coldMs=performance.now()-before;
+  const after=performance.now();const warm=await sync.sync(sealed);const warmMs=performance.now()-after;
+  assert.equal(cold.sourceValidation,'full');assert.equal(warm.sourceValidation,'reused-immutable');
+  assert.equal(cloud.calls.length,2);assert.equal(cloud.uploads,0);assert.equal(warm.code,'credential-unavailable');
+  console.log(JSON.stringify({syntheticRetryBenchmark:true,accounts:1000,coldMs,warmMs,mockManifestReads:2,realHttpCalls:0,modelCalls:0}));
 });

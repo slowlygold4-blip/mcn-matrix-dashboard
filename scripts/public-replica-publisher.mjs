@@ -7,7 +7,7 @@ import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { exportPublicReplica, writePublicReplica, PUBLIC_REPLICA_EXPORT_REVISION } from '../lib/public-replica-export.mjs';
-import { createPublicReplicaSync, preparePublicReplicaPublication } from '../lib/public-replica-sync.mjs';
+import { createPublicReplicaSync, preparePublicReplicaPublication, sealPublicReplicaSource } from '../lib/public-replica-sync.mjs';
 import { readCommittedTargetPublication, isCommittedTargetPublication, COMMITTED_TARGET_PUBLICATION,
   preparePublishedSnapshotBaseline, attachPublishedSnapshotBaseline, releaseCommittedTargetPublication } from '../lib/committed-target-publication.mjs';
 import {readPublicSourceMarker} from '../lib/public-source-marker.mjs';
@@ -201,7 +201,7 @@ async function configure(){
 async function run(){
   await privateDirectory(home);await acquirePublisherLock(join(home,'lock.json'));
   const statePath=join(home,'state.json');let state=await privateRead(statePath);if(state.version!==1)fail('invalid-state');
-  let busy=false,stopping=false;const signal=new AbortController();
+  let busy=false,stopping=false,immutableStage=null;const signal=new AbortController();
   const sync=createPublicReplicaSync({getCredential:()=>privateRead(join(home,'credential'),{credential:true}),
     loadCheckpoint:async()=>{try{return await privateRead(join(home,'checkpoint.json'));}catch(e){if(e.code==='ENOENT')return null;throw e;}},
     saveCheckpoint:value=>privateWrite(join(home,'checkpoint.json'),value)});
@@ -230,14 +230,17 @@ async function run(){
         const manifest=await writePublicReplica(directory,replica);
         state.active={directory,asOf,manifestHash:hash(manifest),marker:observed.marker,source:observed.source,exportRevision:PUBLIC_REPLICA_EXPORT_REVISION,dateIndex:true,publicationContract:COMMITTED_TARGET_PUBLICATION};state.status='staged';await privateWrite(statePath,state);
       }
-      const publication=await readPublication(state.active.directory);if(publication.manifest.asOf!==state.active.asOf||hash(publication.manifest)!==state.active.manifestHash)fail('staging-version-conflict');
-      const result=await sync.sync(publication,{signal:signal.signal,dateIndex:shouldPreparePublicDateIndex(state.active)});
+      if(!immutableStage||immutableStage.directory!==state.active.directory||immutableStage.manifestHash!==state.active.manifestHash){
+        const publication=await readPublication(state.active.directory);if(publication.manifest.asOf!==state.active.asOf||hash(publication.manifest)!==state.active.manifestHash)fail('staging-version-conflict');
+        immutableStage={directory:state.active.directory,manifestHash:state.active.manifestHash,source:sealPublicReplicaSource(publication)};
+      }
+      const result=await sync.sync(immutableStage.source,{signal:signal.signal,dateIndex:shouldPreparePublicDateIndex(state.active)});
       state.status=result.status;state.code=result.code??null;state.checkedAt=new Date().toISOString();state.sync=result;
       if(result.status==='success'){
         state.lastConfirmedPublishedAt=state.checkedAt;state.publishedAsOf=state.active.asOf;
         // The seed has no event watermark: finished data newer than it still triggers the next publication.
         state.coveredMarker=state.active.marker;state.coveredSource=state.active.source;state.exportRevision=state.active.exportRevision??null;
-        state.publicationContract=state.active.publicationContract??null;state.active=null;
+        state.publicationContract=state.active.publicationContract??null;state.active=null;immutableStage=null;
       }
       await privateWrite(statePath,state);console.log(JSON.stringify({status:state.status,code:state.code,asOf:state.active?.asOf??state.publishedAsOf,runtimeAI:false}));
       if(result.status==='success')try{const retention=await prunePublicReplicaStaging({dataDir:data,dryRun:false});console.log(JSON.stringify({cacheRetention:retention.status,removed:retention.removed.length,runtimeAI:false}));}catch(error){console.error('cache-retention-deferred',error.code||error.name);}
