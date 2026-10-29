@@ -789,3 +789,31 @@ Counts overlap; these are not collection success rates. Public checkout reused i
 ℹ todo 0
 ℹ duration_ms 23185.34775
 ```
+
+## Background priority follow-up
+
+launchd retained its old loaded Nice value although the plist on disk had Nice10. Active replacement PID65106 was safely reniced to10; no active upload interrupted. Added startup self-priority correction for future starts; active PID uses equivalent manual priority, new code is not claimed loaded. Backend and public scoped regressions13/13 pass. No memory reduction claim: preparation RSS still reached about3GB.
+
+```text
+✔ publisher startup lowers only its own priority and keeps an already quieter worker unchanged (0.650375ms)
+✔ a pending generation keeps its own date-index feature across exporter revisions (0.076666ms)
+✔ completed receipts are bound to exact persisted run and time (0.2255ms)
+✔ source completion marker excludes private URLs and ignores intermediate writes (0.3455ms)
+✔ private files reject symlinks and readable credentials; lock is exclusive (54.701667ms)
+✔ preparation is persisted before work while retaining the confirmed baseline (5.319958ms)
+✔ synchronization records current activity instead of retaining a previous failed status (10.697625ms)
+✔ all verified catalog works join source corpus even without a source import, including Bilibili and other themes (9.405875ms)
+✔ overlapping source/platform work is one row with existing adopted values, not a sum or arbitrary overwrite (0.372459ms)
+✔ unlinked dataset proves Tuantuan slice-matrix ownership; work hashtags cannot invent author labels (0.114333ms)
+✔ ambiguous platform ownership is retained only in original histories, not arbitrarily counted in unified ledger (0.106708ms)
+✔ source-enriched histories retain source provenance and explicit zero; public ledger titles obey tight text contract (0.716792ms)
+✔ scope aggregates are checked against all work rows; tampered scope IDs/groups and mixed protocols fail (0.931791ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 220.631792
+```

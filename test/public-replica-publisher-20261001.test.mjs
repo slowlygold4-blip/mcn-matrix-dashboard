@@ -1,7 +1,13 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {mkdtemp,writeFile,chmod,symlink,readFile,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';
-import {privateRead,privateWrite,recordPublisherPreparation,recordPublisherSyncStart,validatedReceipt,completedSourceMarker,acquirePublisherLock,shouldPreparePublicDateIndex} from '../scripts/public-replica-publisher.mjs';
+import {privateRead,privateWrite,recordPublisherPreparation,recordPublisherSyncStart,validatedReceipt,completedSourceMarker,acquirePublisherLock,shouldPreparePublicDateIndex,ensurePublisherBackgroundPriority} from '../scripts/public-replica-publisher.mjs';
 import {PUBLIC_REPLICA_EXPORT_REVISION} from '../lib/public-replica-export.mjs';
+test('publisher startup lowers only its own priority and keeps an already quieter worker unchanged',()=>{
+ let priority=0,writes=0;const write=value=>{priority=value;writes++;};
+ assert.deepEqual(ensurePublisherBackgroundPriority({read:()=>priority,write}),{status:'applied',priority:10});assert.equal(writes,1);
+ priority=15;assert.deepEqual(ensurePublisherBackgroundPriority({read:()=>priority,write}),{status:'applied',priority:15});assert.equal(writes,1);
+ assert.deepEqual(ensurePublisherBackgroundPriority({read:()=>{throw Error('unavailable');},write}),{status:'deferred',priority:null});assert.equal(writes,1);
+});
 test('a pending generation keeps its own date-index feature across exporter revisions',()=>{
   assert.equal(shouldPreparePublicDateIndex({exportRevision:'catalog-date-range-v1'}),true);
   assert.equal(shouldPreparePublicDateIndex({exportRevision:'catalog-date-range-v2-roster-classification'}),true);

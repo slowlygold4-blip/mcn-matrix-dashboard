@@ -1,0 +1,22 @@
+{
+  "firstCheck": "2026-10-29T20:43:33.017719+00:00",
+  "pid": 57459,
+  "instance": "6f173ea2-46f0-4d71-98b5-01308193d881",
+  "generation": "2026-10-29T20:33:17.942Z",
+  "status": "success",
+  "confirmedAt": "2026-10-29T20:42:50.069Z",
+  "readbacks": 41,
+  "secondCheck": "2026-10-29T20:44:31.752088+00:00",
+  "gapSeconds": 58.734369,
+  "action": "SIGTERM only to verified idle publisher; existing launchd KeepAlive handles restart",
+  "siteVersion": 122,
+  "interruptedActiveGeneration": false,
+  "replacementPid": 65106,
+  "mainServicePidUnchanged": 51709,
+  "sourceWorkerPidUnchanged": 50348,
+  "existingLaunchdRestart": true,
+  "observedReplacementPriorityInitially": 0,
+  "replacementPriorityAfterRenice": 10,
+  "startupPrioritySelfCorrectionAdded": true,
+  "priorityCodeLoadedByActivePid": false
+}

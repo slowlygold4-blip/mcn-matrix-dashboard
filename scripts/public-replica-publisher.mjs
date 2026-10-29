@@ -1,4 +1,5 @@
 import { constants, watch } from 'node:fs';
+import {getPriority,setPriority} from 'node:os';
 import { prunePublicReplicaStaging } from '../lib/public-replica-retention.mjs';
 import { open, mkdir, readFile, rename, lstat, link, unlink } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
@@ -18,6 +19,12 @@ const home=join(data,'public-replica-publisher');
 const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const iso=value=>typeof value==='string'&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString()===value;
 const fail=code=>{throw Object.assign(new Error(code),{code});};
+/** launchd may retain an older loaded plist. Lower this worker's own priority
+ * on every start; never raise an already lower-priority process or touch others. */
+export function ensurePublisherBackgroundPriority({read=getPriority,write=setPriority}={}){
+  try{const current=read();if(current<10)write(10);return {status:'applied',priority:read()};}
+  catch{return {status:'deferred',priority:null};}
+}
 // A staged generation is immutable. Its preparation features must not change
 // merely because a newer executable uses a different export revision.
 const legacyDateIndexRevisions=new Set(['catalog-date-range-v1','catalog-date-range-v2-roster-classification',PUBLIC_REPLICA_EXPORT_REVISION]);
@@ -277,6 +284,7 @@ async function run(){
   await tick();
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
+  if(ensurePublisherBackgroundPriority().status==='deferred')console.error(JSON.stringify({code:'publisher-background-priority-deferred',runtimeAI:false}));
   try{if(process.argv.includes('--configure'))await configure();else await run();}
   catch(e){console.error(JSON.stringify({status:'stopped',code:['publisher-already-running','uncertain-publisher-lock','unsafe-private-file','unsafe-private-directory'].includes(e.code)?e.code:'publisher-start-failed',runtimeAI:false}));process.exitCode=1;}
 }

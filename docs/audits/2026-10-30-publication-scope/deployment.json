@@ -1,0 +1,39 @@
+{
+  "siteVersion": {
+    "id": "appgprj_6abdb56f89fc81919cdcf47e8b7c578e~appgver_613daa6831848191a10558ae498f0483",
+    "project_id": "appgprj_6abdb56f89fc81919cdcf47e8b7c578e",
+    "version_number": 122,
+    "source": {
+      "commit_sha": "0dc2759665f7f576a48c4cb7da55716a2f32ab4e"
+    },
+    "archive_storage": {
+      "archive_format": "tar",
+      "sediment_file_id": "file_000000003a3082099cf8690b80d6219a",
+      "content_hash": "sha256:752d729dcce9ba32845081488b6d20d1a5ae6e53a9d057867f217d8915dd73c5",
+      "size_bytes": 72570880,
+      "file_count": 768
+    },
+    "screenshot_url": null,
+    "deployment_id": null
+  },
+  "deployment": {
+    "id": "appgdep_6ae3ade4b4e08191bb3deca5ed6ea5d4",
+    "project_id": "appgprj_6abdb56f89fc81919cdcf47e8b7c578e",
+    "title": "MCN 矩阵数据台",
+    "version_id": "appgprj_6abdb56f89fc81919cdcf47e8b7c578e~appgver_613daa6831848191a10558ae498f0483",
+    "type": "publish",
+    "status": "succeeded",
+    "url": "https://mcn-matrix-observatory.slowlygold4.chatgpt.site",
+    "has_mcp": false,
+    "screenshot_asset_pointer": null,
+    "provider_deployment_id": "site---6abdb56f89fc81919cdcf47e8b7c578e",
+    "failure_message": null,
+    "env_set_revision": 2,
+    "updated_at": "2026-10-29T20:35:02.545573+00:00"
+  },
+  "packaged": {
+    "project_id": "appgprj_6abdb56f89fc81919cdcf47e8b7c578e",
+    "commit_sha": "0dc2759665f7f576a48c4cb7da55716a2f32ab4e",
+    "archive": "/Users/tyke/Documents/Codex/2026-08-31/bi-a/outputs/mcn-publication-scope-v122.tar.gz"
+  }
+}
