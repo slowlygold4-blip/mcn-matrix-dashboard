@@ -7,11 +7,11 @@ Full SHA256: ee759cde6be040f742d4cb793e74565e02af3bab4f9cd99a8488927c66a2290d
 49410:   Header map[string]*string `json:"header,omitempty" xml:"header,omitempty"`
 49411:   AccessToken *string `json:"access_token,omitempty" xml:"access_token,omitempty"`
 49412: }
-49413: 
+49413:
 
 49497:   TotalFans *int64 `json:"total_fans,omitempty" xml:"total_fans,omitempty"`
 49498: }
-49499: 
+49499:
 49500: func (s UserFansResponseDataResultListItem) String() string {
 49501:   return tea.Prettify(s)
 49502: }
@@ -22,20 +22,20 @@ Full SHA256: ee759cde6be040f742d4cb793e74565e02af3bab4f9cd99a8488927c66a2290d
 55083:   TotalIssue *int64 `json:"total_issue,omitempty" xml:"total_issue,omitempty"`
 55084:   Date *string `json:"date,omitempty" xml:"date,omitempty" require:"true"`
 55085: }
-55086: 
+55086:
 
 68160: type UserLikeResponseDataResultListItem struct {
 68161:   NewLike *int64 `json:"new_like,omitempty" xml:"new_like,omitempty"`
 68162:   Date *string `json:"date,omitempty" xml:"date,omitempty" require:"true"`
 68163: }
-68164: 
+68164:
 
 186184:     _resp, _err = func()(*UserFansResponse, error){
 186185:       request_ := tea.NewRequest()
 186186:       if !tea.BoolValue(util.IsUnset(request.Header)) {
 186187:         request_.Headers = request.Header
 186188:       }
-186189: 
+186189:
 186190:       request_.Protocol = tea.String("HTTPS")
 186191:       request_.Method = tea.String("GET")
 186192:       request_.Pathname = tea.String("/data/external/user/fans/")
@@ -50,7 +50,7 @@ Full SHA256: ee759cde6be040f742d4cb793e74565e02af3bab4f9cd99a8488927c66a2290d
 186201:       if !tea.BoolValue(util.Empty(request.AccessToken)) {
 186202:         request_.Headers["access-token"] = request.AccessToken
 186203:       }
-186204: 
+186204:
 186205:       response_, _err := tea.DoRequest(request_, _runtime)
 186206:       if _err != nil {
 
@@ -59,7 +59,7 @@ Full SHA256: ee759cde6be040f742d4cb793e74565e02af3bab4f9cd99a8488927c66a2290d
 188186:       if !tea.BoolValue(util.IsUnset(request.Header)) {
 188187:         request_.Headers = request.Header
 188188:       }
-188189: 
+188189:
 188190:       request_.Protocol = tea.String("HTTPS")
 188191:       request_.Method = tea.String("GET")
 188192:       request_.Pathname = tea.String("/data/external/user/item/")
@@ -74,7 +74,7 @@ Full SHA256: ee759cde6be040f742d4cb793e74565e02af3bab4f9cd99a8488927c66a2290d
 188201:       if !tea.BoolValue(util.Empty(request.AccessToken)) {
 188202:         request_.Headers["access-token"] = request.AccessToken
 188203:       }
-188204: 
+188204:
 188205:       response_, _err := tea.DoRequest(request_, _runtime)
 188206:       if _err != nil {
 
@@ -83,7 +83,7 @@ Full SHA256: ee759cde6be040f742d4cb793e74565e02af3bab4f9cd99a8488927c66a2290d
 194318:       if !tea.BoolValue(util.IsUnset(request.Header)) {
 194319:         request_.Headers = request.Header
 194320:       }
-194321: 
+194321:
 194322:       request_.Protocol = tea.String("HTTPS")
 194323:       request_.Method = tea.String("GET")
 194324:       request_.Pathname = tea.String("/data/external/user/like/")
@@ -98,7 +98,6 @@ Full SHA256: ee759cde6be040f742d4cb793e74565e02af3bab4f9cd99a8488927c66a2290d
 194333:       if !tea.BoolValue(util.Empty(request.AccessToken)) {
 194334:         request_.Headers["access-token"] = request.AccessToken
 194335:       }
-194336: 
+194336:
 194337:       response_, _err := tea.DoRequest(request_, _runtime)
 194338:       if _err != nil {
-
