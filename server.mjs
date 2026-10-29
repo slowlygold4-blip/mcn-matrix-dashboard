@@ -1,4 +1,5 @@
 import {startCollectionRelay} from './lib/collection-relay.mjs';
+import {douyinBrowserDisabled} from './lib/douyin-browser-policy.mjs';
 import {privateRead as readPrivateRelayFile,privateWrite as writePrivateRelayFile} from './scripts/public-replica-publisher.mjs';
 import {createCollectionAccess} from './lib/collection-access.mjs';
 import {collectionProgress} from './lib/collection-progress.mjs';
@@ -247,7 +248,7 @@ const scheduler = new MonitorScheduler(database, {
   shouldYieldScheduledCollection: () => authorQueueTurnRequested || authorQueueRunning || authorDetailProbeRunning,
   scheduleIntervalHours: 8,
   continuousRoundStore: new ContinuousCollectionRound(join(dataDir, "continuous-collection.json"), initialCollectionSlot({anchorTime:database.getSettings().scheduleTime}).startsAt),
-  worksOnlyEnabled: true,
+  worksOnlyEnabled: !douyinBrowserDisabled(),
   scheduleTimeZone: "Asia/Shanghai",
   providerOptions: { signal: shutdownController.signal },
   worksOnlySignal: worksOnlyShutdownController.signal,
@@ -1644,7 +1645,7 @@ async function handleApi(request, response, url) {
       runtimeAuditStatus: includeRuntimeAudit ? 'checked' : 'not-requested',
       scheduler: schedulerState,
       runtimeAI: false,
-      topicResolverMode: ["browser", "browser-first"].includes(process.env.DOUYIN_TOPIC_RESOLVER_MODE)
+      topicResolverMode: (!douyinBrowserDisabled() && ["browser", "browser-first"].includes(process.env.DOUYIN_TOPIC_RESOLVER_MODE))
         ? "authenticated-topic-dedicated-profile"
         : "anonymous-only",
       auth: access.sessionPayload(request.auth),
@@ -1690,19 +1691,20 @@ async function handleApi(request, response, url) {
       sourceProbes: database.getLatestSourceProbes(),
       runtimeAI: false,
       paidAPI: false,
+      douyinBrowserDisabled: douyinBrowserDisabled(),
       // Account monitoring starts with anonymous HTTP and can explicitly fall
       // back to one user-authorized browser probe when the works endpoint is
       // blocked. Topics use their separate authenticated browser adapter. Keep
       // both flags visible so audits never describe a mixed run as anonymous.
-      browserCollection: ["1", "true", "browser", "browser-fallback"].includes(String(process.env.DOUYIN_ACCOUNT_BROWSER_FALLBACK ?? "").toLowerCase()),
-      topicBrowserCollection: ["browser", "browser-first"].includes(process.env.DOUYIN_TOPIC_RESOLVER_MODE),
-      browserSessionMode: ["1", "true", "browser", "browser-fallback"].includes(String(process.env.DOUYIN_ACCOUNT_BROWSER_FALLBACK ?? "").toLowerCase())
+      browserCollection: (!douyinBrowserDisabled() && ["1", "true", "browser", "browser-fallback"].includes(String(process.env.DOUYIN_ACCOUNT_BROWSER_FALLBACK ?? "").toLowerCase())),
+      topicBrowserCollection: (!douyinBrowserDisabled() && ["browser", "browser-first"].includes(process.env.DOUYIN_TOPIC_RESOLVER_MODE)),
+      browserSessionMode: (!douyinBrowserDisabled() && ["1", "true", "browser", "browser-fallback"].includes(String(process.env.DOUYIN_ACCOUNT_BROWSER_FALLBACK ?? "").toLowerCase()))
         ? "authenticated-account-fallback"
-        : ["browser", "browser-first"].includes(process.env.DOUYIN_TOPIC_RESOLVER_MODE)
+        : (!douyinBrowserDisabled() && ["browser", "browser-first"].includes(process.env.DOUYIN_TOPIC_RESOLVER_MODE))
           ? "authenticated-topic-dedicated-profile"
           : "anonymous-only",
-      authenticatedAccountCollection: ["1", "true", "browser", "browser-fallback"].includes(String(process.env.DOUYIN_ACCOUNT_BROWSER_FALLBACK ?? "").toLowerCase()),
-      authenticatedTopicCollection: ["browser", "browser-first"].includes(process.env.DOUYIN_TOPIC_RESOLVER_MODE),
+      authenticatedAccountCollection: (!douyinBrowserDisabled() && ["1", "true", "browser", "browser-fallback"].includes(String(process.env.DOUYIN_ACCOUNT_BROWSER_FALLBACK ?? "").toLowerCase())),
+      authenticatedTopicCollection: (!douyinBrowserDisabled() && ["browser", "browser-first"].includes(process.env.DOUYIN_TOPIC_RESOLVER_MODE)),
     });
   }
   if (request.method === "GET" && pathname === "/api/author-resolution-queue") {
