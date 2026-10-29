@@ -31,3 +31,9 @@ No candidate was installed merely because it advertised a skill. Reviewed source
 - One independent public share HTML request followed an official-host redirect and returned 200/72,914 bytes. It contained none of the expected public data markers. No browser, signatures, cookie substitution, CAPTCHA processing or script execution; stopped without admitting data.
 
 The works API 403 and complete automatic identity linkage remain unresolved. Existing authorized workbook/source data is still ingested and published by the ordinary script pipeline. These outcomes must not be relabeled platform-collection success.
+
+- A separate ordinary mobile representation of the share page returned 200/32,454 bytes with security-verification markers. Parsing stopped without executing scripts or attempting the verification. It is not a successful data result.
+
+## Publication preparation observability
+
+During a graceful publisher reload, the persisted state still described the previous completed generation while the next read-only export had already started. The graceful abort retained the new immutable stage and the existing daemon resumed it; main/source workers and business data were untouched. Added a persisted `preparing` state before slow baseline/export work so future maintenance does not infer runtime idleness from the previous success record. The active retry cache was observed as `reused-immutable` on a real network retry; this is not an end-to-end production speed benchmark.

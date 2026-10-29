@@ -131,6 +131,14 @@ export async function acquirePublisherLock(path) {
     return owner;
   });
 }
+/** Expose preparation before any slow source/baseline reads. A previous
+ * successful publication does not mean the daemon is currently idle. */
+export async function recordPublisherPreparation(path, state, at) {
+  if (state.active || !iso(at)) fail('invalid-preparation');
+  const next = { ...state, status: 'preparing', code: null, checkedAt: at };
+  await privateWrite(path, next);
+  Object.assign(state, next);
+}
 export function validatedReceipt(run,receipt,now=Date.now()){
   return Number.isSafeInteger(run.id)&&run.id>0&&run.status!=='running'&&iso(run.started_at)&&iso(run.finished_at)
     &&Date.parse(run.started_at)<=Date.parse(run.finished_at)&&Date.parse(run.finished_at)<=now
@@ -218,6 +226,7 @@ async function run(){
             ...(observed.committedPublication.runningSnapshotCount>0 ? {contract:COMMITTED_TARGET_PUBLICATION,
               committedTargets:observed.committedPublication.marker} : {})});
           if(!shouldStagePublicReplica(state, observed,Date.parse(asOf)))return;
+          await recordPublisherPreparation(statePath,state,asOf);
           if(state.publishedAsOf){
             if(state.sync?.status!=='success'||state.sync.asOf!==state.publishedAsOf)fail('invalid-published-baseline');
             const previous=await readPublication(join(data,'public-replica-staging','publisher-'+state.publishedAsOf.replace(/[:.]/g,'-')));
