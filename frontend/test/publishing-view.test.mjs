@@ -47,3 +47,24 @@ test('valid hashes cannot legitimize wrong-day or duplicate work identities',asy
   await assert.rejects(loadPublishingDay({...f,day:''}),bad==='day'?/日期/:/去重/);
  }
 });
+
+test('publication cohort selection changes counts and adopted totals together; unknown dates are retained outside bounded cohorts',async()=>{
+ const {publishingSelection,sortPublicationRows}=await import('../lib/publishing-view.mjs');
+ const r=(id,date,likes,plays,classes=['slice'])=>({...row(id,date),classifications:classes,metrics:{likes:{value:likes,origin:likes===null?'unavailable':'platform'},plays:{value:plays,origin:plays===null?'unavailable':'source'}}});
+ const rows=[r(1,'2026-10-28',0,100,['slice','ai-remix']),r(2,'2026-10-28',5,null),r(3,'2026-10-29',20,30,['original']),r(4,'',7,10,[])];
+ const index=publishingPartitions(rows,{withMetrics:true})[0];
+ assert.equal(publishingSelection(index).metrics.likes.value,32);
+ const scoped=publishingSelection(index,{track:'slice',startDate:'2026-10-28',endDate:'2026-10-28'});
+ assert.equal(scoped.works,2);assert.equal(scoped.metrics.likes.value,5);assert.equal(scoped.metrics.plays.known,1);assert.equal(scoped.metrics.plays.missing,1);
+ assert.equal(publishingSelection(index,{track:'ai-remix'}).metrics.likes.value,0);
+ assert.equal(publishingSelection(index,{startDate:'2026-10-28'}).works,3);
+ assert.equal(publishingSelection(index,{startDate:'2026-10-28'}).undatedWorks,1);
+ const empty=publishingSelection(index,{startDate:'2026-10-30'});assert.equal(empty.works,0);assert.equal(empty.metrics.likes.value,null);
+ assert.equal(publishingSelection(publishingPartitions([row(1)])[0]).metrics,null,'旧发布版本不能回退到原表子集冒充合并合计');
+ assert.throws(()=>publishingSelection(index,{startDate:'2026-02-30'}),/日期/);
+ assert.throws(()=>publishingSelection(index,{startDate:'2026-10-29',endDate:'2026-10-28'}),/日期/);
+ for(const direction of ['asc','desc'])assert.equal(sortPublicationRows(rows,'plays',direction).at(-1).contentId,'2','缺失值始终排在最后');
+ assert.deepEqual(sortPublicationRows(rows,'likes','desc').map(r=>r.contentId),['3','4','2','1']);
+ assert.deepEqual(sortPublicationRows(rows,'likes','asc').map(r=>r.contentId),['1','2','4','3']);
+ assert.deepEqual(publishingCalendar(index,asOf,'2026-10-28','2026-10-28').map(d=>d.date),['2026-10-28']);
+});

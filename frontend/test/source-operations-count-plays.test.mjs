@@ -93,7 +93,7 @@ test('account growth preview is near the overview start and remains available wh
  const ready=renderToStaticMarkup(React.createElement(SourceOperations,props));
  const preview=ready.indexOf('data-preview="growth"'),hero=ready.indexOf('class="source-ops-hero"'),wayfinder=ready.indexOf('class="source-ops-wayfinder"'),kpis=ready.indexOf('class="source-ops-kpis"');
  assert.ok(preview>=0&&preview<hero&&hero<wayfinder&&wayfinder<kpis,'real account deltas lead the overview; source-table works follow with an explicit boundary');
- assert.match(ready,/class="source-ops-archive"><summary><strong>作者与作品详细分析<\/strong>/);
+ assert.match(ready,/class="source-ops-archive"><summary><strong>原始登记与来源核对<\/strong>/);
  assert.doesNotMatch(ready,/class="source-ops-archive" open=/,'source analysis is available without competing with the current account overview');
  assert.match(ready,/原表作品日期至 2026-10-12，不是监控截止/);
  assert.match(ready,/class="source-ops-proofline"[^>]*><span><strong>来源表累计<\/strong>，不是期间新增播放<\/span>/);

@@ -26,6 +26,9 @@ test('提交时间不冒充指标采样时间，列表和作者合计保留有�
   assert.equal(result.items[0].latestLikes,7);assert.equal(result.items[0].latestPlays,70);
   assert.equal(result.items[0].cumulativeLikes,5,'原始累计证据不改写');
   assert.equal(result.summary.cumulativeLikes,7);assert.equal(result.summary.cumulativePlays,70);
+  const publication=readUnifiedPublicationWorks(db,query.asOf,{includeMetrics:true}).find(work=>work.contentId===id);
+  assert.equal(publication.latestLikes,7);assert.equal(publication.latestPlays,70);
+  assert.deepEqual(publication.metricOrigin,result.items[0].metricOrigin,'公开发片与经营列表复用同一指标采用结果');
   assert.equal(result.daily[0].cumulativeLikes,7);
   assert.equal(readCreatorOperatingView(db,{...query,view:'authors'}).items[0].cumulativeLikes,7);
   const previous=readCreatorOperatingView(db,{...query,view:'works',asOf:'2026-10-22T12:00:00.000Z'});

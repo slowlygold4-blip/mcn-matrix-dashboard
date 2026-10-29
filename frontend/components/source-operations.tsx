@@ -46,7 +46,7 @@ export function SourceOperations({insights,source,foundation,sourceRosterCount,e
  return <div className="source-ops">
   {accountPreview}
   <details className="source-ops-archive">
-   <summary><strong>作者与作品详细分析</strong><span>{number(completeRosterCount??sourceAuthorCount)} 位作者 · {number(all.tableWorks+(foundation?.works.length??0))} 条去重作品记录</span><small>原表作品日期至 {insights.lastDate}，不是监控截止 · 展开看分类、发片与来源记录</small></summary>
+   <summary><strong>原始登记与来源核对</strong><span>{number(completeRosterCount??sourceAuthorCount)} 位作者 · {number(all.tableWorks+(foundation?.works.length??0))} 条去重作品记录</span><small>原表作品日期至 {insights.lastDate}，不是监控截止 · 展开看分类、发片与来源记录</small></summary>
    <div className="source-ops-archive-body">
   <section className="source-ops-hero" aria-labelledby="source-ops-title">
    <div><p className="source-ops-kicker">来源表 · 团团矩阵</p><h2 id="source-ops-title">作品数据，<br/>都有来处。</h2><p className="source-ops-intro">这是原始表格的作品档案。按发布日期看产出；点进作者或作品核对记录。每天的粉丝、获赞和作品存量变化在上方账号采样区。</p><div className="source-ops-basis"><span>原表作品日期：{insights.firstDate}—{insights.lastDate}</span><span>原表截止日不是账号监控截止日</span></div></div>
