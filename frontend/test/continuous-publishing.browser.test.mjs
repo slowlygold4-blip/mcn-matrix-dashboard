@@ -74,11 +74,11 @@ test('actual continuous publication controls preserve selected day/page across i
 
 test('merged metric cards, publication dates, category filters, sorting and page totals agree in the actual component',async()=>{
  const E=edition('2026-10-30T01:00:00.000Z',23,'M',true);
- const bundle=await build({stdin:{contents:`import React,{useState}from'react';import{createRoot}from'react-dom/client';import{ContinuousPublishing}from'./components/continuous-publishing';function Harness(){const[range,setRange]=useState({startDate:'2026-10-28',endDate:'2026-10-28'});window.setRange=setRange;return <ContinuousPublishing manifest={${JSON.stringify(E.manifest)}} {...range}/>;}createRoot(document.getElementById('root')).render(<Harness/>);`,resolveDir:site,sourcefile:'publishing-metrics-fixture.tsx',loader:'tsx'},absWorkingDir:site,bundle:true,write:false,format:'iife',platform:'browser',jsx:'automatic',tsconfig:site+'tsconfig.json',define:{'process.env.NODE_ENV':'"test"'}});
+ const bundle=await build({stdin:{contents:`import React,{useState}from'react';import{createRoot}from'react-dom/client';import{ContinuousPublishing}from'./components/continuous-publishing';function Harness(){const[range,setRange]=useState({startDate:'2026-10-28',endDate:'2026-10-28'});window.setRange=setRange;return <div className="workspace"><main className="content" style={{gridColumn:'1 / -1'}}><ContinuousPublishing manifest={${JSON.stringify(E.manifest)}} {...range}/></main></div>;}createRoot(document.getElementById('root')).render(<Harness/>);`,resolveDir:site,sourcefile:'publishing-metrics-fixture.tsx',loader:'tsx'},absWorkingDir:site,bundle:true,write:false,format:'iife',platform:'browser',jsx:'automatic',tsconfig:site+'tsconfig.json',define:{'process.env.NODE_ENV':'"test"'}});
  const browser=await chromium.launch({headless:true,executablePath:process.env.MCN_TEST_CHROME||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',args:['--disable-background-networking']});
  try{const page=await browser.newPage(),errors=[],reads=[];page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/*',route=>{const u=new URL(route.request().url());if(u.origin!=='https://mcn-publishing.test')return route.abort();if(u.pathname==='/')return route.fulfill({body:'<!doctype html><meta charset="utf-8"><div id="root"></div>',contentType:'text/html'});const part=u.searchParams.get('part'),f=E.files.find(f=>f.meta.path===part);if(!f)return route.fulfill({status:404});reads.push(part);return route.fulfill({body:f.content,contentType:'application/json',headers:{'X-Data-SHA256':f.meta.sha256,'X-Data-Cutoff':E.manifest.asOf}});});
-  await page.goto('https://mcn-publishing.test/');await page.addScriptTag({content:bundle.outputFiles[0].text});
+  await page.goto('https://mcn-publishing.test/');await page.addStyleTag({content:['replica.css','source-operations.css','visual-theme.css','observatory.css'].map(name=>readFileSync(site+'app/'+name,'utf8')).join('\n')});await page.addScriptTag({content:bundle.outputFiles[0].text});
   await page.getByRole('heading',{name:'已收录发片记录 · 23 条',exact:true}).waitFor();
   const cards=page.getByRole('region',{name:'合并作品指标概览'}),metric=k=>cards.locator(`[data-work-metric="${k}"] strong`);
   assert.equal(await metric('likes').textContent(),'273');assert.equal(await metric('plays').textContent(),'2,730');
@@ -95,6 +95,19 @@ test('merged metric cards, publication dates, category filters, sorting and page
   const count=reads.length;await page.evaluate(()=>window.setRange({startDate:'2026-10-29',endDate:'2026-10-29'}));
   await page.getByRole('heading',{name:'即梦二创 · 已收录发片记录 · 0 条',exact:true}).waitFor();assert.equal(await metric('likes').textContent(),'—');assert.equal(await page.getByRole('region',{name:'所选发布日作品'}).count(),0);
   assert.equal(reads.length,count,'date/category aggregation uses already verified index');
+  await page.getByRole('combobox',{name:'每日发片内容分类'}).selectOption('all');
+  await page.evaluate(()=>window.setRange({startDate:'2026-09-12',endDate:'2026-10-30'}));
+  await page.getByRole('heading',{name:'已收录发片记录 · 24 条',exact:true}).waitFor();
+  await page.getByRole('combobox',{name:'选择发布日'}).selectOption('2026-10-28');
+  await page.getByRole('button',{name:'查看当天作品 →',exact:true}).click();
+  await panel.getByRole('link',{name:'M作品1',exact:true}).waitFor();
+  for(const width of [390,320]){
+   await page.setViewportSize({width,height:844});
+   const bounds=await cards.evaluate(el=>({right:el.getBoundingClientRect().right,width:innerWidth,
+    values:[...el.querySelectorAll('strong')].map(e=>({right:e.getBoundingClientRect().right,width:e.clientWidth,scroll:e.scrollWidth}))}));
+   assert.ok(bounds.right<=bounds.width+1,`cards clipped at ${width}: ${JSON.stringify(bounds)}`);
+   assert.ok(bounds.values.every(v=>v.right<=bounds.width+1&&v.scroll<=v.width+1),'metric text must fit the viewport, not merely be clipped by overflow hidden');
+  }
   assert.deepEqual(errors,[]);
  }finally{await browser.close();}
 });
