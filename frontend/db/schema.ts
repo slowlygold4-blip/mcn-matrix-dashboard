@@ -11,3 +11,8 @@ export const replicaGenerations = sqliteTable("replica_generations", {
   generation: text("generation").primaryKey(), manifest: text("manifest").notNull(),
   publishedAt: text("published_at").notNull(),
 });
+export const replicaFileReferences = sqliteTable("replica_file_references", {
+  generation: text("generation").notNull(), path: text("path").notNull(),
+  sourceGeneration: text("source_generation").notNull(), sourceChecksum: text("source_checksum").notNull(),
+  sourceBytes: integer("source_bytes").notNull(), trailingNewline: integer("trailing_newline").notNull(),
+}, table => [primaryKey({columns:[table.generation, table.path]})]);

@@ -1,3 +1,4 @@
+import {referenceCandidate,referenceHeadMatches,readReplicaText} from '@/lib/replica-reference.mjs';
 import {readReplicaRequest} from '@/lib/replica-request.mjs';
 import {replicaPartitionByteLimit,replicaBatchByteLimit,REPLICA_UPLOAD_MAX_BYTES} from '@/lib/replica-partition-budget.mjs';
 import {auditPublishing} from '@/lib/replica-publishing.mjs';
@@ -27,13 +28,15 @@ export async function GET(request: Request) {
     if (requested && !validGeneration(requested)) return json({error:"无效数据截面"},400);
     // A named generation is immutable once activated. Do not fetch the latest
     // publication first for every individual date shard.
-    const published = requested
-      ? await db.prepare("SELECT generation,manifest,published_at FROM replica_generations WHERE generation=?").bind(requested).first<{generation:string;manifest:string;published_at:string}>()
-      : await db.prepare("SELECT generation,manifest,published_at FROM replica_generations ORDER BY generation DESC LIMIT 1").first<{generation:string;manifest:string;published_at:string}>();
+    const part = url.searchParams.get("part");
+    if(part&&!PATH.test(part))return json({error:"不支持的数据分区"},400);
+    const baseQuery=requested?"SELECT generation,manifest,published_at FROM replica_generations WHERE generation=?":"SELECT generation,manifest,published_at FROM replica_generations ORDER BY generation DESC LIMIT 1";
+    const query=part?`SELECT p.*,r.source_generation,r.source_checksum,r.source_bytes,r.trailing_newline FROM (${baseQuery}) p LEFT JOIN replica_file_references r ON r.generation=p.generation AND r.path=?`:baseQuery;
+    const params=[...(requested?[requested]:[]),...(part?[part]:[])];
+    const published=await db.prepare(query).bind(...params).first<{generation:string;manifest:string;published_at:string;source_generation?:string;source_checksum?:string;source_bytes?:number;trailing_newline?:number}>();
     if (!published) return requested ? json({error:"未发布的数据截面"},404) : json({error:"尚未同步可公开数据"},503);
     const generation = published.generation;
     const manifest = JSON.parse(published.manifest);
-    const part = url.searchParams.get("part");
     if (!part) return json({manifest,publishedAt:published.published_at,readOnly:true,collectionRequiresLocalComputer:true});
     if (!PATH.test(part)) return json({error:"不支持的数据分区"},400);
     // Activation audited each file against replica_files. The sealed manifest
@@ -42,9 +45,14 @@ export async function GET(request: Request) {
     const file = manifest.files.find((f:{path:string})=>f.path===part);
     if (!file) return json({error:"分区不在已发布清单"},404);
     if (!SHA.test(file.sha256)) return json({error:"发布清单校验信息无效"},503);
+    const headers={"Content-Type":"application/json; charset=utf-8","Cache-Control":"public,max-age=300,immutable","X-Content-Type-Options":"nosniff","X-Data-SHA256":file.sha256,"X-Data-Cutoff":generation};
+    if(published.source_generation){
+      const text=await readReplicaText(bucket,generation,file,published);if(text===undefined)return json({error:"数据暂不可用"},503);
+      return new Response(text,{headers:{...headers,'X-Replica-Storage':'reference'}});
+    }
     const body = await bucket.get(`${generation}/${file.sha256}`);
     if (!body) return json({error:"数据暂不可用"},503);
-    return new Response(body.body,{headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"public,max-age=300,immutable","X-Content-Type-Options":"nosniff","X-Data-SHA256":file.sha256,"X-Data-Cutoff":generation}});
+    return new Response(body.body,{headers});
   } catch { return json({error:"云端数据暂不可用，请稍后重试"},503); }
 }
 export async function POST(request: Request) {
@@ -84,19 +92,37 @@ export async function POST(request: Request) {
       const expected=new Map(prepared.map(f=>[f.path,f.sha256]));
       const existing=await readMetadata();
       if(existing.results.some(f=>expected.get(f.path)!==f.checksum))return json({error:"已保存分区不可改写"},409);
-      let next=0,failed=false;
+      const reuse=input.reuseUnchanged===true,references=new Map<string,any>(),previousByPath=new Map<string,any>();
+      let previousGeneration:string|null=null;
+      if(reuse){
+        const previous=await db.prepare("SELECT generation FROM replica_generations WHERE generation<? ORDER BY generation DESC LIMIT 1").bind(input.asOf).first<{generation:string}>();
+        previousGeneration=previous?.generation??null;
+        if(previousGeneration){const rows=await db.prepare("SELECT f.path,f.checksum,f.bytes,r.source_generation,r.source_checksum,r.source_bytes,r.trailing_newline FROM replica_files f LEFT JOIN replica_file_references r ON r.generation=f.generation AND r.path=f.path WHERE f.generation=? AND f.path IN ("+prepared.map(()=>'?').join(',')+")").bind(previousGeneration,...prepared.map(f=>f.path)).all<any>();for(const row of rows.results)previousByPath.set(row.path,row);}
+      }
+      let next=0,failed=false,stored=0;
       const store=async()=>{while(!failed&&next<prepared.length){const f=prepared[next++];try{
-        await bucket.put(`${input.asOf}/${f.sha256}`,f.data,{httpMetadata:{contentType:"application/json"}});
+        const ref=reuse?referenceCandidate(f,previousByPath.get(f.path),previousGeneration,input.asOf):null;
+        if(ref){
+          const key=`${ref.source_generation}/${ref.source_checksum}`,head=await bucket.head(key);
+          // Restore only bytes proven against the already sealed source SHA.
+          if(!referenceHeadMatches(head,ref)){await bucket.put(key,ref.data,{httpMetadata:{contentType:"application/json"}});stored++;}
+          references.set(f.path,ref);
+        }else {await bucket.put(`${input.asOf}/${f.sha256}`,f.data,{httpMetadata:{contentType:"application/json"}});stored++;}
       }catch{failed=true;}}};
-      await Promise.allSettled(Array.from({length:Math.min(2,prepared.length)},store));
+      await Promise.allSettled(Array.from({length:Math.min(reuse?6:2,prepared.length)},store));
       if(failed)return json({error:"分区保存未完成，尚未确认本批次"},503);
-      const writes=await db.batch(prepared.map(f=>db.prepare("INSERT INTO replica_files(generation,path,checksum,bytes) VALUES(?,?,?,?) ON CONFLICT(generation,path) DO NOTHING").bind(input.asOf,f.path,f.sha256,f.bytes)));
-      if(writes.length!==prepared.length||writes.some(result=>!result.success))return json({error:"批次索引保存未完成，尚未确认本批次"},503);
+      const statements=[...prepared.map(f=>db.prepare("INSERT INTO replica_files(generation,path,checksum,bytes) VALUES(?,?,?,?) ON CONFLICT(generation,path) DO NOTHING").bind(input.asOf,f.path,f.sha256,f.bytes)),...prepared.map(f=>{
+        const ref=references.get(f.path);
+        return ref?db.prepare("INSERT INTO replica_file_references(generation,path,source_generation,source_checksum,source_bytes,trailing_newline) SELECT ?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM replica_files WHERE generation=? AND path=? AND checksum=?) ON CONFLICT(generation,path) DO UPDATE SET source_generation=excluded.source_generation,source_checksum=excluded.source_checksum,source_bytes=excluded.source_bytes,trailing_newline=excluded.trailing_newline").bind(input.asOf,f.path,ref.source_generation,ref.source_checksum,ref.source_bytes,ref.trailing_newline,input.asOf,f.path,f.sha256):db.prepare("DELETE FROM replica_file_references WHERE generation=? AND path=? AND EXISTS(SELECT 1 FROM replica_files WHERE generation=? AND path=? AND checksum=?)").bind(input.asOf,f.path,input.asOf,f.path,f.sha256);
+      })];
+      const writes=await db.batch(statements);
+      if(writes.length!==statements.length||writes.some(result=>!result.success))return json({error:"批次索引保存未完成，尚未确认本批次"},503);
       // A competing immutable upload can win between the initial read and the
       // batch. Acknowledge only the exact hashes now bound in D1.
       const committed=await readMetadata();
       if(committed.results.length!==prepared.length||committed.results.some(f=>expected.get(f.path)!==f.checksum))return json({error:"已保存分区不可改写"},409);
-      return json({accepted:input.files.length,asOf:input.asOf});
+      const response=json({accepted:input.files.length,asOf:input.asOf});
+      if(reuse){response.headers.set('X-Replica-Reused',String(references.size));response.headers.set('X-Replica-Stored',String(stored));}return response;
     }
     if(input.action!=="activate"||input.manifest?.asOf!==input.asOf||!Array.isArray(input.manifest.files)||privateKey(input.manifest))return json({error:"无效发布清单"},400);
     const files=input.manifest.files;
@@ -111,29 +137,30 @@ export async function POST(request: Request) {
         requestAborted:request.signal.aborted,reason:codes.has(code)?code:'validation-failed',elapsedMs:Date.now()-(activationStartedAt??Date.now())}));
     };
     if(!files.some((f:{path:string})=>f.path==="catalog.json")||!files.some((f:{path:string})=>f.path==="summary.json")||!files.some((f:{path:string})=>f.path==="topics.json"))return json({error:"必需分区缺失"},400);
-    const rows=await db.prepare("SELECT path,checksum,bytes FROM replica_files WHERE generation=?").bind(input.asOf).all<{path:string;checksum:string;bytes:number}>();
+    const rows=await db.prepare("SELECT f.path,f.checksum,f.bytes,r.source_generation,r.source_checksum,r.source_bytes,r.trailing_newline FROM replica_files f LEFT JOIN replica_file_references r ON r.generation=f.generation AND r.path=f.path WHERE f.generation=?").bind(input.asOf).all<any>();
     const map=new Map(rows.results.map(x=>[x.path,x]));
     if(new Set(files.map((x:{path:string})=>x.path)).size!==files.length||files.length!==map.size||files.some((f:{path:string;sha256:string;bytes:number})=>!PATH.test(f.path)||!SHA.test(f.sha256)||map.get(f.path)?.checksum!==f.sha256||map.get(f.path)?.bytes!==f.bytes))return json({error:"分区清单不一致，未发布"},409);
+    const readPartText=async(path:string)=>{
+      const meta=filesByPath.get(path);if(!meta)throw Error('missing-meta');
+      const text=await readReplicaText(bucket,input.asOf,meta,map.get(path));
+      if(text===undefined)throw Object.assign(Error('missing-storage'),{code:'replica-storage-repair'});return text;
+    };
     activationPhase='summary';
-    const summaryMeta=filesByPath.get('summary.json');
-    const summaryObject=await bucket.get(`${input.asOf}/${summaryMeta.sha256}`);
-    if(!summaryObject)return json({error:"历史索引缺失，未发布"},409);
-    const summaryText=await summaryObject.text();
+    const summaryMeta=filesByPath.get('summary.json'),summaryText=await readPartText('summary.json');
     if(summaryText.length>6_000_000||await bytesHash(summaryText)!==summaryMeta.sha256)return json({error:"历史索引校验失败，未发布"},409);
     let descriptors;try {descriptors=summaryDescriptors(JSON.parse(summaryText),input.manifest);}catch{return json({error:"历史分片不一致，未发布"},409);}
-    if(descriptors)for(const s of descriptors){const object=await bucket.get(`${input.asOf}/${s.sha256}`);if(!object)return json({error:"历史分片缺失，未发布"},409);const body=await object.text();if(body.length>1_000_000||await bytesHash(body)!==s.sha256)return json({error:"历史分片校验失败，未发布"},409);const parsed=JSON.parse(body);if(!summaryPartValid(parsed,input.asOf)||parsed.items.length!==s.count)return json({error:"历史分片记录数不一致，未发布"},409);}
+    if(descriptors)for(const descriptor of descriptors){const body=await readPartText(descriptor.path),parsed=JSON.parse(body);if(!summaryPartValid(parsed,input.asOf)||parsed.items.length!==descriptor.count)return json({error:"历史分片记录数不一致，未发布"},409);}
     if(files.some((f:{kind:string;path:string})=>f.kind==='summaryDateIndex'||f.kind==='summaryDateShard'||f.path==='date-summary-index.json'||f.path.startsWith('date-summary/'))){
-      activationPhase='date';
-      let dateProgress:Record<string,unknown>={phase:'index',verifiedDaily:0};
-      try{await auditDatePublication({manifest:input.manifest,readText:async(path:string)=>{const meta=filesByPath.get(path);if(!meta)throw Error('missing-date-meta');const object=await bucket.get(`${input.asOf}/${meta.sha256}`);if(!object)return undefined;return object.text();},signal:request.signal,onProgress:(progress:Record<string,unknown>)=>{dateProgress=progress;}});}
-      catch(error){activationRejected('date',error,dateProgress);return json({error:"日期历史未通过全量来源核对，未发布"},409);}
+      activationPhase='date';let dateProgress:Record<string,unknown>={phase:'index',verifiedDaily:0};
+      try{await auditDatePublication({manifest:input.manifest,readText:readPartText,signal:request.signal,onProgress:(progress:Record<string,unknown>)=>{dateProgress=progress;}});}
+      catch(error){if(error&&typeof error==='object'&&'code'in error&&error.code==='replica-storage-repair')throw error;activationRejected('date',error,dateProgress);return json({error:"日期历史未通过全量来源核对，未发布"},409);}
     }
     activationPhase='publishing';
-    try{await auditPublishing({manifest:input.manifest,readPart:async(path:string)=>{const m=filesByPath.get(path);if(!m)throw Error('missing');const obj=await bucket.get(`${input.asOf}/${m.sha256}`);if(!obj)throw Error('missing');const body=await obj.text();if(await bytesHash(body)!==m.sha256)throw Error('checksum');return JSON.parse(body);}});}catch(error){activationRejected('publishing',error);return json({error:'每日发片索引核验失败'},409);}
+    try{await auditPublishing({manifest:input.manifest,readPart:async(path:string)=>JSON.parse(await readPartText(path))});}catch(error){if(error&&typeof error==='object'&&'code'in error&&error.code==='replica-storage-repair')throw error;activationRejected('publishing',error);return json({error:'每日发片索引核验失败'},409);}
     activationPhase='creator';
-    try{await auditCreatorPublication({manifest:input.manifest,readPart:async(path:string)=>{const m=filesByPath.get(path);if(!m)throw Error('missing');const obj=await bucket.get(`${input.asOf}/${m.sha256}`);if(!obj)throw Error('missing');const body=await obj.text();if(new TextEncoder().encode(body).length!==m.bytes||await bytesHash(body)!==m.sha256)throw Error('checksum');return JSON.parse(body);}});}catch(error){activationRejected('creator',error);return json({error:'作者作品与经营统计核验失败，未发布'},409);}
+    try{await auditCreatorPublication({manifest:input.manifest,readPart:async(path:string)=>JSON.parse(await readPartText(path))});}catch(error){if(error&&typeof error==='object'&&'code'in error&&error.code==='replica-storage-repair')throw error;activationRejected('creator',error);return json({error:'作者作品与经营统计核验失败，未发布'},409);}
     activationPhase='foundation';
-    try{await auditFoundationPublication({manifest:input.manifest,readPart:async(path:string)=>{const m=filesByPath.get(path);if(!m)throw Error('missing');const obj=await bucket.get(`${input.asOf}/${m.sha256}`);if(!obj)throw Error('missing');const body=await obj.text();if(new TextEncoder().encode(body).length!==m.bytes||await bytesHash(body)!==m.sha256)throw Error('checksum');return JSON.parse(body);}});}catch(error){activationRejected('foundation',error);return json({error:'补充来源与统一名册核验失败，未发布'},409);}
+    try{await auditFoundationPublication({manifest:input.manifest,readPart:async(path:string)=>JSON.parse(await readPartText(path))});}catch(error){if(error&&typeof error==='object'&&'code'in error&&error.code==='replica-storage-repair')throw error;activationRejected('foundation',error);return json({error:'补充来源与统一名册核验失败，未发布'},409);}
     activationPhase='commit';
     const manifest=JSON.stringify(input.manifest);
     const existing=await db.prepare("SELECT manifest FROM replica_generations WHERE generation=?").bind(input.asOf).first<{manifest:string}>();
@@ -144,6 +171,7 @@ export async function POST(request: Request) {
     return json({published:true,asOf:input.asOf,parts:files.length});
   } catch(error) {
     const bodyCode=error&&typeof error==='object'&&'code'in error?error.code:null;
+    if(bodyCode==='replica-storage-repair')return json({error:'存储分片缺失或损坏，未发布'},409);
     if(bodyCode==='too-large')return json({error:'批次过大'},413);
     if(bodyCode==='unsupported-encoding')return json({error:'不支持的传输编码'},415);
     if(bodyCode==='invalid-body')return json({error:'请求内容无效'},400);

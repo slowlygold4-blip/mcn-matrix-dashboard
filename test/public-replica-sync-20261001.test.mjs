@@ -918,3 +918,22 @@ test('gzip is opt-in and keeps raw checksums, checkpoints and authenticated rece
  assert.equal(r.status,'success');assert.ok(requests>1);assert.ok(wireBytes<plainBytes/2);assert.equal(r.requestEncoding,'gzip');
  assert.throws(()=>createPublicReplicaSync({getCredential:async()=>SECRET,compressRequests:'gzip'}),/invalid-configuration/);
 });
+
+
+test('reference reuse is optional; only bounded confirmed storage receipt counters enter status',async()=>{
+ const cloud=fakeCloud(),original=cloud.fetch;
+ cloud.fetch=async(url,init={})=>{
+  if(init.method==='POST'&&JSON.parse(init.body).action==='upload'){
+   const body=JSON.parse(init.body);assert.equal(body.reuseUnchanged,true);const r=await original(url,init);r.headers.set('X-Replica-Reused',String(body.files.length));r.headers.set('X-Replica-Stored','0');return r;
+  }return original(url,init);
+ };
+ const r=await producer(cloud,{reuseUnchanged:true}).sync(fixture());assert.equal(r.status,'success');assert.equal(r.storageReceipts.files,r.parts);assert.equal(r.storageReceipts.reused,r.parts);assert.equal(r.storageReceipts.stored,0);
+ assert.throws(()=>createPublicReplicaSync({getCredential:async()=>SECRET,reuseUnchanged:'true'}),/invalid-configuration/);
+ const bad=fakeCloud(),fetch=bad.fetch;bad.fetch=async(...args)=>{const r=await fetch(...args);r.headers.set('X-Replica-Reused',SENTINEL);r.headers.set('X-Replica-Stored','-1');return r;};const result=await producer(bad,{reuseUnchanged:true}).sync(fixture());assert.equal(result.status,'success');assert.equal(result.storageReceipts,undefined);assert.equal(JSON.stringify(result).includes(SENTINEL),false);
+});
+
+test('repairable immutable-storage refusal replays acknowledged uploads without exposing raw errors',async()=>{
+ const cloud=fakeCloud(),original=cloud.fetch;let reject=true;
+ cloud.fetch=async(url,init={})=>reject&&init.method==='POST'&&JSON.parse(init.body).action==='activate'?Response.json({error:'存储分片缺失或损坏，未发布',private:SENTINEL},{status:409}):original(url,init);
+ const owner=producer(cloud,{reuseUnchanged:true}),first=await owner.sync(fixture());assert.equal(first.transportFailure.activationReason,'missing-upload');assert.deepEqual(owner.checkpoint().completedBatches,[]);assert.equal(JSON.stringify(first).includes(SENTINEL),false);reject=false;assert.equal((await owner.sync(fixture())).status,'success');
+});

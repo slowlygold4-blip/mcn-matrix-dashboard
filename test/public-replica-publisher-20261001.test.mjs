@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {mkdtemp,writeFile,chmod,symlink,readFile,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';
-import {privateRead,privateWrite,recordPublisherPreparation,validatedReceipt,completedSourceMarker,acquirePublisherLock,shouldPreparePublicDateIndex} from '../scripts/public-replica-publisher.mjs';
+import {privateRead,privateWrite,recordPublisherPreparation,recordPublisherSyncStart,validatedReceipt,completedSourceMarker,acquirePublisherLock,shouldPreparePublicDateIndex} from '../scripts/public-replica-publisher.mjs';
 import {PUBLIC_REPLICA_EXPORT_REVISION} from '../lib/public-replica-export.mjs';
 test('a pending generation keeps its own date-index feature across exporter revisions',()=>{
   assert.equal(shouldPreparePublicDateIndex({exportRevision:'catalog-date-range-v1'}),true);
@@ -30,4 +30,14 @@ test('preparation is persisted before work while retaining the confirmed baselin
   await assert.rejects(recordPublisherPreparation(path,state,'invalid-time'),/invalid-preparation/);
   assert.deepEqual(await privateRead(path),observed);
  } finally {await rm(dir,{recursive:true,force:true});}
+});
+
+
+test('synchronization records current activity instead of retaining a previous failed status',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'mcn-sync-status-'));try{
+  const path=join(dir,'state.json'),at='2026-10-29T16:00:00.000Z',old={status:'failed',code:'aborted'},state={version:1,status:'failed',code:'aborted',active:{asOf:'2026-10-29T15:35:03.224Z',directory:'synthetic-stage'},publishedAsOf:'2026-10-29T10:54:17.235Z',coveredMarker:'same',sync:old};
+  await recordPublisherSyncStart(path,state,at);const observed=await privateRead(path);assert.deepEqual(observed,state);assert.equal(observed.status,'syncing');assert.equal(observed.sync.status,'running');assert.equal(observed.sync.phase,'sync');assert.equal(observed.code,null);assert.deepEqual(observed.lastSync,old);assert.equal(observed.publishedAsOf,'2026-10-29T10:54:17.235Z');assert.equal(observed.active.directory,'synthetic-stage');
+  await recordPublisherSyncStart(path,state,at);assert.deepEqual(state.lastSync,old,'an interrupted running status must not replace the last terminal result');
+  for(const [input,time]of [[{...state,active:null},at],[state,'invalid'],[state,'2026-10-29T15:00:00.000Z']])await assert.rejects(recordPublisherSyncStart(path,input,time),/invalid-sync-start/);
+ }finally{await rm(dir,{recursive:true,force:true});}
 });

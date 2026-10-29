@@ -139,6 +139,13 @@ export async function recordPublisherPreparation(path, state, at) {
   await privateWrite(path, next);
   Object.assign(state, next);
 }
+export async function recordPublisherSyncStart(path,state,at){
+  if(!iso(at)||!iso(state.active?.asOf)||Date.parse(state.active.asOf)>Date.parse(at))fail('invalid-sync-start');
+  const next={...state,status:'syncing',code:null,checkedAt:at,
+    lastSync:state.sync?.status==='running'?(state.lastSync??null):(state.sync??state.lastSync??null),
+    sync:{status:'running',phase:'sync',asOf:state.active.asOf,requestEncoding:'gzip',reuseUnchanged:true}};
+  await privateWrite(path,next);Object.assign(state,next);
+}
 export function validatedReceipt(run,receipt,now=Date.now()){
   return Number.isSafeInteger(run.id)&&run.id>0&&run.status!=='running'&&iso(run.started_at)&&iso(run.finished_at)
     &&Date.parse(run.started_at)<=Date.parse(run.finished_at)&&Date.parse(run.finished_at)<=now
@@ -210,7 +217,7 @@ async function run(){
   await privateDirectory(home);await acquirePublisherLock(join(home,'lock.json'));
   const statePath=join(home,'state.json');let state=await privateRead(statePath);if(state.version!==1)fail('invalid-state');
   let busy=false,stopping=false,immutableStage=null;const signal=new AbortController();
-  const sync=createPublicReplicaSync({activationTimeoutMs:300_000,compressRequests:true,getCredential:()=>privateRead(join(home,'credential'),{credential:true}),
+  const sync=createPublicReplicaSync({activationTimeoutMs:300_000,compressRequests:true,reuseUnchanged:true,getCredential:()=>privateRead(join(home,'credential'),{credential:true}),
     loadCheckpoint:async()=>{try{return await privateRead(join(home,'checkpoint.json'));}catch(e){if(e.code==='ENOENT')return null;throw e;}},
     saveCheckpoint:value=>privateWrite(join(home,'checkpoint.json'),value)});
   const tick=async()=>{
@@ -243,6 +250,7 @@ async function run(){
         const publication=await readPublication(state.active.directory);if(publication.manifest.asOf!==state.active.asOf||hash(publication.manifest)!==state.active.manifestHash)fail('staging-version-conflict');
         immutableStage={directory:state.active.directory,manifestHash:state.active.manifestHash,source:sealPublicReplicaSource(publication)};
       }
+      await recordPublisherSyncStart(statePath,state,new Date().toISOString());
       const result=await sync.sync(immutableStage.source,{signal:signal.signal,dateIndex:shouldPreparePublicDateIndex(state.active)});
       state.status=result.status;state.code=result.code??null;state.checkedAt=new Date().toISOString();state.sync=result;
       if(result.status==='success'){

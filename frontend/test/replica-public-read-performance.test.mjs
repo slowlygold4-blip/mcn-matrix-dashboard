@@ -41,7 +41,7 @@ test('explicit immutable part performs one publication lookup and no redundant f
  assert.deepEqual(await response.json(),{ok:1});
  assert.equal(state.queries.length,1);
  assert.match(state.queries[0].sql,/WHERE generation=\?/);
- assert.deepEqual(state.queries[0].params,[generation]);
+ assert.deepEqual(state.queries[0].params,[generation,'catalog.json']);
  assert.deepEqual(state.reads,[`${generation}/${sha}`]);
 });
 
