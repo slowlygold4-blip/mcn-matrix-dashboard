@@ -1,0 +1,159 @@
+{
+  "asOf": "2026-10-29T20:03:11.634Z",
+  "readOnly": true,
+  "checkedSavedParts": 4263,
+  "catalogAccounts": 4130,
+  "previousLedger": 57770,
+  "sourceRows": 57770,
+  "previousRowsChanged": 0,
+  "newRows": 61385,
+  "addedSavedRows": 3615,
+  "scopes": 50,
+  "ambiguousPlatformWorks": 0,
+  "indexBytes": 889454,
+  "platforms": {
+    "douyin": 61108,
+    "bilibili": 277
+  },
+  "caseSummaries": [
+    {
+      "scope": {},
+      "works": 59782,
+      "metrics": {
+        "likes": {
+          "value": 6087580,
+          "known": 59648,
+          "missing": 134,
+          "conflicts": 0,
+          "overflow": false
+        },
+        "plays": {
+          "value": 186832160,
+          "known": 18490,
+          "missing": 41292,
+          "conflicts": 0,
+          "overflow": false
+        }
+      },
+      "undatedWorks": 40
+    },
+    {
+      "scope": {
+        "theme": "tuantuan"
+      },
+      "works": 59377,
+      "metrics": {
+        "likes": {
+          "value": 5971820,
+          "known": 59244,
+          "missing": 133,
+          "conflicts": 0,
+          "overflow": false
+        },
+        "plays": {
+          "value": 177120023,
+          "known": 18213,
+          "missing": 41164,
+          "conflicts": 0,
+          "overflow": false
+        }
+      },
+      "undatedWorks": 40
+    },
+    {
+      "scope": {
+        "theme": "anlan"
+      },
+      "works": 0,
+      "metrics": {
+        "likes": {
+          "value": null,
+          "known": 0,
+          "missing": 0,
+          "conflicts": 0,
+          "overflow": false
+        },
+        "plays": {
+          "value": null,
+          "known": 0,
+          "missing": 0,
+          "conflicts": 0,
+          "overflow": false
+        }
+      },
+      "undatedWorks": 0
+    },
+    {
+      "scope": {
+        "theme": "douyin-streamers"
+      },
+      "works": 1603,
+      "metrics": {
+        "likes": {
+          "value": 104542950,
+          "known": 1603,
+          "missing": 0,
+          "conflicts": 0,
+          "overflow": false
+        },
+        "plays": {
+          "value": 4895304,
+          "known": 1,
+          "missing": 1602,
+          "conflicts": 0,
+          "overflow": false
+        }
+      },
+      "undatedWorks": 0
+    },
+    {
+      "scope": {
+        "tag": "slice"
+      },
+      "works": 59781,
+      "metrics": {
+        "likes": {
+          "value": 6087579,
+          "known": 59647,
+          "missing": 134,
+          "conflicts": 0,
+          "overflow": false
+        },
+        "plays": {
+          "value": 186832160,
+          "known": 18490,
+          "missing": 41291,
+          "conflicts": 0,
+          "overflow": false
+        }
+      },
+      "undatedWorks": 40
+    },
+    {
+      "scope": {
+        "theme": "tuantuan",
+        "tag": "original"
+      },
+      "works": 9208,
+      "metrics": {
+        "likes": {
+          "value": 2351005,
+          "known": 9199,
+          "missing": 9,
+          "conflicts": 0,
+          "overflow": false
+        },
+        "plays": {
+          "value": 112940025,
+          "known": 5543,
+          "missing": 3665,
+          "conflicts": 0,
+          "overflow": false
+        }
+      },
+      "undatedWorks": 9
+    }
+  ],
+  "shards": 150,
+  "identities": 61385
+}

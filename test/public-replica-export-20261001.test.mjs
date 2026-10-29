@@ -31,7 +31,7 @@ function fixture(t) {
       follower_count: followers, total_favorited: likes, aweme_count: posts } },
     cookie: SECRET, settings: { secret: SECRET }, works: { aweme_list: works.map(item => ({
       aweme_id: external(item.index), author: { sec_uid: author, uid: '123456789' },
-      desc: item.caption ?? `公开标题${item.index}`, create_time: Date.parse(at(1)) / 1000,
+      desc: item.caption ?? `公开标题${item.index}`, create_time: Date.parse(item.publishedAt??at(1)) / 1000,
       share_url: item.url ?? `https://www.douyin.com/video/${external(item.index)}`,
       statistics: { digg_count: item.likes ?? 0, comment_count: null, share_count: 0, play_count: null },
     })) } };
@@ -72,6 +72,16 @@ test('public replica: private source/config/locator fields are absent while legi
   assert.equal(replica.catalog.accounts[0].classification.theme.confirmed, true);
   assert.ok(replica.catalog.accounts[0].classification.labels.some(item => item.key === 'original'));
   assert.equal(replica.policy.worksMetricEvidence, 'saved-record-not-independently-verified');
+});
+
+test('publication export includes verified account works before any creator table import and records account scope',t=>{
+ const{sample,read,target}=fixture(t);sample(16,{works:[{index:1,likes:13,publishedAt:at(15)}]});
+ const replica=read(),index=replica.partitions.find(p=>p.path==='publishing.json');
+ assert.equal(index.scope,'matrix');assert.equal(index.count,1);assert.equal(index.metrics.all.likes.value,13);
+ const row=replica.partitions.find(p=>p.kind==='publishingShard').items[0];
+ assert.equal(row.targetId,target.id);assert.equal(row.platform,'douyin');
+ assert.equal(index.scopes[row.scopeId].theme,'tuantuan');assert.ok(index.scopes[row.scopeId].labels.includes('original'));
+ assert.equal(row.metrics.plays.value,null);assert.equal(index.days[0].scopeGroups[0].works,1);
 });
 
 test('creator catalog and full source corpus use the same historical import cutoff',async t=>{
