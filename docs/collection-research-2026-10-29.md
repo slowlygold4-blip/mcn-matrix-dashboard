@@ -40,3 +40,16 @@
 2. 原表是业务数据来源，须按作品 ID/明确作者 ID 进入统一去重与观测体系。当前原始排名/统计表的持续增量适配仍有缺口；元数据版本检查不能冒充指标已更新。
 3. 不凭昵称、页面排序或截图猜 `sec_uid`；已有 ID/来源证据复用应保持冲突、权限和采样日期检查。
 4. 新实现先验证身份归属、真实字段、日期与分页，再扩大范围；无效响应、限流、权限拒绝保持为失败或缺测，绝不变为空作品或0播放。
+
+
+## 第三轮新增实现核查与已落地通道
+
+仍使用 agent-reach 的 GitHub CLI，读取以下固定提交的实现，未安装或执行它们的采集程序：
+
+- [geoqiao/short-video-skills 的 video-data skill](https://github.com/geoqiao/short-video-skills/blob/df7deb8c443340bc1412595cf1691ee6ec5ada1c/skills/video-data/SKILL.md)：文档及 `collectors/douyin.js` 明确依赖已登录Chrome/Playwright，访问当前创作者后台。作品列表最多5页，详细分析最多12条，不能直接证明几千账号的完整覆盖；本项目不启用这条浏览器路径。
+- [lucky-Luor/bilibili-douyin-notes](https://github.com/lucky-Luor/bilibili-douyin-notes/blob/a9b9cae97d5c5e80aaba14d4cd6a9e0aabea749d/scripts/douyin_fetch.py)：脚本主要下载单作品视频，包含本地伪造的风控字段和签名逻辑；宣传的免登录不构成全矩阵统计成功证据。没有采用或执行这些逻辑，也没有下载媒体。
+- [Xiahanjiu/douyin-rss](https://github.com/Xiahanjiu/douyin-rss/blob/864a6af1fb677134b3bfa744b8856ef5ad786744/app/crawler/douyin.py)：本轮读通实际代码。其HTTP客户端转调已有TikTokDownloader服务，并非独立上游数据源；默认无日期时回填当前时间，不适合直接用于精确日发布统计。可参考订阅增量组织，但未当作解决403的新接口。
+
+同时，已验证的飞书用户授权成为真正的数据接入路径：四份原始工作簿经云端整本读取、前后版本检查、逐表范围检查、备份校验后事务入主库；原件和行版本均保留。现有每日来源worker已自动复查，无模型调用、不打开抖音网页、不新增定时器。数据进入统一经营读模型，重复作品不累计，未证明的指标日期不回填。
+
+这解决的是原始来源自动接入断点，**没有**解决抖音作品接口403。当前真实覆盖、失败和版本证据分别记录，不把原表读取成功算作新的平台作品采集成功。

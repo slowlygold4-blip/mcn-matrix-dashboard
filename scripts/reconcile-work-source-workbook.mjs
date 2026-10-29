@@ -4,8 +4,8 @@ import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { gzipSync } from 'node:zlib';
-import { createHash } from 'node:crypto';
 import { readWorkSourceWorkbook, reconcileWorkSourceFacts, bindWorkFactsToStoredSourceIds } from '../lib/work-source-workbook.mjs';
+import { storedWorkLinkEvidence } from '../lib/work-source-overlay.mjs';
 
 export function reconcileWorkSourceFile({ inputPath, databasePath }) {
   const input = realpathSync(inputPath), database = realpathSync(databasePath);
@@ -21,23 +21,7 @@ export function reconcileWorkSourceFile({ inputPath, databasePath }) {
         const values = JSON.parse(row.values_json);
         return { contentId: String(values[0]), plays: values[7] ?? null, likes: values[8] ?? null };
       });
-    const storedLinks = [];
-    // Only the two known schemas with explicit work-ID/link columns qualify.
-    // A URL in a caption, nickname or arbitrary note is never a binding.
-    if (db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='creator_source_sheets'").get()) {
-      for (const [sheetId, idColumn, urlColumn] of [['10', 5, 7], ['13', 5, 6]]) {
-        const sheet = db.prepare('SELECT headers_json FROM creator_source_sheets WHERE import_id=? AND sheet_id=?').get(imported.id, sheetId);
-        const headers = sheet ? JSON.parse(sheet.headers_json) : [];
-        if (headers[idColumn] !== '视频ID' || headers[urlColumn] !== '作品链接') continue;
-        for (const row of db.prepare('SELECT row_number,values_json FROM creator_source_rows WHERE import_id=? AND sheet_id=?').iterate(imported.id, sheetId)) {
-          const values = JSON.parse(row.values_json);
-          if (typeof values[idColumn] === 'number' && !Number.isSafeInteger(values[idColumn])) continue;
-          storedLinks.push({ contentId: String(values[idColumn] ?? ''), url: values[urlColumn],
-            provenance: { importId: imported.id, sheetId, row: row.row_number,
-              rowSha256: createHash('sha256').update(row.values_json).digest('hex') } });
-        }
-      }
-    }
+    const storedLinks = storedWorkLinkEvidence(db, imported.id);
     const binding = bindWorkFactsToStoredSourceIds(source.facts, storedLinks, new Set(canonical.map(row => row.contentId)));
     const reconciliation = reconcileWorkSourceFacts(binding.facts, canonical);
     const writes = db.prepare('SELECT total_changes() n').get().n;

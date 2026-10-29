@@ -18,6 +18,7 @@ import { promisify } from "node:util";
 import { resolveLarkCliCommand, larkWorkbookInfoArguments } from "../lib/lark-sheet-source.mjs";
 import { sourcePollKey as sourceKey, sourceReadContract, sourceNeedsInitialCheck, hasRecoverableSourceJob, projectSourceJobSummary, completedSourceJobSummary } from "../lib/source-poller-status.mjs";
 import { mapBitableAuthorRows } from "../lib/source-bitable-mapping.mjs";
+import { createWorkSourcePollReader } from '../lib/work-source-poll.mjs';
 import { SOURCE_POLLER_CAPABILITY_HEADER, normalizeLoopbackHttpOrigin, readSourcePollerCapability } from "../lib/internal-source-capability.mjs";
 import { withPublisherRecoveryLock } from "./public-replica-publisher.mjs";
 export { completedSourceJobSummary } from "../lib/source-poller-status.mjs";
@@ -94,6 +95,8 @@ export function sourceReadBlockReason(source) {
     return "此来源不属于已接入的飞书读取器；需要对应的授权读取方式";
   }
   if (source.sourceType === "lark-bitable" && source.baseToken && source.tableId) return null;
+  if (source.sourceType === 'lark-work-source') return source.readPolicy === 'authorized-work-facts'
+    && source.kind === 'work-statistics' && source.monitorOnly !== true ? null : '作品来源缺少明确的整表入库策略；未走作者导入通道';
   if (/\/share\/base\/form\//i.test(url.pathname)) return "仅有公开填写表单链接，无法读取提交记录；需要已授权的原数据表链接";
   if (source.sourceType === "lark-bitable") return "多维表缺少原数据表定位信息；未读取或导入任何记录";
   return null;
@@ -439,7 +442,7 @@ function comparableRevision(source, previous) {
  */
 export async function pollOnce({ session = null, now = new Date(), resumePendingOnly = false, uncheckedOnly = false,
   retryFailedOnly = false, retrySourceKeys = [], failureRetryDelay = retryDelayMs,
-  maxSources = DEFAULT_UNCHECKED_BATCH_SIZE, monitorMetadataReader = readMonitorOnlyMetadata } = {}) {
+  maxSources = DEFAULT_UNCHECKED_BATCH_SIZE, monitorMetadataReader = readMonitorOnlyMetadata, workSourceReader = null } = {}) {
   if ([resumePendingOnly, uncheckedOnly, retryFailedOnly].filter(Boolean).length > 1) {
     throw new Error("来源补查、失败重试与导入恢复不能同时指定");
   }
@@ -463,6 +466,7 @@ export async function pollOnce({ session = null, now = new Date(), resumePending
     }
     const nextSources = { ...manifest.sources };
     const results = [];
+    const readWorkSource = workSourceReader || createWorkSourcePollReader({ dataDirectory: dataDir });
     let pendingPolled = false;
     const savePendingJob = async (current, submitted, previous) => {
       if (!submitted?.id) throw new Error("导入任务未返回可恢复的任务编号");
@@ -521,6 +525,19 @@ export async function pollOnce({ session = null, now = new Date(), resumePending
             consecutiveFailureCount: 0, nextRetryAt: null };
           nextSources[key] = blocked;
           results.push({ ...blocked, status: "blocked" });
+          continue;
+        }
+        if (source.sourceType === 'lark-work-source') {
+          const edition = await readWorkSource(source);
+          const status = edition.status === 'imported' ? 'changed' : 'unchanged';
+          nextSources[key] = successfulSourceReceipt({ key, sourceType: source.sourceType,
+            sourceUrl: clean(source.sourceUrl, 1_000), sourceTitle: clean(source.sourceTitle || source.title, 200),
+            readContract: sourceReadContract(source), readPolicy: source.readPolicy, kind: source.kind,
+            monitorOnly: false, readMode: 'whole-workbook-facts', contentImported: true,
+            sourceRevision: edition.sourceRevision, sourceSha256: edition.sourceSha256,
+            sourceVersionId: edition.versionId, workFactCount: edition.factCount, sourceReadAt: edition.sourceReadAt,
+            lastCheckedAt: now.toISOString(), lastSuccessfulAt: now.toISOString(), lastStatus: status, lastError: null });
+          results.push({ ...nextSources[key], status });
           continue;
         }
         if (source.monitorOnly === true) {
@@ -652,7 +669,7 @@ export async function pollOnce({ session = null, now = new Date(), resumePending
           sourceUrl: clean(source.sourceUrl, 1_000),
           sourceTitle: clean(source.sourceTitle || source.title, 200),
           monitorOnly: source.monitorOnly === true,
-          readMode: source.monitorOnly === true ? "workbook-metadata" : previous?.readMode || "author-table",
+          readMode: source.sourceType === 'lark-work-source' ? 'whole-workbook-facts' : source.monitorOnly === true ? "workbook-metadata" : previous?.readMode || "author-table",
           kind: clean(source.kind, 80), readPolicy: clean(source.readPolicy, 80),
           sourceRevision: sourceRevision(previous) || sourceRevision(source),
           sourceSheetId: clean(previous?.sourceSheetId || source.sheetId, 120),

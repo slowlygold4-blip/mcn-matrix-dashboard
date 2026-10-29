@@ -4,11 +4,37 @@ import { DatabaseSync } from 'node:sqlite';
 import { createHash } from 'node:crypto';
 import { readCreatorOperatingView, readCreatorSourceWorksForTarget, registeredContentTypes } from '../lib/creator-source-operating-view.mjs';
 import { buildAuthorEvidenceRequests, verifyQueuedAuthorEvidence } from '../lib/author-resolution.mjs';
+import * as XLSX from '@e965/xlsx';
+import { commitWorkSourceEdition } from '../lib/work-source-store.mjs';
 
 const sec = 'MS4wLjABAAAA' + 'a'.repeat(40);
 const locator = `https://www.douyin.com/user/${sec}`;
 const targetMetadata = douyinId => JSON.stringify({ platform: 'douyin', douyinId,
   identityVerification: { accountId: locator } });
+
+test('原表新版直接进入同一作品查询与账号详情，缓存按来源版本刷新，历史截止不漂移',()=>{
+  const db=fixture();db.exec('PRAGMA foreign_keys=ON');
+  const videoId='7300000000000000099',url='https://fixture.feishu.cn/sheets/FixtureWorkbook123456';
+  const save=(revision,likes,at)=>{
+    const book=XLSX.utils.book_new();XLSX.utils.book_append_sheet(book,XLSX.utils.aoa_to_sheet([
+      ['视频ID','作者昵称','作者抖音号','发布时间','播放','点赞'],[videoId,'同名作者','handle_a','2026-10-21',null,likes]
+    ]),'作品');
+    const metadata={url,revision,title:'切片激励计划排名公示',modifiedAt:at,sheets:[{id:'works',name:'作品',region:'A1:F2'}]};
+    commitWorkSourceEdition(db,{buffer:XLSX.write(book,{type:'buffer',bookType:'xlsx'}),before:metadata,after:metadata,readAt:at},{now:()=>Date.parse(at)});
+  };
+  try{
+    const query={view:'works',q:videoId,asOf:'2026-10-28T00:00:00.000Z'};
+    assert.equal(readCreatorOperatingView(db,query).total,0);
+    save(1,4,'2026-10-22T08:00:00.000Z');
+    const first=readCreatorOperatingView(db,query);assert.equal(first.total,1);
+    assert.equal(first.items[0].targetId,10);assert.equal(first.items[0].latestLikes,4);assert.equal(first.items[0].latestPlays,null);
+    assert.equal(readCreatorSourceWorksForTarget(db,10,{asOf:query.asOf}).items.some(w=>w.contentId===videoId),true);
+    save(2,2,'2026-10-23T08:00:00.000Z');
+    const second=readCreatorOperatingView(db,query);assert.equal(second.total,1);assert.equal(second.items[0].latestLikes,2);
+    assert.equal(second.items[0].latestObservedAt,null,'来源版本更新时间不是平台观测时间');
+    assert.equal(readCreatorOperatingView(db,{...query,asOf:'2026-10-22T12:00:00.000Z'}).items[0].latestLikes,4);
+  }finally{db.close();}
+});
 
 function fixture() {
   const db = new DatabaseSync(':memory:');

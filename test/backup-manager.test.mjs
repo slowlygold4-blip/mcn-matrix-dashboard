@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { SQLiteBackupManager, validateSQLiteSnapshot, validationCountsMatch } from "../lib/backup-manager.mjs";
 import { MonitorDatabase } from "../lib/database.mjs";
+import { WORK_SOURCE_TABLES } from '../lib/work-source-tables.mjs';
 
 const LEGACY_EVIDENCE_TABLES = [
   "targets", "board_catalog", "target_boards", "posts", "post_metrics", "snapshots",
@@ -55,6 +56,18 @@ test("source registry additions and external deltas cannot vanish from a backup 
   assert.equal(validationCountsMatch(present, { ...present, creator_source_external_deltas: 4 }), false);
   assert.equal(validationCountsMatch(present, { ...present, creator_source_registry_additions: 1 }), false);
   assert.equal(validationCountsMatch(present, legacy), false);
+});
+
+test('complete source-edition evidence, including raw artifacts and heads, survives backup validation', () => {
+  const legacy = Object.fromEntries(LEGACY_EVIDENCE_TABLES.map(table => [table, 0]));
+  const current = { ...legacy, ...Object.fromEntries(WORK_SOURCE_TABLES.map(table => [table, 2])) };
+  assert.equal(validationCountsMatch(current, current), true);
+  for (const table of WORK_SOURCE_TABLES) {
+    const missing = { ...current }; delete missing[table];
+    assert.equal(validationCountsMatch(current, missing), false);
+    assert.equal(validationCountsMatch(current, { ...current, [table]: 1 }), false);
+  }
+  assert.equal(validationCountsMatch(legacy, legacy), true);
 });
 
 test("old eleven-table backups still verify and restore without account_events", async (t) => {
