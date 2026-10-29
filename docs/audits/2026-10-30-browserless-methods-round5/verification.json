@@ -1,0 +1,18 @@
+{
+  "checkedAt": "2026-10-29T22:20:05.334143+00:00",
+  "newTestGroups": 7,
+  "relatedTests": 54,
+  "failures": 0,
+  "publicCopyRepeatedSame54Tests": true,
+  "platformSuccessRateMeasured": false,
+  "productionAdmitted": false,
+  "officialRequests": 0,
+  "publicSampleRequests": 1,
+  "productionDatabaseWrites": 0,
+  "modelCallsInCollectors": 0,
+  "files": {
+    "lib/douyin-open-api-probe.mjs": "ee86be274f79b4a608453d1c1a8f10e979b2a81cbd37ca1b613452a7479f8438",
+    "scripts/probe-douyin-open-api.mjs": "45df5a84edf5bd83f7fad4797bf13dbc6aefe89ec35c7bad94644d1281190a79",
+    "test/douyin-bound-author-list-probe.test.mjs": "5876598713f978520afbde5c2482d39b1617ec7066b3eb5dac34f3ea8074ba81"
+  }
+}

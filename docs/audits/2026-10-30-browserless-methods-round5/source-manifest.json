@@ -1,0 +1,164 @@
+[
+  {
+    "repo": "wuaishare/sharextract",
+    "sha": "9934bdd16f2804c3ee956569138f81313d01c8a5",
+    "treeTruncated": false,
+    "files": [
+      {
+        "path": "SKILL.md",
+        "bytes": 13274,
+        "sha256": "9ba206efdb30f57ff42cd86d340811eef786d55fc5bf1d90387a986c8bd00138"
+      },
+      {
+        "path": "sharextract/extractors/douyin.py",
+        "bytes": 12910,
+        "sha256": "b443e21a877327ef94dc4f6fd5b0ecf8e793d0fdafdfb538f744cd642997c0a2"
+      },
+      {
+        "path": "sharextract/fixtures/douyin-video-contract.json",
+        "bytes": 429,
+        "sha256": "e6a955056cd8080f2eedaacb034e36fce04ac9ada2c03764a3945751725c2d08"
+      },
+      {
+        "path": "references/adapter-health.md",
+        "bytes": 6531,
+        "sha256": "e8d6e08822ea720f198dfc64e85b485a8dc971a37c1521f89a1fdaf3bcf83386"
+      },
+      {
+        "path": "tests/test_douyin.py",
+        "bytes": 6496,
+        "sha256": "b7304097ea8e6a9c9197f6820038ea28bc673f444f875a9326d3ef8e0c55eb82"
+      }
+    ]
+  },
+  {
+    "repo": "orangexie05/creator-platform-data",
+    "sha": "27e21185d911812ffba987d69a35a26e83c38be4",
+    "treeTruncated": false,
+    "files": [
+      {
+        "path": "README.md",
+        "bytes": 4922,
+        "sha256": "396977fb300446e1fddc999182ec8bde32fa308bd0c5237d48824820da3ad754"
+      },
+      {
+        "path": "scripts/douyin/collect_snapshot.py",
+        "bytes": 21115,
+        "sha256": "5e223b74148fb983a00203481560fd5a543753e6bba4e3f96be3fa677cafe59b"
+      },
+      {
+        "path": "skills/creator-platform-data/SKILL.md",
+        "bytes": 8325,
+        "sha256": "6f6bb6c1d963a1802233916fe6a04279cdfa8b64329cf25a306406883534ba61"
+      },
+      {
+        "path": "references/douyin/sheet-schema.md",
+        "bytes": 1255,
+        "sha256": "38003fbf84dbf30deff4b091daf224e4f5d1a18817f5f0b76516d1eb1335d265"
+      }
+    ]
+  },
+  {
+    "repo": "iszhouhua/social-media-copilot",
+    "sha": "bcbb586aefcb0f5aad9821b40722712ddc36693c",
+    "treeTruncated": false,
+    "files": [
+      {
+        "path": "README.md",
+        "bytes": 6474,
+        "sha256": "a8241b31b101e7c987560a72ea821e0d5cd055de85f207c77d916868c2bcfb59"
+      },
+      {
+        "path": "src/entrypoints/dy.content/api/aweme.ts",
+        "bytes": 629,
+        "sha256": "d16e046bce5248b85e7d87e574bd6951c9412505c7b9d8a9d91a8b27bf1bd30d"
+      },
+      {
+        "path": "src/entrypoints/dy.content/api/comment.ts",
+        "bytes": 449,
+        "sha256": "e5606b5231f0a7636192195d2de6413d749946bf6e6231fbf8aaa32375bea6eb"
+      },
+      {
+        "path": "src/entrypoints/dy.content/api/index.ts",
+        "bytes": 103,
+        "sha256": "3c4eec640084bd22679888f76d59d7b98dfaae61ae03786c0a0442ba48061b99"
+      },
+      {
+        "path": "src/entrypoints/dy.content/api/request.ts",
+        "bytes": 3033,
+        "sha256": "bf7313bf88f7c79ec6ce3b86222a70919d3191dccd0d084ae8895f35e2fe8635"
+      },
+      {
+        "path": "src/entrypoints/dy.content/tasks/author-post/processor.ts",
+        "bytes": 5177,
+        "sha256": "4718dabcab0d45c5db3fe497780eb301fcf062e413fa0151f137adbbbae81949"
+      }
+    ]
+  },
+  {
+    "repo": "zhangliang2008/douyin-openapi-sdk-csharp",
+    "sha": "df22552aa46573b3c74d3465335b060c7fcdb8c0",
+    "treeTruncated": false,
+    "files": [
+      {
+        "path": "README.md",
+        "bytes": 25127,
+        "sha256": "37c7742cfcf69ba18526d6f9779a754160cea366c6f472f7e68c77d82e91ca20"
+      },
+      {
+        "path": "src/DouyinOpenApi/Apis/DouyinClient.Aweme.cs",
+        "bytes": 16506,
+        "sha256": "a2321ba573c0cd5292b1b4101d6c513d6babbe2a6830990215eab4926fbb6c08"
+      },
+      {
+        "path": "src/DouyinOpenApi/Apis/DouyinClient.External.cs",
+        "bytes": 7628,
+        "sha256": "e615f7c9dac297611044e42349e50b89a04fddad748ebf32be1363b14f84275d"
+      },
+      {
+        "path": "src/DouyinOpenApi/Apis/DouyinClient.Apps.cs",
+        "bytes": 105047,
+        "sha256": "ddb7b590e30f3ee0d04559032b82666eb5c4679a644ed24f5e14b34ec2393700"
+      },
+      {
+        "path": "src/DouyinOpenApi/Apis/DouyinClient.Oauth.cs",
+        "bytes": 12039,
+        "sha256": "6839c9a628848ae4c59741f949027a0141d49593b3b44206936d726a0a708228"
+      }
+    ]
+  },
+  {
+    "repo": "OpenSenseNova/SenseNova-Skills",
+    "sha": "95db9cf340f0efad2945c3b79f4fc7d7a5d474fd",
+    "treeTruncated": false,
+    "files": [
+      {
+        "path": "skills/sn-search-social-cn/SKILL.md",
+        "bytes": 4113,
+        "sha256": "369fdd52aa9b7a255f37064f1112d989796e8658c9f5b41cc0720ecfbfec3a3f"
+      },
+      {
+        "path": "skills/sn-search-social-cn/scripts/douyin_search.py",
+        "bytes": 2950,
+        "sha256": "f16d85fada2796dec5e62d40915b5fcf3388b7094509adba70dba6de85f081a1"
+      }
+    ]
+  },
+  {
+    "repo": "yytyyt125/douyin-knowledge-skill",
+    "sha": "57dbce56700c4cc6c64835a54ee984e795d6dc75",
+    "treeTruncated": false,
+    "files": [
+      {
+        "path": "SKILL.md",
+        "bytes": 5903,
+        "sha256": "cadc5ce457c93a263c158d0babe10caf06d9c69f259bb089bd06a9f839f5e4c4"
+      },
+      {
+        "path": "src/douyin_kb/collector/monitor.py",
+        "bytes": 4792,
+        "sha256": "7495f4c8957fec1e7140710702698f6f634db71c8132b7184e5eb79c53d28c74"
+      }
+    ]
+  }
+]

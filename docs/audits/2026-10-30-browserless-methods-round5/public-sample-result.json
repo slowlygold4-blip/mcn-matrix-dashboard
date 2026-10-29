@@ -1,0 +1,12 @@
+{
+  "url": "https://jingxuan.douyin.com/m/video/7660369906369629476",
+  "capturedAt": "2026-10-29T22:14:28.350000+00:00",
+  "browser": false,
+  "cookies": false,
+  "retries": 0,
+  "productionWrites": 0,
+  "modelCalls": 0,
+  "status": 302,
+  "error": "http_rejected",
+  "elapsedSeconds": 0.451
+}

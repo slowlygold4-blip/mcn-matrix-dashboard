@@ -1,0 +1,334 @@
+TAP version 13
+# Subtest: author-list scope/client token/handle differ from user open_id and validate before transport
+ok 1 - author-list scope/client token/handle differ from user open_id and validate before transport
+  ---
+  duration_ms: 1.59825
+  type: 'test'
+  ...
+# Subtest: only fixed official POST uses author handle in JSON, never open_id or cookie
+ok 2 - only fixed official POST uses author handle in JSON, never open_id or cookie
+  ---
+  duration_ms: 11.36375
+  type: 'test'
+  ...
+# Subtest: bounded pagination deduplicates overlapping IDs and declares the budget cutoff
+ok 3 - bounded pagination deduplicates overlapping IDs and declares the budget cutoff
+  ---
+  duration_ms: 0.49775
+  type: 'test'
+  ...
+# Subtest: missing list, fake empty, nonboolean more, repeated/future/out-of-window cursors fail closed
+ok 4 - missing list, fake empty, nonboolean more, repeated/future/out-of-window cursors fail closed
+  ---
+  duration_ms: 1.121333
+  type: 'test'
+  ...
+# Subtest: bad public links, metadata conflict and invalid dates never create false identity/date evidence
+ok 5 - bad public links, metadata conflict and invalid dates never create false identity/date evidence
+  ---
+  duration_ms: 1.080375
+  type: 'test'
+  ...
+# Subtest: HTTP/API rejection has fixed error codes, no retry, raw error or redirect leakage
+ok 6 - HTTP/API rejection has fixed error codes, no retry, raw error or redirect leakage
+  ---
+  duration_ms: 0.96175
+  type: 'test'
+  ...
+# Subtest: CLI readiness needs no browser, open_id, network or secret output
+ok 7 - CLI readiness needs no browser, open_id, network or secret output
+  ---
+  duration_ms: 24.6675
+  type: 'test'
+  ...
+# Subtest: current mini-app permission is separate from legacy video.list, all prerequisites fail before transport
+ok 8 - current mini-app permission is separate from legacy video.list, all prerequisites fail before transport
+  ---
+  duration_ms: 1.4725
+  type: 'test'
+  ...
+# Subtest: one bounded POST to the documented official path, opaque item IDs stay in JSON and token only in header
+ok 9 - one bounded POST to the documented official path, opaque item IDs stay in JSON and token only in header
+  ---
+  duration_ms: 10.362125
+  type: 'test'
+  ...
+# Subtest: zero is actual zero, missing/negative/unsafe plays remain unavailable; likes never generate plays
+ok 10 - zero is actual zero, missing/negative/unsafe plays remain unavailable; likes never generate plays
+  ---
+  duration_ms: 0.670334
+  type: 'test'
+  ...
+# Subtest: private-video create_time=0 placeholder never exposes counts as observations
+ok 11 - private-video create_time=0 placeholder never exposes counts as observations
+  ---
+  duration_ms: 0.152542
+  type: 'test'
+  ...
+# Subtest: unreturned requested IDs are explicit gaps rather than zero-count videos
+ok 12 - unreturned requested IDs are explicit gaps rather than zero-count videos
+  ---
+  duration_ms: 0.150333
+  type: 'test'
+  ...
+# Subtest: unexpected or duplicated returned IDs fail rather than pollute the source mapping
+ok 13 - unexpected or duplicated returned IDs fail rather than pollute the source mapping
+  ---
+  duration_ms: 0.301416
+  type: 'test'
+  ...
+# Subtest: HTTP denial, rate limits and transport failure stop after one request and do not expose secrets
+ok 14 - HTTP denial, rate limits and transport failure stop after one request and do not expose secrets
+  ---
+  duration_ms: 0.572916
+  type: 'test'
+  ...
+# Subtest: all official envelope error levels and missing success codes fail closed
+ok 15 - all official envelope error levels and missing success codes fail closed
+  ---
+  duration_ms: 0.943417
+  type: 'test'
+  ...
+# Subtest: oversized/HTML responses and invalid clock cannot become successful snapshots
+ok 16 - oversized/HTML responses and invalid clock cannot become successful snapshots
+  ---
+  duration_ms: 1.906667
+  type: 'test'
+  ...
+# Subtest: pre-cancelled requests never start transport
+ok 17 - pre-cancelled requests never start transport
+  ---
+  duration_ms: 0.119083
+  type: 'test'
+  ...
+# Subtest: readiness CLI contains no IDs or credentials and makes zero network/model/database calls
+ok 18 - readiness CLI contains no IDs or credentials and makes zero network/model/database calls
+  ---
+  duration_ms: 23.297458
+  type: 'test'
+  ...
+# Subtest: readiness checks declare presence, never platform grants or author ownership
+ok 19 - readiness checks declare presence, never platform grants or author ownership
+  ---
+  duration_ms: 0.08075
+  type: 'test'
+  ...
+# Subtest: official numeric strings preserve zero, signed reported changes and absent fields
+ok 20 - official numeric strings preserve zero, signed reported changes and absent fields
+  ---
+  duration_ms: 6.500417
+  type: 'test'
+  ...
+# Subtest: missing days and empty success remain missing, not an invented zero series
+ok 21 - missing days and empty success remain missing, not an invented zero series
+  ---
+  duration_ms: 0.088208
+  type: 'test'
+  ...
+# Subtest: strict Beijing historical window rejects today, old, impossible and duplicate dates
+ok 22 - strict Beijing historical window rejects today, old, impossible and duplicate dates
+  ---
+  duration_ms: 0.318917
+  type: 'test'
+  ...
+# Subtest: rejects lossy, empty, boolean and negative cumulative values
+ok 23 - rejects lossy, empty, boolean and negative cumulative values
+  ---
+  duration_ms: 0.177375
+  type: 'test'
+  ...
+# Subtest: malformed shapes and business errors cannot pass as a valid empty dataset
+ok 24 - malformed shapes and business errors cannot pass as a valid empty dataset
+  ---
+  duration_ms: 0.226083
+  type: 'test'
+  ...
+# Subtest: all three endpoints run serially using official host, token header and actual day counts
+ok 25 - all three endpoints run serially using official host, token header and actual day counts
+  ---
+  duration_ms: 11.018875
+  type: 'test'
+  ...
+# Subtest: missing authorization/scope, bad inputs and pre-cancellation make zero requests
+ok 26 - missing authorization/scope, bad inputs and pre-cancellation make zero requests
+  ---
+  duration_ms: 0.266084
+  type: 'test'
+  ...
+# Subtest: refusals stop immediately without retries or next endpoint and never leak messages
+ok 27 - refusals stop immediately without retries or next endpoint and never leak messages
+  ---
+  duration_ms: 0.508292
+  type: 'test'
+  ...
+# Subtest: failure after one successful endpoint cannot be reported as a successful three-metric trial
+ok 28 - failure after one successful endpoint cannot be reported as a successful three-metric trial
+  ---
+  duration_ms: 0.280959
+  type: 'test'
+  ...
+# Subtest: HTML, oversized responses, broken dates and credential-bearing transport exceptions stay safe
+ok 29 - HTML, oversized responses, broken dates and credential-bearing transport exceptions stay safe
+  ---
+  duration_ms: 0.806625
+  type: 'test'
+  ...
+# Subtest: readiness CLI is network-free and reports unavailable credentials without secret values
+ok 30 - readiness CLI is network-free and reports unavailable credentials without secret values
+  ---
+  duration_ms: 26.236541
+  type: 'test'
+  ...
+# Subtest: missing permission fails before the first network request; readiness never returns secrets
+ok 31 - missing permission fails before the first network request; readiness never returns secrets
+  ---
+  duration_ms: 1.340166
+  type: 'test'
+  ...
+# Subtest: readiness CLI makes no requests, database writes or model calls
+ok 32 - readiness CLI makes no requests, database writes or model calls
+  ---
+  duration_ms: 24.384667
+  type: 'test'
+  ...
+# Subtest: real zero differs from missing plays; no like multiplier; opaque IDs stay distinct from public IDs
+ok 33 - real zero differs from missing plays; no like multiplier; opaque IDs stay distinct from public IDs
+  ---
+  duration_ms: 10.855958
+  type: 'test'
+  ...
+# Subtest: pagination follows exact returned cursors with safe official-host requests and deduplicates items
+ok 34 - pagination follows exact returned cursors with safe official-host requests and deduplicates items
+  ---
+  duration_ms: 0.578208
+  type: 'test'
+  ...
+# Subtest: one-page cap is limited coverage, not full inventory success
+ok 35 - one-page cap is limited coverage, not full inventory success
+  ---
+  duration_ms: 0.230792
+  type: 'test'
+  ...
+# Subtest: repeated and lossy int64 cursors cannot silently truncate or loop
+ok 36 - repeated and lossy int64 cursors cannot silently truncate or loop
+  ---
+  duration_ms: 0.39825
+  type: 'test'
+  ...
+# Subtest: page budget is validated before transport
+ok 37 - page budget is validated before transport
+  ---
+  duration_ms: 0.115292
+  type: 'test'
+  ...
+# Subtest: zero publication placeholders and invalid statistics remain missing
+ok 38 - zero publication placeholders and invalid statistics remain missing
+  ---
+  duration_ms: 0.165166
+  type: 'test'
+  ...
+# Subtest: authentication, rate limits and HTTP refusals retain fixed safe codes
+ok 39 - authentication, rate limits and HTTP refusals retain fixed safe codes
+  ---
+  duration_ms: 0.574958
+  type: 'test'
+  ...
+# Subtest: HTML, malformed shapes, failed extra codes and oversized bodies fail closed
+ok 40 - HTML, malformed shapes, failed extra codes and oversized bodies fail closed
+  ---
+  duration_ms: 2.101667
+  type: 'test'
+  ...
+# Subtest: a failed later page never returns the earlier pages as successful full data
+ok 41 - a failed later page never returns the earlier pages as successful full data
+  ---
+  duration_ms: 0.176583
+  type: 'test'
+  ...
+# Subtest: transport errors and cancellation never expose upstream credential-bearing messages
+ok 42 - transport errors and cancellation never expose upstream credential-bearing messages
+  ---
+  duration_ms: 0.165125
+  type: 'test'
+  ...
+# Subtest: readiness CLI does not request, mutate or call a model
+ok 43 - readiness CLI does not request, mutate or call a model
+  ---
+  duration_ms: 26.708042
+  type: 'test'
+  ...
+# Subtest: balanced JSON preserves braces/escaped quotes and executes no trailing JavaScript
+ok 44 - balanced JSON preserves braces/escaped quotes and executes no trailing JavaScript
+  ---
+  duration_ms: 1.48025
+  type: 'test'
+  ...
+# Subtest: raw public plays never become verified actual plays, including reported zero
+ok 45 - raw public plays never become verified actual plays, including reported zero
+  ---
+  duration_ms: 0.210709
+  type: 'test'
+  ...
+# Subtest: unsafe/negative/fractional/boolean statistics and placeholder dates remain missing
+ok 46 - unsafe/negative/fractional/boolean statistics and placeholder dates remain missing
+  ---
+  duration_ms: 0.154833
+  type: 'test'
+  ...
+# Subtest: only exact work ID and optional exact author identity can match
+ok 47 - only exact work ID and optional exact author identity can match
+  ---
+  duration_ms: 0.446583
+  type: 'test'
+  ...
+# Subtest: shell/verification/malformed data fail closed and never count as successful empty collection
+ok 48 - shell/verification/malformed data fail closed and never count as successful empty collection
+  ---
+  duration_ms: 0.693291
+  type: 'test'
+  ...
+# Subtest: empty route diagnostics contain counts only and retain bounded transport evidence
+ok 49 - empty route diagnostics contain counts only and retain bounded transport evidence
+  ---
+  duration_ms: 10.79
+  type: 'test'
+  ...
+# Subtest: one bounded HTTP request, no cookie/signature/private redirect/media request
+ok 50 - one bounded HTTP request, no cookie/signature/private redirect/media request
+  ---
+  duration_ms: 0.291041
+  type: 'test'
+  ...
+# Subtest: invalid IDs, clock and aborted inputs do not leak errors or request unrelated URLs
+ok 51 - invalid IDs, clock and aborted inputs do not leak errors or request unrelated URLs
+  ---
+  duration_ms: 0.195291
+  type: 'test'
+  ...
+# Subtest: refusal/redirect/rate limit never retries or follows Location
+ok 52 - refusal/redirect/rate limit never retries or follows Location
+  ---
+  duration_ms: 0.621125
+  type: 'test'
+  ...
+# Subtest: invalid MIME and oversized streams fail closed; network exceptions are sanitized
+ok 53 - invalid MIME and oversized streams fail closed; network exceptions are sanitized
+  ---
+  duration_ms: 2.127708
+  type: 'test'
+  ...
+# Subtest: canonical redirects preserve exact ID, host allowlist, no cookies and a global three-request cap
+ok 54 - canonical redirects preserve exact ID, host allowlist, no cookies and a global three-request cap
+  ---
+  duration_ms: 1.176417
+  type: 'test'
+  ...
+1..54
+# tests 54
+# suites 0
+# pass 54
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 233.737458
