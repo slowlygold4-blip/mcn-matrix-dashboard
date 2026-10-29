@@ -383,11 +383,19 @@ export async function readBitable(source, { commandRunner = execFileAsync, comma
     if (!envelope?.ok) throw new Error(cleanForSource(envelope?.error?.message || envelope?.error || "飞书多维表读取失败", source, 500));
     const data = envelope.data || {};
     if (!Array.isArray(data.data)) throw new Error("飞书多维表记录格式无法识别；未将错误响应视为空表");
+    // An absent/loosely typed terminal marker is an incomplete response, not
+    // permission to declare the accumulated rows a complete source version.
+    if (typeof data.has_more !== "boolean") throw new Error("飞书多维表缺少有效分页结束标志；未导入部分数据");
     if (fields.length && Array.isArray(data.fields) && JSON.stringify(fields) !== JSON.stringify(data.fields)) {
       throw new Error("飞书多维表分页字段发生变化；未按旧列顺序拼接或导入部分数据");
     }
     if (!fields.length) fields = Array.isArray(data.fields) ? data.fields : [];
-    const pageRevision = Number(data.rev ?? 0);
+    // Preserve a real revision zero, but never invent it for missing metadata
+    // or coerce null/booleans into a valid source revision.
+    const revisionValue = data.rev;
+    const pageRevision = typeof revisionValue === "number"
+      || typeof revisionValue === "string" && /^\d+$/.test(revisionValue)
+      ? Number(revisionValue) : NaN;
     if (!Number.isSafeInteger(pageRevision) || pageRevision < 0) throw new Error("飞书多维表返回无效修订号；未导入部分数据");
     if (pageCount && pageRevision !== revision) throw new Error("飞书多维表分页修订号发生变化；未拼接不同版本或导入部分数据");
     revision = pageRevision;
