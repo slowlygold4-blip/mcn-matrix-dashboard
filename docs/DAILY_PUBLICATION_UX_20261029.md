@@ -13,3 +13,6 @@ Validation: TypeScript and all348frontend tests pass, including the actual React
 This improves presentation and navigation, not Douyin collection coverage. It does not claim that all platform works have been collected, that source cumulative plays are daily plays, or that every network can reach the hosted site.
 
 The title is scoped to collected publication records, rather than claiming the number covers every work ever archived. The related6browser tests and typecheck were rerun after this wording correction.
+
+
+Public handoff validation also restored a legitimate `cookie: ^1.0.2` dependency declaration in the frontend lockfile, previously corrupted to `[REDACTED]`. No dependency versions changed relative to the tested Site lockfile, and no credentials were restored. Browser6+helper5 tests pass from the public repository with `MCN_MAIN_ROOT` pointing at the repository root with a trailing slash. Frontend dependencies were reused from the identical package/lock checkout for this local verification rather than copied or installed again; this is not a fresh clean-room npm installation. README now states the required setup and distinguishes the historical private archive from live data.
