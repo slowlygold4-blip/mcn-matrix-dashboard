@@ -903,3 +903,18 @@ test('activation override cannot remove the enclosing operation deadline or acce
  const r=await producer(cloud,{requestTimeoutMs:100,activationTimeoutMs:400,operationTimeoutMs:200}).sync(fixture({accounts:1}));
  assert.equal(r.code,'aborted');assert.equal(r.activated,false);
 });
+
+
+test('gzip is opt-in and keeps raw checksums, checkpoints and authenticated receipts unchanged',async()=>{
+ const{gunzipSync}=await import('node:zlib');const cloud=fakeCloud(),original=cloud.fetch;let requests=0,plainBytes=0,wireBytes=0;
+ cloud.fetch=async(url,init={})=>{
+  if(init.method==='POST'){
+   assert.equal(init.headers['Content-Encoding'],'gzip');assert.equal(init.headers.Authorization,'Bearer '+SECRET);
+   const text=gunzipSync(init.body).toString('utf8');plainBytes+=Buffer.byteLength(text);wireBytes+=init.body.byteLength;requests++;
+   return original(url,{...init,body:text});
+  }return original(url,init);
+ };
+ const source=fixture({accounts:40}),r=await producer(cloud,{compressRequests:true}).sync(source);
+ assert.equal(r.status,'success');assert.ok(requests>1);assert.ok(wireBytes<plainBytes/2);assert.equal(r.requestEncoding,'gzip');
+ assert.throws(()=>createPublicReplicaSync({getCredential:async()=>SECRET,compressRequests:'gzip'}),/invalid-configuration/);
+});

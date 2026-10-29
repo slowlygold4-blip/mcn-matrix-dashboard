@@ -1,3 +1,4 @@
+import {readReplicaRequest} from '@/lib/replica-request.mjs';
 import {replicaPartitionByteLimit,replicaBatchByteLimit,REPLICA_UPLOAD_MAX_BYTES} from '@/lib/replica-partition-budget.mjs';
 import {auditPublishing} from '@/lib/replica-publishing.mjs';
 import {creatorFile,creatorKind,creatorPartValid,auditCreatorPublication} from '@/lib/replica-creator.mjs';
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
   if (typeof producer !== "string" || producer.length < 48 || request.headers.get("Authorization") !== `Bearer ${producer}`) return json({error:"只读访问"},403);
   let activationPhase:string|null=null,activationStartedAt:number|null=null;
   try {
-    const text=await request.text(); if(new TextEncoder().encode(text).length>REPLICA_UPLOAD_MAX_BYTES) return json({error:"批次过大"},413);
+    const text=await readReplicaRequest(request,{maxBytes:REPLICA_UPLOAD_MAX_BYTES});
     const input=JSON.parse(text); const {db,bucket}=runtime();
     if(input.action==="upload"&&Array.isArray(input.files)&&new TextEncoder().encode(text).length>replicaBatchByteLimit(input.files))return json({error:"批次过大"},413);
     if(!validGeneration(input.asOf)||Date.parse(input.asOf)>Date.now())return json({error:"无效采样截止时间"},400);
@@ -141,7 +142,11 @@ export async function POST(request: Request) {
     const committed=await db.prepare("SELECT manifest FROM replica_generations WHERE generation=?").bind(input.asOf).first<{manifest:string}>();
     if(committed?.manifest!==manifest)return json({error:"并发发布清单冲突，未确认本次发布"},409);
     return json({published:true,asOf:input.asOf,parts:files.length});
-  } catch {
+  } catch(error) {
+    const bodyCode=error&&typeof error==='object'&&'code'in error?error.code:null;
+    if(bodyCode==='too-large')return json({error:'批次过大'},413);
+    if(bodyCode==='unsupported-encoding')return json({error:'不支持的传输编码'},415);
+    if(bodyCode==='invalid-body')return json({error:'请求内容无效'},400);
     if(activationPhase)console.warn(JSON.stringify({event:'replica-activation-failed',phase:activationPhase,
       requestAborted:request.signal.aborted,elapsedMs:Date.now()-(activationStartedAt??Date.now())}));
     return json({error:"同步未完成，现有已发布数据保持不变"},503);

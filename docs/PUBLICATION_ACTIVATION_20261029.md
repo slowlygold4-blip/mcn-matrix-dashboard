@@ -23,3 +23,14 @@ The successful recovery is consistent with the activation budget/lookup fix; it 
 Related producer tests: 52 passed. Related cloud route/date/source tests: 31 passed. TypeScript passed. These checks also passed on the public-source checkout using the same dependency inputs; no clean dependency installation or full-repository acceptance is claimed. Tests cover separate deadlines, enclosing cancellation, invalid budgets, metadata integrity, incomplete sources, storage failures, fixed diagnostic privacy and anonymous write rejection.
 
 Official [Cloudflare Workers limits](https://developers.cloudflare.com/workers/platform/limits/) document request/connection/resource constraints and client-disconnection behavior. No plan, access policy or paid service was changed to obtain this recovery.
+
+
+## Compressed transfer follow-up (v115)
+
+The producer now opts into gzip HTTP request bodies; existing callers default to plain JSON. The server bounds both wire bytes and expanded bytes to the original 11.5 MB maximum before parsing. Unsupported codecs, corrupt gzip, invalid UTF-8 and oversized streams are rejected with fixed errors; unauthorized requests are rejected before decoding. Partition and manifest SHA256 values are still computed/validated from the exact original decoded text. No stored observations, source files or checkpoint identities are changed.
+
+A production invalid-action request containing the actual public manifest measured 1,927,214 decoded bytes and 620,080 transmitted bytes (67.8% reduction), returning the expected application 400 after successful decoding in 481 ms. This is a transport validation probe, not a successful ingestion or a throughput benchmark. Production logs subsequently show real gzip upload requests returning 200. Related producer tests 53 and cloud tests 36 passed, also on the public checkout; TypeScript passed.
+
+The existing publisher was gracefully reloaded again from 33128 to 34817. The same generation's 132 confirmed batches survived admission; 136 were present when replacement was verified because in-flight acknowledgements settled before shutdown. No checkpoint reset or second publisher was introduced. The publisher process was given lower scheduling priority (nice 10) to yield to desktop work.
+
+Compression reduces network bytes but does not eliminate storage latency. Observed gzip upload requests of roughly 25–50 KB still spent 12–15 seconds in the Worker. Current protocol changes every file envelope's asOf each generation, causing repeated R2 writes. The next architectural priority is immutable content deduplication with exact byte reconstruction, backward-compatible reads, retained hashes and full audit/repair semantics. It must not be represented as already implemented. Full latest-generation catch-up and Douyin works 403 remain unresolved acceptance items.

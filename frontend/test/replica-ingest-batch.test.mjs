@@ -65,3 +65,11 @@ test('sealed generations admit exact retries and forbid changed files or newly i
 test('anonymous uploads never reach a database or object operation',async()=>{
  assert.equal((await request([part(1)],false)).status,403);assert.equal(fixture.metrics.reads,0);assert.equal(fixture.metrics.puts,0);
 });
+
+test('gzip upload validates the original partition hash and rejects corrupt compression before storage',async()=>{
+ const{gzipSync}=await import('node:zlib');const files=[part(1),part(2)],raw=JSON.stringify({action:'upload',asOf,files});
+ const send=body=>POST(new Request('https://example.test/api/replica',{method:'POST',headers:{Authorization:'Bearer '+producer,'Content-Type':'application/json','Content-Encoding':'gzip'},body}));
+ assert.equal((await send('invalid gzip')).status,400);assert.equal(rows().length,0);assert.equal(fixture.metrics.puts,0);
+ assert.equal((await send(gzipSync(raw))).status,200);assert.equal(rows().length,2);
+ for(const f of files)assert.equal(fixture.objects.get(asOf+'/'+f.sha256),f.data);
+});
