@@ -1,6 +1,6 @@
 # MCN 矩阵工作台
 
-**最新源码整理：2026-10-29。公开前端对应线上 v116。**
+**最新源码整理：2026-10-30（北京时间）。公开前端对应线上 v117。**
 
 [打开线上工作台](https://mcn-matrix-observatory.slowlygold4.chatgpt.site) · [开发交接说明](docs/DEVELOPER_HANDOFF.md)
 
@@ -67,3 +67,5 @@ MCN_MAIN_ROOT="$PWD/" node --test --test-concurrency=2 frontend/test/*.test.mjs
 发布链修复与验收边界见 [PUBLICATION_ACTIVATION_20261029.md](docs/PUBLICATION_ACTIVATION_20261029.md)。
 
 增量存储、迁移与实际验收边界见 [INCREMENTAL_REPLICA_STORAGE_20261030.md](docs/INCREMENTAL_REPLICA_STORAGE_20261030.md)。
+
+作品话题分类修复、每日发片分类筛选与发布等待期间的开销优化见 [WORK_CLASSIFICATION_AND_PUBLISHING_20261030.md](docs/WORK_CLASSIFICATION_AND_PUBLISHING_20261030.md)。无浏览器采集路径研究与官方 HTTP 隔离测试工具见 [COLLECTION_METHODS_REVIEW_20261030.md](docs/COLLECTION_METHODS_REVIEW_20261030.md)。

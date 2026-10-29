@@ -7,7 +7,7 @@ type Focus={view:'works';track:string;startDate:string;endDate:string;mainTableO
 const number=(value:number|null)=>value==null?'待采全':value.toLocaleString('zh-CN');
 
 /** Count dated discovered works, never measurement dates or missing-day zeros. */
-export function PublishingChart({days,track,onInspect,unified=false}:{days:Day[];track:string;onInspect:(focus:Focus)=>void;unified?:boolean}){
+export function PublishingChart({days,track,onInspect,unified=false,trackLabel}:{days:Day[];track:string;onInspect:(focus:Focus)=>void;unified?:boolean;trackLabel?:string}){
  const [selection,setSelection]=useState('');
  const buttons=useRef(new Map<string,HTMLButtonElement>());
  const selected=days.find(day=>day.date===selection)??days.at(-1);
@@ -22,7 +22,7 @@ export function PublishingChart({days,track,onInspect,unified=false}:{days:Day[]
   buttons.current.get(day.date)?.scrollIntoView({block:'nearest',inline:'nearest',behavior:'instant'});
  }
  return <div className="source-ops-panel source-ops-chart">
-  <div className="source-ops-panel-head"><div><p className="source-ops-kicker">按发布日期统计</p><h3>每天发了多少作品</h3><span>点击柱形选日期，再查看当天作品 · 当前为{track==='all'?'全部内容':track}</span></div></div>
+  <div className="source-ops-panel-head"><div><p className="source-ops-kicker">按发布日期统计</p><h3>每天发了多少作品</h3><span>点击柱形选日期，再查看当天作品 · 当前为{trackLabel||(track==='all'?'全部内容':track)}</span></div></div>
   {!selected?<p>暂时没有带发布日期的作品。未记录日期的作品仍保留在全部作品里。</p>:<>
    <div className="source-ops-chart-selection">
     <label>选择发布日<select aria-label="选择发布日" value={selected.date} onChange={event=>setSelection(event.target.value)}>{days.map(day=><option key={day.date} value={day.date}>{day.date} · {number(count(day))} 条</option>)}</select></label>

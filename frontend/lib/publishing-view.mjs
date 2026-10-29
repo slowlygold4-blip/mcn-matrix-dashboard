@@ -1,6 +1,22 @@
 import {readReplicaPart} from './replica-reader.mjs';
 import {publishingPartValid} from './replica-publishing.mjs';
 const DAY_MS=86_400_000;
+export const publishingTracks = Object.freeze([
+ {key:'all',label:'全部内容'}, {key:'slice',label:'切片激励'}, {key:'original',label:'创作激励'},
+ {key:'ai-remix',label:'即梦二创'}, {key:'contest',label:'小团团杯二创'}, {key:'unclassified',label:'未标注分类'},
+]);
+const validTrack = track => {
+ if(!publishingTracks.some(item=>item.key===track))throw Error('发片内容分类无效');
+};
+export function publishingTrackCount(day,track='all'){
+ validTrack(track);
+ return day?.works==null?null:track==='all'?day.works:day.tracks?.[track]??0;
+}
+export function filterPublishingRows(rows,track='all'){
+ validTrack(track);
+ if(track==='all')return rows;
+ return rows.filter(row=>track==='unclassified'?!row.classifications.length:row.classifications.includes(track));
+}
 /** Missing days remain null, not inferred zero-publication days. */
 export function publishingCalendar(index,asOf,start='2026-09-12') {
  const cutoff=Date.parse(asOf),first=Date.parse(start+'T00:00:00.000Z');

@@ -162,10 +162,9 @@ export function completedSourceMarker(manifest,now=Date.now()){
   // Do not treat those unfinished writes as a new completed source check.
   return hash({finished});
 }
-export function shouldStagePublicReplica(state, observed, now = Date.now()) {
-  if (state.active || (observed.running && !isCommittedTargetPublication(observed.committedPublication)) || (observed.marker === state.coveredMarker
-    && state.exportRevision === PUBLIC_REPLICA_EXPORT_REVISION)) return false;
-  if (!Number.isFinite(now)) return false;
+/** Cheap admission before reading receipts/source rows from the business DB. */
+export function canPreparePublicReplica(state, now = Date.now()) {
+  if (state.active || !Number.isFinite(now)) return false;
   if (!state.lastConfirmedPublishedAt) return true;
   const confirmedAt = Date.parse(state.lastConfirmedPublishedAt);
   // A rolled-back clock or invalid confirmation cannot grant publication.
@@ -182,6 +181,11 @@ export function shouldStagePublicReplica(state, observed, now = Date.now()) {
   const cadenceAt = Number.isFinite(publishedAt) && publishedAt <= confirmedAt
     ? publishedAt : confirmedAt;
   return now - cadenceAt >= 1800000;
+}
+export function shouldStagePublicReplica(state, observed, now = Date.now()) {
+  if ((observed.running && !isCommittedTargetPublication(observed.committedPublication))
+    || (observed.marker === state.coveredMarker && state.exportRevision === PUBLIC_REPLICA_EXPORT_REVISION)) return false;
+  return canPreparePublicReplica(state, now);
 }
 async function readPublication(directory){
   const allowed=join(data,'public-replica-staging')+'/';if(!resolve(directory).startsWith(allowed))fail('invalid-staging-directory');
@@ -224,6 +228,7 @@ async function run(){
     if(busy||stopping)return;busy=true;
     try{
       if(!state.active){
+        if(!canPreparePublicReplica(state))return;
         const asOf=new Date().toISOString(),directory=join(data,'public-replica-staging','publisher-'+asOf.replace(/[:.]/g,'-'));
         const db=new DatabaseSync(join(data,'douyin-monitor.sqlite'),{readOnly:true});let replica,observed;
         try{db.exec('PRAGMA query_only=ON;BEGIN');

@@ -2,10 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { createHash } from 'node:crypto';
-import { readCreatorOperatingView, readCreatorSourceWorksForTarget, registeredContentTypes } from '../lib/creator-source-operating-view.mjs';
+import { readCreatorOperatingView, readCreatorSourceWorksForTarget, registeredContentTypes, readUnifiedPublicationWorks } from '../lib/creator-source-operating-view.mjs';
 import { buildAuthorEvidenceRequests, verifyQueuedAuthorEvidence } from '../lib/author-resolution.mjs';
 import * as XLSX from '@e965/xlsx';
 import { commitWorkSourceEdition } from '../lib/work-source-store.mjs';
+import { publishingPartitions } from '../lib/replica-publishing.mjs';
 
 const sec = 'MS4wLjABAAAA' + 'a'.repeat(40);
 const locator = `https://www.douyin.com/user/${sec}`;
@@ -88,6 +89,78 @@ function addPlatformWork(db, { id, postId, targetId = 10, authorId = sec,
   if (metricAt) db.prepare('INSERT INTO post_metrics(post_id,captured_at,likes,plays) VALUES(?,?,?,?)')
     .run(postId, metricAt, likes, plays);
 }
+
+test('exact work hashtags reach the same filtered operating query and publication ledger without inheriting author categories', () => {
+  const db = fixture();
+  try {
+    platformFixture(db);
+    const id = '7300000000000000088';
+    addPlatformWork(db, { id, postId: 102, caption: '新作品 #一条小团团OvO切片激励计划' });
+    const query = { view: 'works', classification: 'slice', q: id, asOf: '2026-10-22T00:00:00Z' };
+    const result = readCreatorOperatingView(db, query);
+    assert.equal(result.total, 1);
+    assert.deepEqual(result.items[0].classifications, ['slice']);
+    assert.equal(result.items[0].primaryTrack, '切片激励');
+    assert.equal(result.items[0].classificationEvidence[0].kind, 'platform-caption-hashtag');
+    assert.equal(result.items[0].classificationEvidence[0].observedAt, '2026-10-21T16:30:00.000Z');
+    assert.equal(result.summary.platformOnlyWorks, 1);
+    assert.equal(result.daily[0].works, 1);
+    const ledger = readUnifiedPublicationWorks(db, query.asOf);
+    assert.deepEqual(ledger.find(row => row.contentId === id).classifications, ['slice']);
+    assert.equal(ledger.filter(row => row.contentId === id).length, 1);
+    const partitions = publishingPartitions(ledger.filter(row => row.contentId === id).map(work => ({
+      contentId: work.contentId, date: work.publishedOn, author: work.authorName, title: work.title,
+      targetId: work.targetId, classifications: work.classifications, origin: 'platform',
+    })));
+    assert.equal(partitions[0].days[0].tracks.slice, 1);
+    assert.equal(partitions[0].days[0].works, 1);
+    assert.equal(readCreatorOperatingView(db, { ...query, classification: 'original' }).total, 0);
+  } finally { db.close(); }
+});
+
+test('multiple work topics stay multi-category without assigning an arbitrary primary or duplicate work count', () => {
+  const db = fixture();
+  try {
+    platformFixture(db);
+    const id = '7300000000000000087';
+    addPlatformWork(db, { id, postId: 102, caption: '#一条小团团OvO切片激励计划 #小团团即梦二创大赛' });
+    const all = readCreatorOperatingView(db, { view: 'works', q: id });
+    assert.equal(all.total, 1);
+    assert.equal(all.items[0].primaryTrack, '多赛道');
+    assert.deepEqual(all.items[0].classifications, ['slice', 'ai-remix']);
+    assert.equal(readCreatorOperatingView(db, { view: 'works', q: id, classification: 'slice' }).total, 1);
+    assert.equal(readCreatorOperatingView(db, { view: 'works', q: id, classification: 'ai-remix' }).total, 1);
+    assert.equal(all.summary.works, 1);
+  } finally { db.close(); }
+});
+
+test('a future caption observation cannot reclassify historical work queries', () => {
+  const db = fixture();
+  try {
+    platformFixture(db);
+    const id = '7300000000000000089';
+    addPlatformWork(db, { id, postId: 102, caption: '#小团团即梦二创大赛', firstSeenAt: '2026-10-20T00:00:00Z', publishedAt: '2026-10-19T23:00:00Z' });
+    db.prepare('UPDATE posts SET last_seen_at=? WHERE id=102').run('2026-10-22T00:00:00Z');
+    assert.equal(readCreatorOperatingView(db, { view: 'works', q: id, classification: 'ai-remix', asOf: '2026-10-21T00:00:00Z' }).total, 0);
+    assert.equal(readCreatorOperatingView(db, { view: 'works', q: id, classification: 'ai-remix', asOf: '2026-10-23T00:00:00Z' }).total, 1);
+  } finally { db.close(); }
+});
+
+test('source labels remain primary and a matched platform tag supplements rather than duplicates or overwrites the work', () => {
+  const db = fixture();
+  try {
+    platformFixture(db);
+    db.prepare('UPDATE posts SET caption=? WHERE id=101').run('作品 #一条小团团OvO创作激励计划');
+    const result = readCreatorOperatingView(db, { view: 'works', classification: 'original', q: '111' });
+    assert.equal(result.total, 1);
+    assert.equal(result.items[0].primaryTrack, '切片激励');
+    assert.ok(result.items[0].classifications.includes('slice'));
+    assert.ok(result.items[0].classifications.includes('original'));
+    assert.equal(result.items[0].sourceRow, 2);
+    assert.equal(readUnifiedPublicationWorks(db, '2026-10-23T00:00:00Z').filter(row => row.contentId === '111').length, 1);
+    assert.equal(readCreatorOperatingView(db, { view: 'works', q: '111' }).items[0].sourceCumulativePlays, 100);
+  } finally { db.close(); }
+});
 
 function verifiedSourceReceiptFixture() {
   const db = fixture();

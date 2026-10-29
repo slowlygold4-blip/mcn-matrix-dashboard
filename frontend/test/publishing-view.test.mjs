@@ -1,7 +1,20 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {createHash}from'node:crypto';
-import {publishingCalendar,loadPublishingDay}from'../lib/publishing-view.mjs';
+import {publishingCalendar,loadPublishingDay,publishingTrackCount,filterPublishingRows}from'../lib/publishing-view.mjs';
 import {publishingPartitions}from'../lib/replica-publishing.mjs';
 const asOf='2026-10-29T07:00:00.000Z',row=(id,date='')=>({contentId:String(id),date,author:'作者',title:'作品',targetId:1,classifications:['slice'],origin:'platform'});
+test('work-category counts and detail filters agree without adding multi-topic works twice',()=>{
+ const rows=[{...row(1),classifications:['slice','ai-remix']},{...row(2),classifications:['original']},{...row(3),classifications:[]}];
+ const index=publishingPartitions(rows)[0],day=index.days[0];
+ assert.equal(publishingTrackCount(day,'all'),3);
+ for(const track of ['slice','original','ai-remix','unclassified']){
+  assert.equal(publishingTrackCount(day,track),1);
+  assert.equal(filterPublishingRows(rows,track).length,1);
+ }
+ assert.equal(filterPublishingRows(rows).length,3);
+ assert.equal(publishingTrackCount({works:null,tracks:{}} ,'slice'),null);
+ assert.equal(publishingTrackCount({works:5,tracks:{}} ,'slice'),0);
+ assert.throws(()=>filterPublishingRows(rows,'made-up'),/分类无效/);
+});
 function fixture(rows){const files=publishingPartitions(rows).map(p=>{const value={version:1,asOf,timeZone:'Asia/Shanghai',...(p.items?{items:p.items}:{scope:p.scope,complete:p.complete,count:p.count,days:p.days})};const content=JSON.stringify(value);return {value,content,meta:{path:p.path,kind:p.kind,count:p.items?.length??p.count,bytes:Buffer.byteLength(content),sha256:createHash('sha256').update(content).digest('hex')}};});const manifest={asOf,files:files.map(f=>f.meta)},index=files[0].value;let calls=0;
 const fetcher=async(url,{signal}={})=>{calls++;if(signal?.aborted)throw new DOMException('aborted','AbortError');const q=new URL(url,'https://fixture.test').searchParams;assert.equal(q.get('generation'),asOf);const f=files.find(f=>f.meta.path===q.get('part'));return new Response(f.content,{headers:{'X-Data-SHA256':f.meta.sha256,'X-Data-Cutoff':asOf}});};return{manifest,index,files,fetcher,calls:()=>calls};}
 test('Beijing calendar preserves known zero and missing days as different values',()=>{
