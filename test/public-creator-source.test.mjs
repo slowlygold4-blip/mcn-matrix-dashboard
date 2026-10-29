@@ -14,7 +14,7 @@ function fixture(t){const database=new MonitorDatabase(':memory:');t.after(()=>d
  add('08',2,['作者A','handle_a',null,null,null,null,2,2,0,0,0,100,3,null,null,'private-document','private-bonus']);
  add('09',2,['7300000000000000001','作者A','handle_a','2026-09-12','video','切片激励','切片激励',100,3,'','标题A','https://v.douyin.com/a/']);
  add('09',3,['7300000000000000002','作者A','handle_a','','video','切片激励','切片激励',null,0,'','标题B','https://v.douyin.com/b/']);
- const read=(cutoff=asOf)=>{const parts=creatorSourcePartitions(db,cutoff);const files=parts.map(({path,kind,count,...body})=>{const content=JSON.stringify({version:1,asOf:cutoff,timeZone:'Asia/Shanghai',...body})+'\n';return {path,kind,count,bytes:Buffer.byteLength(content),sha256:hash(content),content};});
+ const read=(cutoff=asOf,options={})=>{const parts=creatorSourcePartitions(db,cutoff,options);const files=parts.map(({path,kind,count,...body})=>{const content=JSON.stringify({version:1,asOf:cutoff,timeZone:'Asia/Shanghai',...body})+'\n';return {path,kind,count,bytes:Buffer.byteLength(content),sha256:hash(content),content};});
  return {manifest:{asOf:cutoff,files:files.map(({content,...meta})=>meta)},files};};return {db,read};}
 const audit=publication=>auditCreatorPublication({manifest:publication.manifest,readPart:async path=>JSON.parse(publication.files.find(f=>f.path===path).content)});
 test('public source corpus is complete, sealed and contains no raw source, authorization, reward or uid fields',async t=>{
@@ -31,6 +31,18 @@ test('a changed publication timestamp alone keeps the public source content iden
  const root=r=>JSON.parse(r.files.find(f=>f.kind==='creatorIndex').content);
  assert.equal(root(a).editionFingerprint,root(b).editionFingerprint);
  assert.notEqual(a.files.find(f=>f.kind==='creatorWorks').sha256,b.files.find(f=>f.kind==='creatorWorks').sha256);
+});
+test('the production redactor cannot bypass the public text contract on unmatched angle brackets',async t=>{
+ const {db,read}=fixture(t),select=db.prepare('SELECT rowid,values_json FROM creator_source_rows'),update=db.prepare('UPDATE creator_source_rows SET values_json=? WHERE rowid=?');
+ for(const row of select.all()){
+  const values=JSON.parse(row.values_json);
+  if(values.length>13)values[0]='作者 < 甲';else values[10]='比较 1 < 2 > 与未闭合 < 字符';
+  update.run(JSON.stringify(values),row.rowid);
+ }
+ const before=select.all(),result=read(asOf,{sanitize:value=>String(value??'').replace(/<[^>]*>/g,'')});
+ for(const file of result.files)assert.equal(creatorPartValid(JSON.parse(file.content),file,asOf),true,file.path);
+ assert.equal((await audit(result)).works,2);
+ assert.deepEqual(select.all(),before,'publication normalization never changes original rows');
 });
 test('all source pages, exact totals, insights and data fingerprint are audited before activation',async t=>{
  const {read}=fixture(t);
