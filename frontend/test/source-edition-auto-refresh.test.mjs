@@ -5,6 +5,7 @@ import {createHash} from 'node:crypto';
 import {createRequire} from 'node:module';
 import {fileURLToPath} from 'node:url';
 import {build} from 'esbuild';
+import {foundationPublication} from './helpers/foundation-publication.mjs';
 
 const site=fileURLToPath(new URL('../',import.meta.url));
 const main=process.env.MCN_MAIN_ROOT||fileURLToPath(new URL('../../douyin-monitor-workbench/',import.meta.url));
@@ -116,5 +117,32 @@ test('live creator corpus changes are visible in Home without a new frontend bui
   control.edition=2;await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await ledger.getByText('作者新31').waitFor();
   assert.equal(await ledger.getByRole('textbox',{name:'搜索来源作者或作品'}).inputValue(),'作者');assert.match(await ledger.locator('.source-pager').first().textContent(),/第 2\/2 页/);
   assert.deepEqual(errors,[]);
+ }finally{await context.close();await browser.close();}
+});
+
+test('Home adopts supplementary author updates from live partitions while retaining the current search',async()=>{
+ const browser=await chromium.launch({headless:true,executablePath:process.env.MCN_TEST_CHROME||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',args:['--disable-background-networking']});
+ const context=await browser.newContext({viewport:{width:1280,height:800},reducedMotion:'reduce'}),page=await context.newPage();page.setDefaultTimeout(12000);
+ const errors=[],control={edition:1};page.on('pageerror',error=>errors.push(error.message));
+ const publication=e=>foundationPublication(`2026-10-29T0${e}:00:00.000Z`,{authors:e});
+ const empty={revision,items:[]},emptySource={...source(1),stats:{authors:0,works:0,rawAuthorRows:0,reciprocalDuplicates:0,linkedAuthors:0},files:[seal('authors.json',empty),seal('works-001.json',empty)]};
+ try{
+  await page.route('**/*',route=>{const url=new URL(route.request().url()),path=url.pathname;
+   if(path==='/')return route.fulfill({contentType:'text/html',body:'<!doctype html><meta charset="utf-8"><div id="root"></div>'});
+   if(path==='/api/replica'){
+    const part=url.searchParams.get('part');
+    if(!part){const p=publication(control.edition);return route.fulfill({json:{manifest:{...replica,asOf:p.asOf,files:[catalogSeal,...p.manifest.files.filter(f=>f.path.startsWith('foundation/'))]},publishedAt:p.asOf}});}
+    const edition=url.searchParams.get('generation')===publication(1).asOf?1:2,file=publication(edition).files.find(f=>f.path===part);
+    if(file)return route.fulfill({contentType:'application/json',body:file.data});
+   }
+   if(path==='/creator-source/index.json')return route.fulfill({json:emptySource});
+   if(path==='/creator-source/authors.json'||path==='/creator-source/works-001.json')return route.fulfill({json:empty});
+   return route.abort();
+  });
+  await page.goto('http://127.0.0.1:49118/#source');await page.addScriptTag({content:bundle.outputFiles[0].text});
+  const ledger=page.locator('.source-ledger');await ledger.getByText('补充作者1',{exact:true}).waitFor();
+  const search=ledger.getByRole('textbox',{name:'搜索来源作者或作品'});await search.fill('补充作者');
+  control.edition=2;await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await ledger.getByText('补充作者2',{exact:true}).waitFor();
+  assert.equal(await search.inputValue(),'补充作者');assert.equal(await ledger.locator('tbody tr').count(),2);assert.deepEqual(errors,[]);
  }finally{await context.close();await browser.close();}
 });

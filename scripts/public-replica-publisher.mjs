@@ -10,6 +10,7 @@ import { exportPublicReplica, writePublicReplica, PUBLIC_REPLICA_EXPORT_REVISION
 import { createPublicReplicaSync, preparePublicReplicaPublication } from '../lib/public-replica-sync.mjs';
 import { readCommittedTargetPublication, isCommittedTargetPublication, COMMITTED_TARGET_PUBLICATION,
   preparePublishedSnapshotBaseline, attachPublishedSnapshotBaseline, releaseCommittedTargetPublication } from '../lib/committed-target-publication.mjs';
+import {readPublicSourceMarker} from '../lib/public-source-marker.mjs';
 
 const root=fileURLToPath(new URL('..',import.meta.url));
 const data=resolve(process.env.DATA_DIR||join(root,'data'));
@@ -172,7 +173,7 @@ async function readPublication(directory){
   const readPart=async relative=>{for(const part of [dirname(directory),directory,...(relative.includes('/')?[join(directory,dirname(relative))]:[])]){const s=await lstat(part);if(!s.isDirectory()||s.isSymbolicLink())fail('unsafe-staging-path');}
     const fd=await open(join(directory,relative),constants.O_RDONLY|constants.O_NOFOLLOW);try{const s=await fd.stat();if(!s.isFile())fail('unsafe-staging-path');return await fd.readFile('utf8');}finally{await fd.close();}};
   const manifest=JSON.parse(await readPart('manifest.json'));
-  const files=[];for(const meta of manifest.files){if(!/^(catalog|topics|summary|publishing)\.json$|^publishing\/\d{6}\.json$|^creator\/(index|authors|insights|works-\d{3})\.json$|^(daily|works|work-metrics)\/[1-9]\d{0,7}\.json$/.test(meta.path))fail('invalid-partition-path');files.push({...meta,content:await readPart(meta.path)});}
+  const files=[];for(const meta of manifest.files){if(!/^(catalog|topics|summary|publishing)\.json$|^publishing\/\d{6}\.json$|^creator\/(index|authors|insights|works-\d{3})\.json$|^foundation\/(index|authors|works|sources|observations|other-authors|other-works|pending-authors)\.json$|^(daily|works|work-metrics)\/[1-9]\d{0,7}\.json$/.test(meta.path))fail('invalid-partition-path');files.push({...meta,content:await readPart(meta.path)});}
   return {manifest,files};
 }
 async function observe(db,asOf){
@@ -183,7 +184,8 @@ async function observe(db,asOf){
   const events=[];for(const run of runs){let receipt;try{receipt=JSON.parse(await readFile(join(data,'ingestion-reviews',`run-${run.id}.json`),'utf8'));}catch{continue;}
     if(validatedReceipt(run,receipt,now)&&(receipt.snapshotCount>0||receipt.worksOnly?.accepted>0))events.push({id:run.id,finishedAt:run.finished_at});}
   let source=null;try{source=completedSourceMarker(JSON.parse(await readFile(join(data,'source-poll','manifest.json'),'utf8')),now);}catch{}
-  return {running,events,source,marker:hash({events,source})};
+  const dataMarker=readPublicSourceMarker(db,asOf);
+  return {running,events,source,dataMarker,marker:hash({events,source,dataMarker})};
 }
 async function configure(){
   await privateDirectory(home);if(process.stdin.isTTY)process.stdin.setRawMode(true);
@@ -212,7 +214,7 @@ async function run(){
         try{db.exec('PRAGMA query_only=ON;BEGIN');
           observed=await observe(db,asOf);observed.source??=state.coveredSource;
           observed.committedPublication=readCommittedTargetPublication(db,{asOf});
-          observed.marker=hash({events:observed.events,source:observed.source,
+          observed.marker=hash({events:observed.events,source:observed.source,dataMarker:observed.dataMarker,
             ...(observed.committedPublication.runningSnapshotCount>0 ? {contract:COMMITTED_TARGET_PUBLICATION,
               committedTargets:observed.committedPublication.marker} : {})});
           if(!shouldStagePublicReplica(state, observed,Date.parse(asOf)))return;

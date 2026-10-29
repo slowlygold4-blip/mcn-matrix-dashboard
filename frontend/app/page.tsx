@@ -257,7 +257,7 @@ export default function Home(){
   return()=>{active=false;controller.abort();};
  },[sourceIndex,sourceAuthorsKey,sourceAuthors?.identity,tab,theme,sourceRetry]);
  useEffect(()=>{if(!(tab==='overview'||tab==='source'||tab==='accounts')||foundation)return;let active=true;const controller=new AbortController();setFoundationError('');setFoundationState('loading');(async()=>{try{
-  const index=validateTableFoundationManifest(await readSourceIndex('/table-foundation/index.json',{signal:controller.signal})) as Row;
+  const index=validateTableFoundationManifest(await readSourceIndex('/table-foundation/index.json',{signal:controller.signal,preferReplica:true,manifest:dataRef.current?.manifest})) as Row;
   const verified=await loadTableFoundationEdition(index,(file:Row,revision:string)=>readCreatorSourcePart(file,revision,controller.signal,'/table-foundation/'));
   if(active){setFoundation(verified);setFoundationError('');setFoundationState('ready');}
  }catch(error){if(active&&!controller.signal.aborted){setFoundationError((error as Error).message);setFoundationState('error');}}})();return()=>{active=false;controller.abort();};},[tab,theme,sourceRetry,foundationRetry,foundation]);
@@ -274,7 +274,7 @@ useEffect(()=>{if(!data?.dateIndexed||personal||['topics','source'].includes(tab
   if(personal||!sourceIndex&&!foundation)return;
   const [nextSource,nextFoundation]=await Promise.all([
    sourceIndex?readSourceIndex('/creator-source/index.json',{signal:controller.signal,preferReplica:true,manifest:sourceManifest}).then(validateCreatorSourceIndex):Promise.resolve(null),
-   foundation?readSourceIndex('/table-foundation/index.json',{signal:controller.signal}).then(validateTableFoundationManifest):Promise.resolve(null),
+   foundation?readSourceIndex('/table-foundation/index.json',{signal:controller.signal,preferReplica:true,manifest:sourceManifest}).then(validateTableFoundationManifest):Promise.resolve(null),
   ]);
   const sourceChanged=!!nextSource&&sourceEditionIdentity(nextSource)!==sourceEditionKey;
   const foundationChanged=!!nextFoundation&&foundationEditionIdentity(nextFoundation)!==foundationEditionKey;

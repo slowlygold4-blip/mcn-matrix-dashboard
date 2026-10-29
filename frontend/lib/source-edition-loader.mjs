@@ -25,6 +25,7 @@ export function sourceEditionIdentity(index) {
 
 export function foundationEditionIdentity(index) {
  const valid=validateTableFoundationManifest(index);
+ if(valid.asOf!==undefined){if(!/^[a-f0-9]{64}$/.test(valid.revision))throw Error('补充来源版本校验值无效');return JSON.stringify(['live-foundation-v1',valid.revision]);}
  return JSON.stringify([String(valid.revision),valid.linkFingerprint??'',valid.stats,
   sourcePartsIdentity(valid.files,String(valid.revision),'/table-foundation/')]);
 }

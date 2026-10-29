@@ -47,9 +47,11 @@ export async function readSourcePart(file,revision,signal,root='/creator-source/
  const {fetcher=fetch,timeoutMs=20000}=options;
  if(typeof fetcher!=='function')throw Error('来源读取方法无效');
  const generation=file.generation;
- if(generation!==undefined&&(root!=='/creator-source/'||typeof generation!=='string'||!Number.isFinite(Date.parse(generation))||new Date(generation).toISOString()!==generation||!/^((authors|insights)|works-\d{3})\.json$/.test(file.path)))throw Error('来源分区截面无效');
+ const liveRoot=root==='/creator-source/'?'creator/':root==='/table-foundation/'?'foundation/':null;
+ const livePart=root==='/creator-source/'?/^((authors|insights)|works-\d{3})\.json$/:/^(authors|works|sources|observations|other-authors|other-works|pending-authors)\.json$/;
+ if(generation!==undefined&&(!liveRoot||typeof generation!=='string'||!Number.isFinite(Date.parse(generation))||new Date(generation).toISOString()!==generation||!livePart.test(file.path)))throw Error('来源分区截面无效');
  return boundedRead(signal,async innerSignal=>{
-  const path=generation?'/api/replica?'+new URLSearchParams({generation,part:'creator/'+file.path}):root+file.path;
+  const path=generation?'/api/replica?'+new URLSearchParams({generation,part:liveRoot+file.path}):root+file.path;
   const response=await fetcher(path,{cache:'no-store',signal:innerSignal});
   if(!response.ok)throw Error(`来源分区读取失败：${file.path}`);
   const bytes=await response.arrayBuffer();
@@ -72,23 +74,24 @@ export async function readSourceIndex(url,{signal,fetcher=fetch,timeoutMs=20000,
  if(typeof url!=='string'||!url.startsWith('/')||!safePart(url.slice(1)))throw Error('来源索引路径无效');
  if(typeof fetcher!=='function')throw Error('来源读取方法无效');
  return boundedRead(signal,async innerSignal=>{
-  if(preferReplica&&url==='/creator-source/index.json'){
+  const live=url==='/creator-source/index.json'?{path:'creator/index.json',kind:'creatorIndex',label:'作者作品'}:url==='/table-foundation/index.json'?{path:'foundation/index.json',kind:'foundationIndex',label:'补充来源'}:null;
+  if(preferReplica&&live){
    let manifest=knownManifest;
    if(!manifest){
     const manifestResponse=await fetcher('/api/replica',{cache:'no-store',signal:innerSignal});
-    if(!manifestResponse.ok)throw Error('最新作者作品数据暂不可读，请重试。');
+    if(!manifestResponse.ok)throw Error('最新'+live.label+'数据暂不可读，请重试。');
     manifest=(await manifestResponse.json()).manifest;
    }
-   if(!manifest||typeof manifest.asOf!=='string'||!Number.isFinite(Date.parse(manifest.asOf))||new Date(manifest.asOf).toISOString()!==manifest.asOf||!Array.isArray(manifest.files))throw Error('作者作品发布清单无效');
-   const meta=manifest.files.find(file=>file.path==='creator/index.json');
+   if(!manifest||typeof manifest.asOf!=='string'||!Number.isFinite(Date.parse(manifest.asOf))||new Date(manifest.asOf).toISOString()!==manifest.asOf||!Array.isArray(manifest.files))throw Error(live.label+'发布清单无效');
+   const meta=manifest.files.find(file=>file.path===live.path);
    if(meta){
-    if(meta.kind!=='creatorIndex'||!Number.isSafeInteger(meta.bytes)||meta.bytes<1||!/^[a-f0-9]{64}$/.test(meta.sha256))throw Error('作者作品索引校验信息无效');
+    if(meta.kind!==live.kind||!Number.isSafeInteger(meta.bytes)||meta.bytes<1||!/^[a-f0-9]{64}$/.test(meta.sha256))throw Error(live.label+'索引校验信息无效');
     const r=await fetcher('/api/replica?'+new URLSearchParams({generation:manifest.asOf,part:meta.path}),{cache:'no-store',signal:innerSignal});
-    if(!r.ok)throw Error('最新作者作品索引暂不可读，请重试。');
+    if(!r.ok)throw Error('最新'+live.label+'索引暂不可读，请重试。');
     const bytes=await r.arrayBuffer(),digest=await crypto.subtle.digest('SHA-256',bytes);
-    if(bytes.byteLength!==meta.bytes||[...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('')!==meta.sha256)throw Error('作者作品索引校验不一致');
+    if(bytes.byteLength!==meta.bytes||[...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('')!==meta.sha256)throw Error(live.label+'索引校验不一致');
     const index=JSON.parse(new TextDecoder().decode(bytes));
-    if(index.version!==1||index.asOf!==manifest.asOf||index.timeZone!=='Asia/Shanghai'||!Array.isArray(index.files)||index.files.some(f=>f.generation!==manifest.asOf))throw Error('作者作品版本不一致');
+    if(index.version!==1||index.asOf!==manifest.asOf||index.timeZone!=='Asia/Shanghai'||!Array.isArray(index.files)||index.files.some(f=>f.generation!==manifest.asOf))throw Error(live.label+'版本不一致');
     return index;
    }
    // Old already-published generations have no creator corpus. Only this

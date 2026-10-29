@@ -558,7 +558,8 @@ test('sync lost cloud staging resets local completion and succeeds on replay wit
 });
 
 test('semantic activation refusal keeps verified uploads and exposes only a fixed diagnostic enum',async()=>{
- for(const [message,reason] of [['日期历史未通过全量来源核对，未发布','date-proof-rejected'],['每日发片索引核验失败','publishing-proof-rejected']]){
+ for(const [message,reason] of [['日期历史未通过全量来源核对，未发布','date-proof-rejected'],['每日发片索引核验失败','publishing-proof-rejected'],
+  ['作者作品与经营统计核验失败，未发布','creator-proof-rejected'],['补充来源与统一名册核验失败，未发布','foundation-proof-rejected']]){
   const cloud=fakeCloud(),original=cloud.fetch;let reject=true;
   cloud.fetch=async(url,init={})=>{
    if(reject&&init.method==='POST'&&JSON.parse(init.body).action==='activate')return Response.json({error:message,private:SENTINEL},{status:409});

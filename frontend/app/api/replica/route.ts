@@ -1,11 +1,12 @@
 import {replicaPartitionByteLimit,replicaBatchByteLimit,REPLICA_UPLOAD_MAX_BYTES} from '@/lib/replica-partition-budget.mjs';
 import {auditPublishing} from '@/lib/replica-publishing.mjs';
 import {creatorFile,creatorKind,creatorPartValid,auditCreatorPublication} from '@/lib/replica-creator.mjs';
+import {foundationFile,foundationKind,foundationPartValid,auditFoundationPublication} from '@/lib/replica-foundation.mjs';
 import { env } from "cloudflare:workers";
 import {summaryDescriptors,summaryPartValid} from '@/lib/replica-summary.mjs';
 import {auditDatePublication} from '@/lib/replica-date-audit.mjs';
 export const dynamic = "force-dynamic";
-const PATH = /^(catalog|topics|summary|date-summary-index|publishing)\.json$|^(daily|works|work-metrics)\/[0-9]{1,8}\.json$|^(summary|date-summary|publishing)\/[0-9]{6}\.json$|^creator\/(index|authors|insights|works-\d{3})\.json$/;
+const PATH = /^(catalog|topics|summary|date-summary-index|publishing)\.json$|^(daily|works|work-metrics)\/[0-9]{1,8}\.json$|^(summary|date-summary|publishing)\/[0-9]{6}\.json$|^creator\/(index|authors|insights|works-\d{3})\.json$|^foundation\/(index|authors|works|sources|observations|other-authors|other-works|pending-authors)\.json$/;
 const SHA = /^[a-f0-9]{64}$/;
 const json = (value: unknown, status = 200) => Response.json(value, {status, headers:{"Cache-Control":"no-store", "X-Content-Type-Options":"nosniff"}});
 const runtime = () => {
@@ -65,6 +66,7 @@ export async function POST(request: Request) {
         const parsed=JSON.parse(f.data);
         if(parsed.asOf!==input.asOf || privateKey(parsed) || await bytesHash(f.data)!==f.sha256)return json({error:"分区审查或校验失败"},400);
         if(creatorFile(f)&&!creatorPartValid(parsed,{path:f.path,kind:creatorKind(f.path),count:f.path==='creator/index.json'?parsed.stats?.works:parsed.items?.length},input.asOf))return json({error:'作者作品分区字段或版本无效'},400);
+        if(foundationFile(f)&&!foundationPartValid(parsed,{path:f.path,kind:foundationKind(f.path),count:f.path==='foundation/index.json'?(Array.isArray(parsed.files)?parsed.files.reduce((sum:number,p:{count:number})=>sum+p.count,0):undefined):parsed.items?.length},input.asOf))return json({error:'补充来源分区字段或版本无效'},400);
         if(f.path.startsWith('summary/')&&(f.data.length>1_000_000||!summaryPartValid(parsed,input.asOf)||parsed.items.length<1))return json({error:"历史分片字段或时间不一致"},400);
         if(f.path.startsWith('date-summary/')&&(f.data.length>1_000_000||!summaryPartValid(parsed,input.asOf)||parsed.items.length<1))return json({error:"日期分片字段或时间不一致"},400);
         if(f.path==='date-summary-index.json'&&f.data.length>1_000_000)return json({error:"日期索引过大"},400);
@@ -113,6 +115,7 @@ export async function POST(request: Request) {
     }
     try{await auditPublishing({manifest:input.manifest,readPart:async(path:string)=>{const m=files.find((f:{path:string})=>f.path===path);if(!m)throw Error('missing');const obj=await bucket.get(`${input.asOf}/${m.sha256}`);if(!obj)throw Error('missing');const body=await obj.text();if(await bytesHash(body)!==m.sha256)throw Error('checksum');return JSON.parse(body);}});}catch{return json({error:'每日发片索引核验失败'},409);}
     try{await auditCreatorPublication({manifest:input.manifest,readPart:async(path:string)=>{const m=files.find((f:{path:string})=>f.path===path);if(!m)throw Error('missing');const obj=await bucket.get(`${input.asOf}/${m.sha256}`);if(!obj)throw Error('missing');const body=await obj.text();if(new TextEncoder().encode(body).length!==m.bytes||await bytesHash(body)!==m.sha256)throw Error('checksum');return JSON.parse(body);}});}catch{return json({error:'作者作品与经营统计核验失败，未发布'},409);}
+    try{await auditFoundationPublication({manifest:input.manifest,readPart:async(path:string)=>{const m=files.find((f:{path:string})=>f.path===path);if(!m)throw Error('missing');const obj=await bucket.get(`${input.asOf}/${m.sha256}`);if(!obj)throw Error('missing');const body=await obj.text();if(new TextEncoder().encode(body).length!==m.bytes||await bytesHash(body)!==m.sha256)throw Error('checksum');return JSON.parse(body);}});}catch{return json({error:'补充来源与统一名册核验失败，未发布'},409);}
     const manifest=JSON.stringify(input.manifest);
     const existing=await db.prepare("SELECT manifest FROM replica_generations WHERE generation=?").bind(input.asOf).first<{manifest:string}>();
     if(existing&&existing.manifest!==manifest)return json({error:"历史发布不可改写"},409);
