@@ -1,5 +1,6 @@
 import {validDate,rowsFor} from './replica-model.mjs';
 import {growthSeries} from './replica-trends.mjs';
+import {summaryMetricLookup} from './compact-summary-points.mjs';
 
 const DAY_MS=86400000;
 const MAX_DAYS=14;
@@ -8,7 +9,7 @@ const MAX_DAYS=14;
  * The cohort is selected once using the selected range's real start/end samples.
  * The visible tail never recalculates its baseline or silently borrows other accounts.
  * @param {Array<object>} accounts
- * @param {Array<object>} points
+ * @param {Iterable<object>} points
  * @param {{start:string,end:string,ready?:boolean,metric?:'followers'|'likes'|'posts'}} options
  */
 export function buildOverviewTrendPreview(accounts,points,{start,end,ready=true,metric='followers'}={}){
@@ -43,11 +44,11 @@ export function buildDailyOverviewTrend(accounts,points,{start,end,ready=true,me
  try{
   if(!['followers','likes','posts'].includes(metric)||new Set(accounts.map(a=>a.id)).size!==accounts.length)throw Error('无效账号或指标');
   rowsFor(accounts,points,start,end);
-  const ids=new Set(accounts.map(a=>a.id)),index=new Map(points.filter(p=>ids.has(p.targetId)).map(p=>[`${p.targetId}/${p.date}`,p]));
+  const ids=new Set(accounts.map(a=>a.id)),get=summaryMetricLookup(points,metric);
   const samples=[],first=Math.max(Date.parse(start),Date.parse(end)-(MAX_DAYS-1)*DAY_MS);
   for(let t=first;t<=Date.parse(end);t+=DAY_MS){
    const date=new Date(t).toISOString().slice(0,10),previous=new Date(t-DAY_MS).toISOString().slice(0,10);let known=0,value=0;
-   if(previous>=start)for(const id of ids){const a=index.get(`${id}/${previous}`)?.[metric],b=index.get(`${id}/${date}`)?.[metric];if(a!=null&&b!=null){known++;value+=b-a;}}
+   if(previous>=start)for(const id of ids){const a=get(id,previous),b=get(id,date);if(a!=null&&b!=null){known++;value+=b-a;}}
    samples.push({date,value:known?value:null,known});
   }
   return {state:samples.some(p=>p.value!==null)?'ready':'empty',baselineDate:null,firstVisibleDate:samples[0]?.date,lastVisibleDate:samples.at(-1)?.date,cohortCount:samples.at(-1)?.known??0,totalCount,completeDays:samples.filter(p=>p.value!==null).length,samples,endpointValue:samples.at(-1)?.value??null};

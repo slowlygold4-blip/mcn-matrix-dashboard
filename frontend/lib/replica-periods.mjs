@@ -1,3 +1,4 @@
+import {isCompactSummary} from './compact-summary-points.mjs';
 import {defaultWindow,fields,rowsFor,validDate} from './replica-model.mjs';
 import {summaryPointValid} from './replica-summary.mjs';
 export const BUSINESS_START='2026-09-12';
@@ -37,11 +38,11 @@ export function periodWindowFromCatalog(key,accounts,asOf){
 /** Derive a requested window only on an explicit user action, never from wall-clock time. */
 export function periodWindow(key,accounts,points,asOf){
  checkWindowInputs(key,accounts,asOf);
- if(!Array.isArray(points)||points.some(p=>!summaryPointValid(p,asOf)))throw Error('无效已保存观察或数据截止');
+ if(!isCompactSummary(points,asOf)&&(!Array.isArray(points)||points.some(p=>!summaryPointValid(p,asOf))))throw Error('无效已保存观察或数据截止');
  rowsFor([],points,BUSINESS_START,BUSINESS_START);
  const enabled=accounts.filter(a=>a.enabled===true),ids=new Set(enabled.map(a=>a.id));
- const dates=[...new Set(points.filter(p=>ids.has(p.targetId)&&p.date>=BUSINESS_START&&fields.some(k=>p[k]!==null)).map(p=>p.date))].sort();
+ const observed=new Set();for(const p of points)if(ids.has(p.targetId)&&p.date>=BUSINESS_START&&fields.some(k=>p[k]!==null))observed.add(p.date);const dates=[...observed].sort();
  const end=dates.at(-1),result=requestedWindow(key,end,asOf);
- if(key==='observed'&&end){const w=defaultWindow(enabled,points.filter(p=>p.date>=BUSINESS_START));result.start=w.start||dates[0];result.end=w.end||end;result.requestedEnd=result.end;result.note='首尾90%账号三项有值的日期优先；不足时保留实际观察窗口。不是完整9/12起区间，也不保证窗口内每天完整。'+` 固定请求 ${result.start} → ${result.end}；实际观察截止 ${end}。`;}
+ if(key==='observed'&&end){const w=defaultWindow(enabled,(function*(){for(const p of points)if(p.date>=BUSINESS_START)yield p;})());result.start=w.start||dates[0];result.end=w.end||end;result.requestedEnd=result.end;result.note='首尾90%账号三项有值的日期优先；不足时保留实际观察窗口。不是完整9/12起区间，也不保证窗口内每天完整。'+` 固定请求 ${result.start} → ${result.end}；实际观察截止 ${end}。`;}
  return result;
 }

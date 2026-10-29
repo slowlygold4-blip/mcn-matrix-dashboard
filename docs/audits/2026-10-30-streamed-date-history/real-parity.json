@@ -1,0 +1,115 @@
+{
+  "checkedAt": "2026-10-29T23:21:57.515Z",
+  "dateIndexDerivedReadOnlyFromAllSealedDailyFiles": true,
+  "asOf": "2026-10-29T22:46:09.387Z",
+  "savedPoints": 50596,
+  "retainedColumnBytes": 3238144,
+  "range": {
+    "start": "2026-10-22",
+    "end": "2026-10-30"
+  },
+  "checks": [
+    {
+      "name": "all-canonical-observations",
+      "sha256": "d211c24bae9521ff2ed7f6f591388a18b3b84326249ca15c07a89ca1ad37d2b1"
+    },
+    {
+      "name": "generation-and-complete-receipt",
+      "sha256": "cc67a8cc6e1722170a38c4796fe60ec19daa2f51d9ae4ad2a2f960ac69130afe"
+    },
+    {
+      "name": "account-endpoints-4081",
+      "sha256": "da37f4198fc7028a976dd1cbafed45e99735282ec9a12e9f9d460df732876700"
+    },
+    {
+      "name": "aggregate-4081",
+      "sha256": "d703c48549b47b752db49ce08f98860d212ee16c58fc6e48f9986b5624aee5ec"
+    },
+    {
+      "name": "daily-coverage-4081",
+      "sha256": "d64b4f149ff76050a9e860d6c345996785b5075e8680806b5f13d4cc6f4172d4"
+    },
+    {
+      "name": "growth-4081-followers",
+      "sha256": "ba497e7b7628a505ce5e78b4c288f400a35f3e823cb80a26ff2206f8e6d9e73d"
+    },
+    {
+      "name": "csv-4081-followers",
+      "sha256": "f60c794c21759e576618465abcd720fb3055e39c4ee6384cc12d7f515d457675"
+    },
+    {
+      "name": "growth-4081-likes",
+      "sha256": "8cf03ac870ad693a44bbf07f2c2a02b98d7411574d983d59ca890acef02c57a9"
+    },
+    {
+      "name": "csv-4081-likes",
+      "sha256": "25c082ec6a2b1e0137275eb61747dc355d2230a6ec009650e35d31a9418aacde"
+    },
+    {
+      "name": "growth-4081-posts",
+      "sha256": "591789eafafb09268c65e6205d2ea154b066429e793a3e2e1052ea901fa24d12"
+    },
+    {
+      "name": "csv-4081-posts",
+      "sha256": "f807ef43acf1693f598e5816d8a68c3fcff2b51a80e5598f651f39d79357f972"
+    },
+    {
+      "name": "growth-4081-estimated",
+      "sha256": "20657beb015013ccd9460f8ea4aa08ee68123bc1d631fc2ab5509cfb8266fa7d"
+    },
+    {
+      "name": "csv-4081-estimated",
+      "sha256": "58fc82028098d0814d080b0c99e4c45932123ee191750ef787016e5138eece60"
+    },
+    {
+      "name": "account-endpoints-3936",
+      "sha256": "63a5317af035c85a0ab8a31d7af99eaff063de825c5a224519d7a2331ccdf21b"
+    },
+    {
+      "name": "aggregate-3936",
+      "sha256": "9df4ed4e1058385562e654792c7bdc216c93cb15f6e11c914d23a50b6e94f835"
+    },
+    {
+      "name": "daily-coverage-3936",
+      "sha256": "db8d92f737e000a6af72d53629e7410205918e52de5ac85162c1fa410c1bcf6d"
+    },
+    {
+      "name": "growth-3936-followers",
+      "sha256": "f699e4ec6843396ce7b7bd579536713897474dddb522f53156989bf0927b8cc8"
+    },
+    {
+      "name": "csv-3936-followers",
+      "sha256": "90f487501e3fcb6e32bca97572542928b77ca6554ee6e719a295ab8a01382a12"
+    },
+    {
+      "name": "growth-3936-likes",
+      "sha256": "995b1bb70ea76a1a7c929c7510025795697057eec7523bf9ba76e3ba0744ba66"
+    },
+    {
+      "name": "csv-3936-likes",
+      "sha256": "ae1a1853435c3a992e38aeb93d93f2087874f8934299a6030b726704555dee7b"
+    },
+    {
+      "name": "growth-3936-posts",
+      "sha256": "a46bb63553a10824e4c11e059f7e55c01ff33db54b471ccde18625427b9f3584"
+    },
+    {
+      "name": "csv-3936-posts",
+      "sha256": "3a07f702336f93186c6f32c0924c178bf68b4800d1c5fc0601d081fa2db4325b"
+    },
+    {
+      "name": "growth-3936-estimated",
+      "sha256": "1c60a3c1fb0050ee3b8951dbb34d678e529cf719705ccd5b90fd05c35aa70f20"
+    },
+    {
+      "name": "csv-3936-estimated",
+      "sha256": "437dcdcc7c3330c63d86b669754fb7a33db7039f3ec9effdb257f60ea92dd6b5"
+    }
+  ],
+  "authenticatedFileReads": 56,
+  "observationsChanged": 0,
+  "networkRequests": 0,
+  "databaseWrites": 0,
+  "modelCalls": 0,
+  "browserUsed": false
+}

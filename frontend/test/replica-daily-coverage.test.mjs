@@ -17,7 +17,15 @@ test('coverage window remains bounded90 while chosen multiyear range is not rede
  assert.deepEqual(dailyCoverageWindow({start:'2026-01-01',end:'2028-12-31'}),{start:'2026-01-01',end:'2026-03-31'});
  const r=dailyCoverageRequest({start:'2026-01-01',end:'2028-12-31',offset:90});
  assert.ok(r.dates.includes('2026-03-31'));assert.ok(r.dates.includes('2028-12-31'));
- assert.deepEqual(r.ranges,[{start:'2026-04-01',end:'2026-06-29'}]);
+ assert.deepEqual(r.ranges,[{start:'2026-04-01',end:'2026-06-29'},{start:'2028-12-17',end:'2028-12-31'}]);
+});
+test('latest14 adjacent changes remain requested beyond the first90-day curve page, including comparison',()=>{
+ const request=dailyCoverageRequest({start:'2026-09-12',end:'2027-10-30',otherStart:'2026-01-01',otherEnd:'2026-12-31'});
+ assert.equal(request.ranges.length,3);
+ assert.ok(request.ranges.some(r=>r.start<='2027-10-16'&&r.end==='2027-10-30'));
+ assert.ok(request.dates.includes('2026-09-12')&&request.dates.includes('2027-10-30'));
+ const lastPage=dailyCoverageRequest({start:'2026-09-12',end:'2027-10-30',offset:399});
+ assert.equal(lastPage.ranges.length,1,'tail already inside a later visible curve page must not be fetched again');
 });
 test('comparison-only trailing window does not invent current coverage days',()=>{
  assert.equal(dailyCoverageWindow({start:'2026-09-20',end:'2026-09-21',offset:90}),null);

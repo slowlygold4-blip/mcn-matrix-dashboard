@@ -9,5 +9,9 @@ export function dailyCoverageWindow({start,end,offset=0}) {
 }
 export function dailyCoverageRequest(options) {
  const trend=trendRangeRequest(options),window=dailyCoverageWindow(options);
- return normalizeDateRequest({ranges:trend.ranges,dates:[...trend.dates,...(window?[move(window.start,-1)]:[])]});
+ // Overview always shows the latest 14 days, independently of the paged
+ // cumulative curve. Include its preceding day for adjacent-day differences.
+ const tail={start:move(options.end,-14)<options.start?options.start:move(options.end,-14),end:options.end};
+ const ranges=trend.ranges.some(r=>r.start<=tail.start&&tail.end<=r.end)?trend.ranges:[...trend.ranges,tail];
+ return normalizeDateRequest({ranges,dates:[...trend.dates,...(window?[move(window.start,-1)]:[])]});
 }

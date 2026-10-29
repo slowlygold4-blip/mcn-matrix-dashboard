@@ -17,7 +17,7 @@ const signed=(n:number|null)=>n===null?'—':(n>0?'+':'')+fmt(n);
 const time=(s:string|null)=>s?new Date(s).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'没有该日指标采样';
 const observation=(value:number|null,at:string|null)=>value===null?(at?'指标值缺失 · 源记录时间 '+time(at):'没有该日指标采样'):time(at);
 const platforms:Record<string,string>={douyin:'抖音',bilibili:'B站',xiaohongshu:'小红书',kuaishou:'快手'};
-export function DailyCoveragePanel({accounts,points,manifest,start,end,offset,onOffset,onAccount,ready,suspended=false}:{accounts:Row[];points:Row[];manifest:Row;start:string;end:string;offset:number;onOffset:(n:number)=>void;onAccount:(a:Row)=>void;ready:boolean;suspended?:boolean}) {
+export function DailyCoveragePanel({accounts,points,manifest,start,end,offset,onOffset,onAccount,ready,suspended=false}:{accounts:Row[];points:Iterable<Row>;manifest:Row;start:string;end:string;offset:number;onOffset:(n:number)=>void;onAccount:(a:Row)=>void;ready:boolean;suspended?:boolean}) {
  const [metric,setMetric]=useState<Metric>('followers'),[datePage,setDatePage]=useState(1),[dateOrder,setDateOrder]=useState<'asc'|'desc'>('desc');
  const [drill,setDrill]=useState<{date:string;reason:Reason}|null>(null),[memberPage,setMemberPage]=useState(1),[sort,setSort]=useState('id'),[order,setOrder]=useState<'asc'|'desc'>('asc');
  const returnFocus=useRef<HTMLButtonElement|null>(null);

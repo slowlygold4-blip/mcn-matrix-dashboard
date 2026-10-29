@@ -1,5 +1,5 @@
 const SHA=/^[a-f0-9]{64}$/;
-import {validDate} from './replica-model.mjs';
+import {validDate} from './replica-date-value.mjs';
 const FIELDS=['targetId','date','capturedAt','followers','followersAt','likes','likesAt','posts','postsAt'];
 const keys=(x,names)=>x&&typeof x==='object'&&!Array.isArray(x)&&Object.keys(x).length===names.length&&Object.keys(x).every(k=>names.includes(k));
 const nat=x=>Number.isSafeInteger(x)&&x>=0;

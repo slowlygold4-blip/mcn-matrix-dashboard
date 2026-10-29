@@ -1,0 +1,33 @@
+{
+  "manifestHttpStatus": 200,
+  "asOf": "2026-10-29T23:17:09.449Z",
+  "accounts": 4130,
+  "loadedPoints": 47423,
+  "retainedColumnBytes": 3140800,
+  "verifiedParts": 28,
+  "historyComplete": true,
+  "request": {
+    "ranges": [
+      {
+        "start": "2026-09-12",
+        "end": "2026-10-30"
+      }
+    ],
+    "dates": [
+      "2026-09-11",
+      "2026-09-12",
+      "2026-10-30"
+    ]
+  },
+  "checkedAt": "2026-10-29T23:27:52.113Z",
+  "elapsedMs": 11026,
+  "readDeadlineMs": 20000,
+  "homeHttpStatus": 200,
+  "htmlSha256": "e6b96a7065db5b9c854c5c7297b4341e64e1da2767ec4752484df987fb81853d",
+  "network": "existing-env-proxy",
+  "anonymous": true,
+  "browserAcceptance": false,
+  "collectionCommands": 0,
+  "databaseWrites": 0,
+  "modelCalls": 0
+}

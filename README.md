@@ -73,3 +73,5 @@ MCN_MAIN_ROOT="$PWD/" node --test --test-concurrency=2 frontend/test/*.test.mjs
 作品话题分类修复、每日发片分类筛选与发布等待期间的开销优化见 [WORK_CLASSIFICATION_AND_PUBLISHING_20261030.md](docs/WORK_CLASSIFICATION_AND_PUBLISHING_20261030.md)。无浏览器采集路径研究与官方 HTTP 隔离测试工具见 [COLLECTION_METHODS_REVIEW_20261030.md](docs/COLLECTION_METHODS_REVIEW_20261030.md)。
 
 覆盖口径、发布器空闲内存生命周期及长期查询上限审查见 [COVERAGE_QUALITY_AND_PUBLISHER_LIFETIME_20261030.md](docs/COVERAGE_QUALITY_AND_PUBLISHER_LIFETIME_20261030.md)。
+
+日期历史长期读取已改造并部署v124；[报告与验证边界](docs/STREAMED_DATE_HISTORY_20261030.md)记录299项工作副本测试、105项公开相关测试，以及公开源码17项缺数据测试和缺托管脚手架的编译限制。

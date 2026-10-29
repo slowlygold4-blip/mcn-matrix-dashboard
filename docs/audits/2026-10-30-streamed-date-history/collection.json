@@ -1,0 +1,58 @@
+{
+  "runtimeAI": false,
+  "accounts": 4081,
+  "topics": 4,
+  "rolling": {
+    "since": "2026-10-28T23:30:01.362Z",
+    "total": 4085,
+    "attempted": 4085,
+    "profileTotal": 4081,
+    "profiles": 4072,
+    "topics": 4,
+    "updated": 4076,
+    "notUpdated": 9,
+    "worksComplete": 0,
+    "worksLimited": 103,
+    "workIssues": 4058,
+    "reasons": [
+      {
+        "code": "transport-cooldown",
+        "count": 3977
+      },
+      {
+        "code": "blocked",
+        "count": 81
+      }
+    ]
+  },
+  "run": {
+    "id": 26578,
+    "status": "success",
+    "kind": "scheduled",
+    "startedAt": "2026-10-29T23:29:32.911Z",
+    "finishedAt": "2026-10-29T23:29:35.197Z",
+    "heartbeatAt": "2026-10-29T23:29:35.197Z",
+    "total": 1,
+    "processed": 1,
+    "success": 1,
+    "failed": 0,
+    "warnings": 1,
+    "skipped": 0,
+    "current": null
+  },
+  "queue": {
+    "pending": 4274,
+    "resolved": 7811,
+    "rejected": 7295
+  },
+  "coverage": {
+    "runId": 26574,
+    "finishedAt": "2026-10-29T23:02:34.532Z",
+    "total": 45,
+    "profiles": 45,
+    "worksComplete": 0,
+    "worksLimited": 0,
+    "topics": 0
+  },
+  "observedAt": "2026-10-29T23:30:01.480175+00:00"
+}

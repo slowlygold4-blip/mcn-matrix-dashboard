@@ -14,7 +14,7 @@ type Row=Record<string,any>;
 const names:Record<string,string>={followers:'粉丝',likes:'点赞',posts:'作品存量',estimated:'估算播放'};
 const units:Record<string,string>={followers:'人',likes:'次',posts:'条',estimated:'次（估算）'};
 const number=(n:number|null)=>n===null?'缺测':(n>0?'+':'')+n.toLocaleString('zh-CN');
-export function GrowthPanel({accounts,points,manifest,start,end,comparison:controlledComparison,onComparison:controlledChange,offset:controlledOffset,onOffset:controlledOffsetChange,ready=true,pendingError='',suspended=false,scopeKey=''}:{accounts:Row[];points:Row[];manifest:Row;start:string;end:string;comparison?:Row;onComparison?:(x:Row)=>void;offset?:number;onOffset?:(x:number)=>void;ready?:boolean;pendingError?:string;suspended?:boolean;scopeKey?:string}){
+export function GrowthPanel({accounts,points,manifest,start,end,comparison:controlledComparison,onComparison:controlledChange,offset:controlledOffset,onOffset:controlledOffsetChange,ready=true,pendingError='',suspended=false,scopeKey=''}:{accounts:Row[];points:Iterable<Row>;manifest:Row;start:string;end:string;comparison?:Row;onComparison?:(x:Row)=>void;offset?:number;onOffset?:(x:number)=>void;ready?:boolean;pendingError?:string;suspended?:boolean;scopeKey?:string}){
  const [localComparison,setLocalComparison]=useState<Row>({compare:false,otherStart:'',otherEnd:''}),[localOffset,setLocalOffset]=useState(0);
  const comparison=controlledComparison??localComparison,onComparison=controlledChange??setLocalComparison,offset=controlledOffset??localOffset,onOffset=controlledOffsetChange??setLocalOffset;
  const [metric,setMetric]=useState('followers'),[exportError,setExportError]=useState('');const {compare,otherStart,otherEnd}=comparison;

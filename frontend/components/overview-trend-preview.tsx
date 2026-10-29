@@ -5,7 +5,7 @@ import {buildOverviewTrendPreview,buildDailyOverviewTrend,overviewTrendGeometry}
 
 type Row=Record<string,unknown>;
 type Metric='followers'|'likes'|'posts';
-type Props={accounts:Row[];points:Row[];start:string;end:string;ready:boolean;metric?:Metric;initialMode?:'daily'|'cumulative'};
+type Props={accounts:Row[];points:Iterable<Row>;start:string;end:string;ready:boolean;metric?:Metric;initialMode?:'daily'|'cumulative'};
 const labels:Record<Metric,string>={followers:'粉丝',likes:'主页获赞',posts:'作品存量'};
 
 const number=(value:number|null|undefined)=>value==null?"—":`${value>0?"+":""}${value.toLocaleString("zh-CN")}`;

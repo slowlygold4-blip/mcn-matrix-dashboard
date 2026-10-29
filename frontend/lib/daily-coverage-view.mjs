@@ -1,5 +1,6 @@
 // Pure view of already verified date-summary points. This is not a source/hash/asOf verifier.
 // No Node imports: the same contract can be used by the local product and public browser.
+import {isCompactSummary,summaryCollection} from './compact-summary-points.mjs';
 export const DAILY_COVERAGE_METRICS = Object.freeze(['followers', 'likes', 'posts']);
 export const DAILY_COVERAGE_REASONS = Object.freeze(['comparable', 'missingCurrent', 'missingBaseline']);
 const DAY_MS = 86_400_000;
@@ -55,8 +56,11 @@ function selectedAccounts(accounts) {
   return selected.sort((a, b) => a.id - b.id);
 }
 
-function selectedIndex(accounts, points, start, end) {
-  demand(Array.isArray(points), 'points');
+function selectedIndex(accounts, points, start, end, full = true) {
+  demand(summaryCollection(points), 'points');
+  // Compact inputs are private, immutable and fully validated on admission.
+  // Keep their exact binary lookup rather than rebuilding 90 days of objects.
+  if(isCompactSummary(points))return {get(key){const [date,id]=key.split('/');return full?points.get(Number(id),date):points.values(Number(id),date);}};
   const ids = new Set(accounts.map(account => account.id)), index = new Map();
   for (const point of points) {
     demand(point && typeof point === 'object' && !Array.isArray(point)
@@ -91,7 +95,7 @@ function metricPair(current, baseline, metric) {
 /** One immutable-in-input count row per selected Beijing date. Missing data is never fabricated. */
 export function buildDailyCoverage(accounts, points, { start, end } = {}) {
   const selected = selectedAccounts(accounts), { baselineStart, dates } = rangeDates(start, end);
-  const index = selectedIndex(selected, points, baselineStart, end);
+  const index = selectedIndex(selected, points, baselineStart, end, false);
   return dates.map((date, position) => {
     const baselineDate = position === 0 ? baselineStart : dates[position - 1];
     const metrics = Object.fromEntries(DAILY_COVERAGE_METRICS.map(metric => [metric,

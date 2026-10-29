@@ -1,3 +1,4 @@
+import {isCompactSummary} from './compact-summary-points.mjs';
 import {fields,validDate,rowsFor} from './replica-model.mjs';
 import {personalPoints} from './replica-account.mjs';
 import {growthSeries} from './replica-trends.mjs';
@@ -98,7 +99,7 @@ export function historyExport({rows,kind,account,manifest,start=null,end=null}){
 /** Compact CSV: one metadata row, one row per fixed cohort member, then visible curve points. */
 export function trendExport({accounts,points,manifest,options}){
  const fixed=publication(manifest);
- if(!Array.isArray(points)||points.some(p=>!summaryPointValid(Object.fromEntries(['targetId','date','capturedAt',...fields.flatMap(k=>[k,k+'At'])].map(k=>[k,p[k]])),manifest.asOf)))throw Error('曲线导出采样超出固定版本或来源日期不一致');
+ if(!isCompactSummary(points,manifest.asOf)&&(!Array.isArray(points)||points.some(p=>!summaryPointValid(Object.fromEntries(['targetId','date','capturedAt',...fields.flatMap(k=>[k,k+'At'])].map(k=>[k,p[k]])),manifest.asOf))))throw Error('曲线导出采样超出固定版本或来源日期不一致');
  const series=growthSeries(accounts,points,options),field=options.metric==='estimated'?'likes':options.metric??'followers';
  accounts.forEach(identity);const cohort=new Set(series.cohortTargetIds),selectedIds=accounts.map(a=>a.id).sort((a,b)=>a-b);
  const current=new Map(rowsFor(accounts,points,options.start,options.end).map(a=>[a.id,a.metrics[field]]));

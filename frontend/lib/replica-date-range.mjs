@@ -1,5 +1,6 @@
 import {validDate} from './replica-model.mjs';
 import {summaryPartValid,summaryPointValid} from './replica-summary.mjs';
+import {compactSummaryBuilder,SUMMARY_RETAINED_BYTES} from './compact-summary-points.mjs';
 const SHA=/^[a-f0-9]{64}$/;
 const own=(x,ks)=>x&&typeof x==='object'&&!Array.isArray(x)&&Object.keys(x).length===ks.length&&Object.keys(x).every(k=>ks.includes(k));
 const nat=x=>Number.isSafeInteger(x)&&x>=0;
@@ -51,27 +52,31 @@ export function validateDateShard(part,descriptor,manifest,previous=null){
 /** readPart must authenticate raw bytes against the sealed manifest before returning parsed JSON. */
 export async function loadSummaryRange({manifest,readPart,request,signal}){
  const wanted=normalizeDateRequest(request),matches=date=>wanted.dates.includes(date)||wanted.ranges.some(r=>r.start<=date&&date<=r.end);
- signal?.throwIfAborted();const points=[],loadedParts=[];
+ signal?.throwIfAborted();let points=[];const loadedParts=[];
  if(manifest.files.some(f=>f.kind==='summaryDateIndex')){
   const index=await readPart('date-summary-index.json');signal?.throwIfAborted();
   const all=await dateDescriptors(index,manifest),selected=all.filter(s=>wanted.dates.some(d=>s.firstDate<=d&&d<=s.lastDate)||wanted.ranges.some(r=>r.start<=s.lastDate&&s.firstDate<=r.end));
-  demand(selected.reduce((n,s)=>n+s.count,0)<=200000&&selected.reduce((n,s)=>n+s.bytes,0)<=64000000);
-  // The page has one bounded read deadline. Read only the selected date shards,
-  // with a small concurrency cap, then validate them in the manifest's order.
-  // Never return a partial range when a shard fails or the read is cancelled.
-  const parts=new Array(selected.length);let next=0,stopped=false,failure=null;
-  await Promise.all(Array.from({length:Math.min(10,selected.length)},async()=>{
-   while(!stopped&&next<selected.length){
-    const i=next++,s=selected[i];
-    try{signal?.throwIfAborted();const part=await readPart(s.path);signal?.throwIfAborted();
-     demand(summaryPartValid(part,manifest.asOf)&&part.items.length===s.count);
-     parts[i]=part;
-    }catch(error){stopped=true;failure??=error;return;}
-   }
-  }));
-  if(failure)throw failure;
+  const capacity=selected.reduce((n,s)=>n+s.count,0),bytes=selected.reduce((n,s)=>n+s.bytes,0);
+  // Bound retained typed storage, not lifetime JSON transfer. The normal pair
+  // of 90-day matrix windows fits without downloading the whole saved history.
+  // Each authenticated shard is <=1MB and only one batch is retained at a time.
+  if(capacity*64>SUMMARY_RETAINED_BYTES||bytes>320_000_000)throw Error('所选日期窗口超过读取预算，请翻页查看曲线或缩小比较范围；已保存历史未删除');
+  const compact=capacity>16384?compactSummaryBuilder(capacity,manifest.asOf):null;
   let previous=null;
-  for(const [i,s] of selected.entries()){signal?.throwIfAborted();const part=parts[i];previous=validateDateShard(part,s,manifest,previous);points.push(...part.items.filter(p=>matches(p.date)));loadedParts.push(s.path);}
+  for(let offset=0;offset<selected.length;offset+=10){
+   signal?.throwIfAborted();const batch=selected.slice(offset,offset+10);
+   const settled=await Promise.allSettled(batch.map(async s=>{signal?.throwIfAborted();const part=await readPart(s.path);signal?.throwIfAborted();return part;}));
+   const failed=settled.find(result=>result.status==='rejected');if(failed)throw failed.reason??Error('日期分区读取失败');
+   const parts=settled.map(result=>result.value);
+   for(const [i,s] of batch.entries()){
+    signal?.throwIfAborted();const part=parts[i];previous=validateDateShard(part,s,manifest,previous);
+    for(const p of part.items)if(matches(p.date)){if(compact)compact.append(p);else points.push(p);}
+    loadedParts.push(s.path);
+   }
+   // Let navigation/cancellation run between bounded parsing batches.
+   await new Promise(resolve=>setTimeout(resolve,0));
+  }
+  if(compact)points=compact.finish();
  }else{
   // Exact legacy sources, no fabricated shard date bounds or immutable generation rewrite.
   const fields=['targetId','date','capturedAt','followers','followersAt','likes','likesAt','posts','postsAt'];

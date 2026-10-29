@@ -1,0 +1,598 @@
+✔ accounts heading reconciles full roster without calling each unlinked target a new person (9.08375ms)
+✔ other themes and unavailable roster do not inherit the Tuantuan count (1.796291ms)
+✔ personal share has one canonical author and fixed date/version with no reflected private parameters (1.61875ms)
+✔ paused pre-business observations retain zero and unknown, reject mixed identity, repeated dates and future samples (0.30575ms)
+✔ sealed personal history reader requires the actual bytes/hash/count, not a forged matching response header (11.845333ms)
+✔ sealed works reader accepts strict source-row IDs but still rejects forged or repeated IDs (2.796709ms)
+✔ overview retains every imported author regardless of monitoring availability (2.078083ms)
+✔ classification preserves source-only authors with explicit source evidence (0.359666ms)
+✔ same author row presents source values, period endpoints and missing reasons (101.576125ms)
+✔ empty strict period exposes an explicit verified-range action while retaining all authors (24.421834ms)
+✔ default account landing shows the full matrix and keeps explicit changes links (0.363792ms)
+✔ all themes retain thousands of imported authors once, plus other-platform accounts (3.955167ms)
+✔ same ID adopts one value per metric, includes new works and keeps missing as null (1.562416ms)
+✔ latest saved sample replaces older duplicate without summing; wrong account is rejected (0.255041ms)
+✔ sort uses displayed adopted values, missing last both directions; search uses title and ID (0.48ms)
+✔ source-only works remain usable without private workbook files or monitored target bindings (0.279625ms)
+✔ dated supplied observations supersede older platform values without another work or fabricated daily growth (1.733208ms)
+✔ each metric adopts its own latest valid evidence, including decreases and true source zero (0.297209ms)
+✔ source-only authors receive dated metrics and their source date remains a publication day (0.185917ms)
+✔ future/undated/unrelated owners and unrelated content cannot replace known work values (0.264291ms)
+✔ same-time conflicting evidence stays unavailable; equal repeated observations count once (0.151042ms)
+✔ sorting follows the adopted value rather than either old cumulative source (0.131958ms)
+✔ submission and legacy record clocks never supersede a measured value or invent a measurement date (0.579916ms)
+✔ unique submitted cumulative records fill a genuinely missing metric without a fabricated measurement clock (0.097667ms)
+✔ missing business baseline offers a genuine shared pair without fabricating deltas (2.060416ms)
+✔ ties favor latest end then earliest start; disabled and incomplete vectors excluded (0.285917ms)
+✔ bitset boundary accounts, zero counters, sparse dates and invalid data (1.127625ms)
+✔ four states distinguish unknown and genuine zero, including invalid numbers (0.289542ms)
+✔ curve uses a zero axis and leaves missing samples unconnected (10.6545ms)
+✔ empty and zero-only curves cannot generate invalid coordinates (0.058625ms)
+✔ public status, authenticated single-flight command, durable ack and completion (17.393583ms)
+✔ single-use pairing, CSRF, invalid secret, offline and expiration (2.814583ms)
+✔ status is bounded, strips secrets and disallows model-driven telemetry (0.196ms)
+✔ stale producer telemetry rejected and terminal receipts cannot regress (1.6205ms)
+✔ compact storage round-trips exact times, max safe counters, real zero and null; sealed data is immutable (2.011208ms)
+✔ compact admission rejects duplicates, disorder, over-budget allocation, invalid timestamps and writes after seal (0.560541ms)
+✔ all user-facing metric computations and source-aware CSV match array input exactly (6.969042ms)
+✔ one adopted value feeds global, day, multi-category and row metrics without zeroing missing or adding duplicates (7.033916ms)
+✔ safe integer overflow stays unavailable while preserving coverage counts (0.267084ms)
+✔ forged global/day aggregates cannot pass a full row audit even when all values are valid numbers (0.986375ms)
+✔ metric rows and historical rows cannot silently mix into a claimed complete aggregate (0.236167ms)
+✔ empty but uncollected works never acquire zero engagement counters (0.1385ms)
+✔ fresh complete, fresh limited and recent unsuccessful attempts remain separate evidence (0.969083ms)
+✔ real coverage panel prioritizes a recent miss, retains a prior observation, and does not call partial work a nonempty list (14.308667ms)
+✔ real account coverage shows last attempt and prior valid observation as different timestamps (0.39175ms)
+✖ published legacy insight remains compatible without unknown-date counters (0.397ms)
+✔ partial dates validate against all source works, not only the dated subset (0.422417ms)
+✔ source intelligence counts publication, not playback growth, and leaves missing metrics missing (6.535458ms)
+✔ all-missing source metrics stay unknown while a recorded zero remains zero (0.169708ms)
+✖ published analysis is derived from exactly the sealed source revision (0.178584ms)
+✔ unknown publication dates retain identities, cumulative metrics and rankings without inventing timeline points (0.224ms)
+✔ a nonempty invalid publication date fails explicitly instead of becoming missing data (0.208792ms)
+✔ duplicate work identifiers are refused instead of double-counted (0.062083ms)
+✔ reciprocal name-ID zero rows collapse without deleting the source evidence (0.113375ms)
+✔ later source observations choose a unique latest value and quarantine same-time conflicts (0.141833ms)
+✖ sealed supplemental source sample exposes conflicts without replacing the main works total (0.410416ms)
+✖ public creator projection contains every imported author/work, exact sealed bytes, and no private columns (1.457ms)
+✔ source publication includes undated works and seals counts, known metrics and chronology separately (38.486084ms)
+✔ invalid source analysis fails before overwriting any published partition or creating a new output (156.703459ms)
+✔ same frozen source is the only route to current proof projection (1.575958ms)
+✔ same revision but changed raw author evidence fails before reading any links (0.606042ms)
+✔ legacy fixture may omit both current imports but a one-sided import fails closed (0.234208ms)
+✔ base author rows without a frozen import cannot silently publish stale links (0.1775ms)
+✔ a later strictly verified link updates both public author projection and foundation edition without changing source revision (192.657916ms)
+✔ missing 9/12 baseline does not hide subsequent consecutive daily growth (1.476666ms)
+✔ per-day cohorts preserve true zero/negative and metric-specific missing fields (0.498917ms)
+✔ bad or duplicate source observations cannot silently produce daily values (0.100584ms)
+✔ fresh receipt links existing author without creating duplicate, preserves source metrics and input (0.928459ms)
+✔ authoritative projection revokes obsolete static link without nickname matching (0.3995ms)
+✔ old generations retain frozen bindings; conflicting versions and duplicate identity links fail closed (0.279833ms)
+✔ source updates publish without rebuilding the frontend; readers pin exact source generations (21.951834ms)
+{"event":"replica-activation-rejected","phase":"creator","stage":null,"verifiedDaily":null,"expectedDaily":null,"requestAborted":false,"reason":"validation-failed","elapsedMs":0}
+✔ incorrect source aggregation cannot activate or displace the previous published generation (3.62525ms)
+✔ creator index reads the live sealed corpus and parts stay pinned across later publication changes (11.520833ms)
+✔ only an old published manifest without creator parts permits static fallback (0.586167ms)
+✔ hash or generation drift never silently falls back to stale static data (1.022833ms)
+✔ source content identity ignores publication-only clock changes but detects actual corpus changes (0.399833ms)
+✔ a previously verified manifest avoids another metadata request and keeps old-generation static sources independent (0.249625ms)
+✔ new supplementary authors reach the same immutable public pipeline without a frontend build (24.267542ms)
+{"event":"replica-activation-rejected","phase":"foundation","stage":null,"verifiedDaily":null,"expectedDaily":null,"requestAborted":false,"reason":"validation-failed","elapsedMs":0}
+✔ invalid supplementary totals cannot replace the last readable generation (4.562417ms)
+✔ a foundation hash failure stays visible and does not fall back to old static files (0.559291ms)
+✔ only an explicitly older manifest without foundation partitions permits static fallback (0.40825ms)
+✔ storage failure identifies the fixed activation phase without leaking a response or publishing (1.557084ms)
+✔ net equals gains plus losses; missing is separate; duplicates and paused do not inflate totals (0.614208ms)
+✔ top five denominator uses all positive gains; independent of net and loss (0.104417ms)
+✔ independent streamer membership excludes even the main IP from matrix totals, preserving explicit streamer access (0.593292ms)
+✔ ledger distinguishes an observed zero from an unknown coverage count (20.418ms)
+✔ geometry stays finite and bounded across rotation and pointer tilt (0.967375ms)
+✔ motion stops independently for system preference, user choice, hidden tab and offscreen (0.093792ms)
+✔ optional author-directory failure leaves verified overview visible and roster dedupe pending (78.085916ms)
+✔ required main sources remain fatal while supplemental failure stays separately disclosed (2.143125ms)
+✔ older source-only authors retain stable provenance, including missing IDs, without invented metrics (6.046875ms)
+✔ represented IDs and reciprocal creator aliases are skipped, while historical ID conflicts stay separate (0.197875ms)
+✔ selected relative day retains separate actual dates, zero and negatives (0.562333ms)
+✔ selected missing day and short comparison do not borrow neighbors (0.055958ms)
+✔ default selection is true final row, even missing, without replacing existing A/B endpoints (0.07ms)
+✔ keyboard selection is bounded to this screen, using exact day offsets (0.335416ms)
+✔ same refreshed scope stable; metric/account/page/applied range/scope reset keys (4.311ms)
+✔ reading helpers never mutate source cumulative curve or convert missing to zero (0.088583ms)
+✔ topic cards keep each metric’s latest real value and daily delta independent across missing observations (20.824791ms)
+✔ unknown topic metrics stay unknown rather than becoming zero or inheriting a contradictory delta (3.026417ms)
+✔ topic daily change marks positive, negative, zero and missing without changing the displayed data (9.96325ms)
+✔ unverified newer topic observations cannot replace verified headline values or create daily change (3.247333ms)
+✔ recent seven Beijing calendar days compute real play change only against the immediately preceding verified day (2.48825ms)
+✔ unverified, absent and malformed play values never become daily growth or synthetic zero (0.112625ms)
+✔ participant trend uses participant observations, never borrows playback deltas (0.101209ms)
+✔ actual Home shortcuts are direct, derived, idempotent and do not reset page on same selection (37.448625ms)
+✔ actual Home retains positive, zero, negative, missing and tie rows, with null last in both CSV orders (6.370584ms)
+✔ actual Home all-negative/all-positive/all-zero/all-missing never turns shortcuts into sign filters (17.079209ms)
+✔ actual Home preserves range/comparison/draft/filter, refresh address and exact return focus/page/CSV (6.603125ms)
+✔ parent matrix/theme/account label filter controls counts, card metrics, calendar and detail rows together (2.792667ms)
+✔ account original classification and work original tag are independent filters; overlaps never duplicate work counts (0.118625ms)
+✔ loading and unsupported legacy scopes never render a different theme as the chosen theme (0.326875ms)
+✔ work-category counts and detail filters agree without adding multi-topic works twice (5.289708ms)
+✔ Beijing calendar preserves known zero and missing days as different values (0.982959ms)
+✔ undated works are directly readable without fabricating a publication date (11.950959ms)
+✔ one selected day reads all bounded shards, without requesting other days (5.346834ms)
+✔ generation, date, missing-part and duplicate-part mismatches stop before network (0.290459ms)
+✔ valid hashes cannot legitimize wrong-day or duplicate work identities (0.823375ms)
+✔ publication cohort selection changes counts and adopted totals together; unknown dates are retained outside bounded cohorts (0.976875ms)
+✔ first current day demands its preceding day without changing interval endpoints (1.818666ms)
+✔ comparison keeps four endpoints and adds only current daily baseline (4.324875ms)
+✔ coverage window remains bounded90 while chosen multiyear range is not redefined (0.1405ms)
+✔ latest14 adjacent changes remain requested beyond the first90-day curve page, including comparison (0.164ms)
+✔ comparison-only trailing window does not invent current coverage days (0.094333ms)
+✔ daily counts retain real zero and negative and exact adjacent baseline (0.5165ms)
+✔ date windows reject malformed bounds and unbounded offsets (0.10825ms)
+✔ fully audits 3001 daily partitions with bounded overlap and no skipped source (98.557917ms)
+✔ rejects a missing or tampered daily source, including an in-flight failure (2.3535ms)
+✔ large source bodies reduce the in-flight read budget instead of multiplying memory (42.657083ms)
+✔ rejects a sealed date shard whose value differs from the sealed daily source (1.299541ms)
+✔ abort stops dispatch and never reports a complete publication (2.503084ms)
+✔ progress exposes only fixed phases and verified counts, never unfinished or private source data (3.001167ms)
+✔ fixed missing, checksum and digest codes identify the failure without leaking content (0.713541ms)
+✔ selected date shards read concurrently but return original manifest order and complete receipt (33.073459ms)
+✔ first shard read failure stops the queue without returning partial summary (16.55275ms)
+✔ overlapping shards with a repeated account/date remain invalid despite concurrent delivery (0.678292ms)
+✔ 4081 accounts across 90 observed days load all 367290 points with bounded storage and exact growth (6293.623625ms)
+✔ range cancellation or corrupt late shard never returns a partial receipt (295.374708ms)
+✔ work CSV exports one merged row with platform adopted value and independent table evidence (2.033292ms)
+✔ source-only, platform-only and null/placeholder fallback retain truthful origin (0.371125ms)
+✔ work CSV refuses a new-generation duplicate content ID instead of exporting two rows (0.253042ms)
+✔ themes partition exact enabled endpoints; paused records excluded, negative/zero/missing preserved (1.038375ms)
+✔ content labels may overlap without duplicate member contributions within the same tag (0.108333ms)
+✔ group missing stays last in either direction and ties retain stable source key (4.849667ms)
+✔ duplicate author identities and conflicting source labels cannot inflate groups (0.163375ms)
+✔ 50 immutable files use bounded R2 workers and four D1 round trips, not per-file reads/writes (82.012208ms)
+✔ invalid final file is rejected before any object or metadata write (0.788ms)
+✔ duplicate paths and existing hash conflicts are rejected before storage (0.890042ms)
+✔ R2 failure drains sibling operations and does not commit metadata or an acknowledgement (59.869916ms)
+✔ metadata failure has no partial index and retry safely reuses immutable objects (1.291625ms)
+✔ racing incompatible metadata cannot produce a false accepted receipt or overwrite its predecessor (0.561834ms)
+✔ sealed generations admit exact retries and forbid changed files or newly inserted paths (0.739959ms)
+✔ anonymous uploads never reach a database or object operation (0.125208ms)
+✔ gzip upload validates the original partition hash and rejects corrupt compression before storage (3.502958ms)
+✔ anonymous uploads remain denied regardless of directory size (16.921334ms)
+✔ growing catalog above 4 MB is accepted and written intact (28.906333ms)
+✔ work partitions retain 4 MB limit and ordinary multi-file batches retain 7.5 MB (39.629125ms)
+✔ catalog is still bounded (29.347667ms)
+✔ upload limit counts UTF-8 bytes instead of JavaScript character count (31.102041ms)
+✔ negative zero missing and partial cohort are not fabricated (1.805417ms)
+✔ numeric CSV negative stays numeric but string formulas cannot execute (0.158417ms)
+✔ null is last for both directions; ties stable (0.129667ms)
+✔ duplicate or cross-day metric source is rejected (0.15725ms)
+✔ all workspace hashes own their initial or restored tab (0.878666ms)
+✔ canonical workspace paths remove account query rather than keep mixed views (0.492417ms)
+✔ account identity date and generation validation remains authoritative (0.993042ms)
+✔ topics and same-version personal navigation never require global summary (0.114292ms)
+✔ global verified summary is reusable but a different or unpinned account version is not (0.108709ms)
+✔ natural-day presets preserve exact calendar boundaries and the fixed business baseline (1.92ms)
+✔ current calendar month does not silently become the stale scope observation month (0.403084ms)
+✔ empty source has no wall-clock fallback; observed fallback remains within business history (0.1845ms)
+✔ future metrics and repeated daily identity are rejected without mutating saved input (0.239375ms)
+✔ explicit immutable part performs one publication lookup and no redundant file/latest queries (9.7755ms)
+✔ latest manifest performs one latest lookup and no bucket read (0.324916ms)
+✔ unpublished, invalid and absent parts are never served from the bucket (0.424667ms)
+✔ missing object does not become zero or fabricated content (0.158542ms)
+✔ a never settling whole read times out and aborts without retry (6.31625ms)
+✔ body decoding remains inside the same deadline (6.781916ms)
+✔ an external navigation abort settles a pending read (0.222125ms)
+✔ a successful read cancels its owned timer (16.907209ms)
+✔ a late resolution cannot turn the rejected lifecycle into success (5.512292ms)
+✔ independent part reads retain upstream cancellation even during body wait (0.466708ms)
+✔ a pre-aborted lifecycle never dispatches a read (0.069167ms)
+✔ an operation rejection clears its timer and retains the original error (15.901292ms)
+✔ invalid deadline budgets never dispatch an operation (0.241292ms)
+✔ unchanged content reuses sealed storage, with exact old/new public bytes and no reference chains (27.474625ms)
+✔ changed data materializes instead of reusing an earlier author count (5.386625ms)
+✔ missing or corrupted immutable objects are restored only from exact source-SHA proven bytes (6.708958ms)
+✔ storage loss after upload prevents activation and an identical replay repairs it (5.936042ms)
+✔ conflicting metadata winner cannot receive a losing upload reference (3.330167ms)
+✔ a failed head drains at most six storage operations and never commits partial metadata (2.285917ms)
+✔ anonymous reuse is rejected before database and storage access (0.204083ms)
+✔ legacy exact retry can materialize an aliased generation without changing public bytes (5.144ms)
+✔ referenced daily observations still pass the full date-source audit, including repair after loss (8.546834ms)
+✔ append-only storage-reference migration preserves existing generations and files (1.509167ms)
+✔ asOf rebasing reconstructs exact UTF8 bytes while keeping observation dates unchanged (1.656667ms)
+✔ three generations flatten their storage reference to the original immutable bytes (0.141917ms)
+✔ changes, noncanonical whitespace, bad metadata and unsafe clocks force materialization (0.1185ms)
+✔ missing, tampered, misdated and mismatched stored references never become public data (0.313584ms)
+✔ plain and gzip preserve exact UTF8 bytes, including Chinese and trailing whitespace (14.612833ms)
+✔ wire and expanded size limits both reject before parsing or writing (2.839792ms)
+✔ unsupported codecs, invalid gzip and invalid UTF8 have fixed errors (1.082875ms)
+✔ streamed UTF8 survives byte boundaries; invalid limits and oversized streams stop consumption (1.050458ms)
+✔ visible endpoint keeps a missing final day instead of backfilling last known (0.561375ms)
+✔ unequal compared intervals retain separate real endpoints including zero and negative (0.088833ms)
+✔ fixed endpoints, interior gap, actual zero and negative preserved (2.005833ms)
+✔ two windows share same account cohort and unequal lengths are not zero padded (0.192375ms)
+✔ no paired account is unknown, not zero; calendar bound (0.124959ms)
+✔ date index begins beside catalog and topics, is read once, and keeps a complete receipt (3.423042ms)
+✔ a failed prefetched index leaves catalog and topics independently readable (0.22325ms)
+✔ a synchronously rejected index also leaves the directory readable (0.084209ms)
+✔ since 9/12 is a rolling window even when an old shared URL contains an end date (0.958416ms)
+✔ source-only work shows day precision and never turns source refresh into publication/playback time (1.517416ms)
+✔ precise saved timestamp sorts by Beijing publication day alongside source-table day, without fake midnight (8.288625ms)
+✔ work CSV preserves source day and basis separately from precise timestamp, and accepts stable source ID (0.972917ms)
+✔ workspace period/explicit filter query roundtrips without becoming a personal identity (2.438459ms)
+✔ malformed, duplicate, ambiguous and unregistered scopes cannot silently become all accounts (0.209667ms)
+✔ export anchors true zero, negative changes and missing values to canonical author and exact partition (0.420917ms)
+✔ old dynamic chart and its static/preload dependencies survive current-only rebuild (11.713917ms)
+✔ reviewed 260-file union preserves every archived byte and the current build (149.496834ms)
+✔ 769-file union is rejected before merge writes without evicting the 768-file archive (234.580125ms)
+✔ capture and merge are byte-idempotent and retain no source/server/environment files (4.471ms)
+✔ current same hash/different bytes is rejected before writes and never overwritten (2.746417ms)
+✔ missing static and dynamic/preload dependencies fail closed (1.205375ms)
+✔ unallowlisted files and traversal dependencies are rejected (1.17075ms)
+✔ file and nested directory symlinks cannot enter retention or output (1.71725ms)
+✔ corrupt archive bytes or manifest paths are rejected instead of silently trusted (2.417416ms)
+✔ bounded storage refuses oversize and file count overflow without eviction (114.494875ms)
+✔ over-limit union rejects before merge writes and preserves archived bytes (144.892833ms)
+✖ source-table overlapping work and author categories remain selectable in both tracks (1.392583ms)
+✔ source identity filtering uses complete Douyin IDs; unknown metrics do not become zero (0.818583ms)
+✖ published source-only author filter separates identity evidence from target-ID links (0.663208ms)
+✔ narrow-tablet source ledgers pin identity without affecting nested observation tables (0.410917ms)
+✔ phone source ledger presents every field vertically while keeping real table headings (2.018833ms)
+✖ published 4503 searchable identities reconcile to 4501 authors and linked count is deduplicated (1.653041ms)
+✖ missing supplement keeps verified main table visible without inventing full counts (0.911916ms)
+✖ account growth preview is near the overview start and remains available when source tables fail (0.422959ms)
+✔ legacy all-missing source aggregates render as unknown rather than numeric zero (15.426333ms)
+✔ a source-reported zero remains a visible observed zero (2.049208ms)
+✔ source identity changes with same-revision content and includes directory, counts and lengths (5.635917ms)
+✔ source reader validates sealed bytes and accepts zero records without losing real zero or null (3.269167ms)
+✔ unsafe descriptors and invalid deadlines fail before any network call (0.459625ms)
+✔ bytes, digest, revision and record-count mismatches are rejected (0.792084ms)
+✔ pending headers and bodies time out once, cancel their own request and leave the parent live (13.285542ms)
+✔ hash validation stays within the whole-read deadline (6.415583ms)
+✔ parent navigation cancellation remains AbortError even with a custom reason (0.301708ms)
+✔ index headers and decoding share the deadline, successful reads clean up parent listeners and timers (32.220208ms)
+✔ index errors remain actionable and release the caller listener (0.296542ms)
+✔ source export preserves absent observations, retains real zero and seals the output (45.145333ms)
+✖ published foundation validates without mutation or a fixed number of sheets (0.363333ms)
+✖ additional sealed JSON partitions are compatible with the six required partitions (0.056875ms)
+✖ sheet count mismatch, duplicate identity and invalid sheet metadata fail clearly (0.443042ms)
+✖ required partitions and their declared statistics cannot be omitted or drift apart (0.117291ms)
+✖ duplicate paths, unsafe paths and invalid seals are rejected even on extra partitions (0.072708ms)
+✖ schema and counts fail closed without interpreting missing values as zero (0.257667ms)
+✖ pending author partition is optional for older revisions, but sealed when declared (0.054791ms)
+✔ latest completed revision wins; exact ID dedup retains source-only authors and never invents metrics (1.0885ms)
+✖ public table foundation is sealed, deduplicated and contains no raw private fields (1.496209ms)
+✔ followers.value ranks the actual displayed values including zero, reductions and missing (0.840333ms)
+✔ likes.value ranks the actual displayed values including zero, reductions and missing (0.089292ms)
+✔ followers.delta ranks the actual displayed values including zero, reductions and missing (0.108792ms)
+✔ likes.delta ranks the actual displayed values including zero, reductions and missing (0.05475ms)
+✔ posts.delta ranks the actual displayed values including zero, reductions and missing (0.053917ms)
+✔ every rank field survives direct links, tab changes and page links (1.300291ms)
+✔ multiple associated targets rank by a displayed maximum and never invent an author total (0.197584ms)
+✔ source followers fallback matches the visible undated value without mixing work likes into homepage likes (0.059084ms)
+✔ pending or malformed changes remain missing; date recomputation changes ranks without mutating rows (0.100792ms)
+✔ CSV contains all filtered authors and matches profile/date/change values in the current range (0.133125ms)
+✔ roster selection persists independently of account and source filters (1.485916ms)
+✔ roster defaults omit only owned defaults and preserve unrelated query values (0.155ms)
+✔ malformed roster state stays explicit instead of silently widening the result (0.631042ms)
+✔ panel navigation changes only the panel and preserves all independent selections (0.468708ms)
+✔ panel-only navigation preserves malformed fields for explicit recovery instead of resetting the roster (0.8855ms)
+✔ panel-only navigation rejects unknown panels and nonlocal addresses (0.137791ms)
+✔ panel selection is independent of recoverable errors in the author filters (0.173333ms)
+✔ both rank directions keep display-missing values last and preserve genuine zero (1.227292ms)
+✔ 四范围、分类和搜索后的 CSV 与当前全部筛选行一致，不截为分页行 (2.363041ms)
+✔ equal metrics keep a stable account key in either direction or refreshed input order (0.136083ms)
+✔ name sorting uses the displayed source or monitor name, with unnamed authors last (0.091125ms)
+✔ changed category, search, or roster identity resets to the first page even at equal counts (0.09675ms)
+✔ shrink and regrow cannot resurrect an obsolete page; empty ranges read 0 to 0 (0.06875ms)
+✔ ranking retains alias search evidence and export contains every filtered row beyond the page (0.2595ms)
+✔ 团团名册按持久化 targetId 去重，源作者不被误称为已监控 (1.106458ms)
+✔ 启用、暂停、仅表格三个范围互斥且覆盖全部，按作者行而非目标数计数 (0.256333ms)
+✔ 同昵称不自动关联，非团团持久化关联也不会变成团团监控 (0.131875ms)
+✔ 重复来源抖音号停止合并，不虚增名册 (0.172833ms)
+✔ 同一已发布目标与同名的总表和补充表别名合并，保留两个抖音号和补充证据 (0.339ms)
+✔ 团团统一名册导出当前筛选全部行，并保持表格累计值与缺测口径 (0.244334ms)
+✔ 旧来源作者只补身份和来源，不冒充主页监控或表格累计指标 (0.204333ms)
+✔ 公开账号目录中的仅来源记录不计作暂停主页监控目标 (0.070458ms)
+✔ same work shows latest platform field and retains table cumulative without summing (1.640291ms)
+✔ source-only and platform-only works remain single rows with distinct origins (0.204458ms)
+✔ a missing platform field falls back to source, without fabricating an observation date (0.116917ms)
+✔ undated platform observations do not supersede a known source value (0.069708ms)
+✔ identity and same-account content conflicts cannot be silently combined (0.3ms)
+✔ sealed per-account reader preserves all rows for caller pagination and makes one request (11.255625ms)
+✔ owner-scoped indexed evidence cannot borrow same-work observations from another author (1.62725ms)
+✔ same-time platform/source disagreement stays conflict instead of selecting a larger or older counter (0.213125ms)
+✔ totals use known adopted values once, keep unknown absent and refuse precision loss (0.197417ms)
+ℹ tests 299
+ℹ suites 0
+ℹ pass 282
+ℹ fail 17
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8347.408209
+
+✖ failing tests:
+
+test at test/creator-insights-validation.test.mjs:6:1
+✖ published legacy insight remains compatible without unknown-date counters (0.397ms)
+  Error: ENOENT: no such file or directory, open '[workspace]
+      at Object.openSync (node:fs:561:18)
+      at readFileSync (node:fs:445:35)
+      at TestContext.<anonymous> (file://[workspace])
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.start (node:internal/test_runner/test:1177:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '[workspace]
+  }
+
+test at test/creator-intelligence.test.mjs:52:1
+✖ published analysis is derived from exactly the sealed source revision (0.178584ms)
+  Error: ENOENT: no such file or directory, open '[workspace]
+      at Object.openSync (node:fs:561:18)
+      at readFileSync (node:fs:445:35)
+      at TestContext.<anonymous> (file://[workspace])
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '[workspace]
+  }
+
+test at test/creator-intelligence.test.mjs:137:1
+✖ sealed supplemental source sample exposes conflicts without replacing the main works total (0.410416ms)
+  Error: ENOENT: no such file or directory, open '[workspace]
+      at Object.openSync (node:fs:561:18)
+      at readFileSync (node:fs:445:35)
+      at TestContext.<anonymous> (file://[workspace])
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '[workspace]
+  }
+
+test at test/creator-source-publication.test.mjs:15:1
+✖ public creator projection contains every imported author/work, exact sealed bytes, and no private columns (1.457ms)
+  Error: ENOENT: no such file or directory, open '[workspace]
+      at async open (node:internal/fs/promises:640:25)
+      at async readFile (node:internal/fs/promises:1287:14)
+      at async TestContext.<anonymous> (file://[workspace])
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '[workspace]
+  }
+
+test at test/source-ledger-track.test.mjs:6:1
+✖ source-table overlapping work and author categories remain selectable in both tracks (1.392583ms)
+  Error: ENOENT: no such file or directory, open '[workspace]
+      at async open (node:internal/fs/promises:640:25)
+      at async readFile (node:internal/fs/promises:1287:14)
+      at async TestContext.<anonymous> (file://[workspace])
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '[workspace]
+  }
+
+test at test/source-ledger-track.test.mjs:37:1
+✖ published source-only author filter separates identity evidence from target-ID links (0.663208ms)
+  Error: ENOENT: no such file or directory, open '[workspace]
+      at async open (node:internal/fs/promises:640:25)
+      at async readFile (node:internal/fs/promises:1287:14)
+      at async TestContext.<anonymous> (file://[workspace])
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '[workspace]
+  }
+
+test at test/source-operations-count-plays.test.mjs:23:1
+✖ published 4503 searchable identities reconcile to 4501 authors and linked count is deduplicated (1.653041ms)
+  Error: ENOENT: no such file or directory, open '[workspace]
+      at async open (node:internal/fs/promises:640:25)
+      at async readFile (node:internal/fs/promises:1287:14)
+      at async json (file://[workspace])
+      at async Promise.all (index 0)
+      at async TestContext.<anonymous> (file://[workspace])
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '[workspace]
+  }
+
+test at test/source-operations-count-plays.test.mjs:54:1
+✖ missing supplement keeps verified main table visible without inventing full counts (0.911916ms)
+  Error: ENOENT: no such file or directory, open '[workspace]
+      at async open (node:internal/fs/promises:640:25)
+      at async readFile (node:internal/fs/promises:1287:14)
+      at async json (file://[workspace])
+      at async Promise.all (index 0)
+      at async TestContext.<anonymous> (file://[workspace])
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '[workspace]
+  }
+
+test at test/source-operations-count-plays.test.mjs:88:1
+✖ account growth preview is near the overview start and remains available when source tables fail (0.422959ms)
+  Error: ENOENT: no such file or directory, open '[workspace]
+      at async open (node:internal/fs/promises:640:25)
+      at async readFile (node:internal/fs/promises:1287:14)
+      at async json (file://[workspace])
+      at async Promise.all (index 0)
+      at async TestContext.<anonymous> (file://[workspace])
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '[workspace]
+  }
+
+test at test/table-foundation-manifest.test.mjs:8:1
+✖ published foundation validates without mutation or a fixed number of sheets (0.363333ms)
+  Error: ENOENT: no such file or directory, open '[workspace]
+      at Object.openSync (node:fs:561:18)
+      at readFileSync (node:fs:445:35)
+      at current (file://[workspace])
+      at TestContext.<anonymous> (file://[workspace])
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.start (node:internal/test_runner/test:1177:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '[workspace]
+  }
+
+test at test/table-foundation-manifest.test.mjs:19:1
+✖ additional sealed JSON partitions are compatible with the six required partitions (0.056875ms)
+  Error: ENOENT: no such file or directory, open '[workspace]
+      at Object.openSync (node:fs:561:18)
+      at readFileSync (node:fs:445:35)
+      at current (file://[workspace])
+      at TestContext.<anonymous> (file://[workspace])
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '[workspace]
+  }
+
+test at test/table-foundation-manifest.test.mjs:26:1
+✖ sheet count mismatch, duplicate identity and invalid sheet metadata fail clearly (0.443042ms)
+  Error: ENOENT: no such file or directory, open '[workspace]
+      at Object.openSync (node:fs:561:18)
+      at readFileSync (node:fs:445:35)
+      at current (file://[workspace])
+      at TestContext.<anonymous> (file://[workspace])
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '[workspace]
+  }
+
+test at test/table-foundation-manifest.test.mjs:37:1
+✖ required partitions and their declared statistics cannot be omitted or drift apart (0.117291ms)
+  Error: ENOENT: no such file or directory, open '[workspace]
+      at Object.openSync (node:fs:561:18)
+      at readFileSync (node:fs:445:35)
+      at current (file://[workspace])
+      at TestContext.<anonymous> (file://[workspace])
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '[workspace]
+  }
+
+test at test/table-foundation-manifest.test.mjs:46:1
+✖ duplicate paths, unsafe paths and invalid seals are rejected even on extra partitions (0.072708ms)
+  Error: ENOENT: no such file or directory, open '[workspace]
+      at Object.openSync (node:fs:561:18)
+      at readFileSync (node:fs:445:35)
+      at current (file://[workspace])
+      at TestContext.<anonymous> (file://[workspace])
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '[workspace]
+  }
+
+test at test/table-foundation-manifest.test.mjs:59:1
+✖ schema and counts fail closed without interpreting missing values as zero (0.257667ms)
+  Error: ENOENT: no such file or directory, open '[workspace]
+      at Object.openSync (node:fs:561:18)
+      at readFileSync (node:fs:445:35)
+      at current (file://[workspace])
+      at TestContext.<anonymous> (file://[workspace])
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '[workspace]
+  }
+
+test at test/table-foundation-manifest.test.mjs:69:1
+✖ pending author partition is optional for older revisions, but sealed when declared (0.054791ms)
+  Error: ENOENT: no such file or directory, open '[workspace]
+      at Object.openSync (node:fs:561:18)
+      at readFileSync (node:fs:445:35)
+      at current (file://[workspace])
+      at TestContext.<anonymous> (file://[workspace])
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:897:18)
+      at Test.postRun (node:internal/test_runner/test:1447:19)
+      at Test.run (node:internal/test_runner/test:1372:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '[workspace]
+  }
+
+test at test/table-foundation.test.mjs:26:1
+✖ public table foundation is sealed, deduplicated and contains no raw private fields (1.496209ms)
+  Error: ENOENT: no such file or directory, open '[workspace]
+      at async open (node:internal/fs/promises:640:25)
+      at async readFile (node:internal/fs/promises:1287:14)
+      at async TestContext.<anonymous> (file://[workspace])
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '[workspace]
+  }
