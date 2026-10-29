@@ -1,0 +1,184 @@
+{
+  "status": "verified",
+  "errors": [],
+  "douyinRequests": 0,
+  "cases": [
+    {
+      "scope": {
+        "theme": "tuantuan"
+      },
+      "works": 59337,
+      "likes": 5971601,
+      "plays": 177111036,
+      "heading": "已收录发片记录 · 59,337 条"
+    },
+    {
+      "scope": {
+        "theme": "unassigned"
+      },
+      "works": 1,
+      "likes": 1,
+      "plays": null,
+      "heading": "已收录发片记录 · 1 条"
+    },
+    {
+      "scope": {
+        "theme": "douyin-streamers"
+      },
+      "works": 1603,
+      "likes": 104542950,
+      "plays": 4895304,
+      "heading": "已收录发片记录 · 1,603 条"
+    },
+    {
+      "scope": {},
+      "works": 59742,
+      "likes": 6087361,
+      "plays": 186823173,
+      "heading": "已收录发片记录 · 59,742 条"
+    },
+    {
+      "scope": {
+        "tag": "original"
+      },
+      "works": 9199,
+      "likes": 2351005,
+      "plays": 112940025,
+      "heading": "已收录发片记录 · 9,199 条"
+    },
+    {
+      "scope": {},
+      "works": 59742,
+      "likes": 6087361,
+      "plays": 186823173,
+      "heading": "已收录发片记录 · 59,742 条"
+    },
+    {
+      "scope": {
+        "board": "一条小团团切片矩阵"
+      },
+      "works": 59337,
+      "likes": 5971601,
+      "plays": 177111036,
+      "heading": "已收录发片记录 · 59,337 条"
+    },
+    {
+      "scope": {},
+      "works": 59742,
+      "likes": 6087361,
+      "plays": 186823173,
+      "heading": "已收录发片记录 · 59,742 条"
+    }
+  ],
+  "readbacks": [
+    {
+      "path": "publishing.json",
+      "bytes": 889455,
+      "sha256": "6db14a04d398a959b03bedfcc8de32fdf53c6ab8eeeab0612073ad7adf2609de"
+    },
+    {
+      "path": "publishing/000002.json",
+      "bytes": 203493,
+      "sha256": "4a7527e16405cb1265485b015d7cd2e93c380faa1f1a1bdec9f37b2dc1e382d6"
+    }
+  ],
+  "asOf": "2026-10-29T20:44:32.057Z",
+  "httpStatus": 200,
+  "bilibiliLink": "https://www.bilibili.com/video/BV1vCYD6QEA6",
+  "detailHeading": "2026-09-12 · 891 条已入库 · 全部内容",
+  "layouts": [
+    {
+      "width": 1365,
+      "pageWidth": 1365,
+      "right": 1330.875,
+      "cards": [
+        {
+          "text": "59,742",
+          "width": 232,
+          "scrollWidth": 232,
+          "right": 481.71875
+        },
+        {
+          "text": "6,087,361",
+          "width": 231,
+          "scrollWidth": 231,
+          "right": 756.90625
+        },
+        {
+          "text": "186,823,173",
+          "width": 231,
+          "scrollWidth": 231,
+          "right": 1032.09375
+        },
+        {
+          "text": "40",
+          "width": 231,
+          "scrollWidth": 231,
+          "right": 1307.28125
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "pageWidth": 390,
+      "right": 376,
+      "cards": [
+        {
+          "text": "59,742",
+          "width": 315,
+          "scrollWidth": 315,
+          "right": 352.40625
+        },
+        {
+          "text": "6,087,361",
+          "width": 315,
+          "scrollWidth": 315,
+          "right": 352.40625
+        },
+        {
+          "text": "186,823,173",
+          "width": 315,
+          "scrollWidth": 315,
+          "right": 352.40625
+        },
+        {
+          "text": "40",
+          "width": 315,
+          "scrollWidth": 315,
+          "right": 352.40625
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "pageWidth": 320,
+      "right": 306,
+      "cards": [
+        {
+          "text": "59,742",
+          "width": 245,
+          "scrollWidth": 245,
+          "right": 282.40625
+        },
+        {
+          "text": "6,087,361",
+          "width": 245,
+          "scrollWidth": 245,
+          "right": 282.40625
+        },
+        {
+          "text": "186,823,173",
+          "width": 245,
+          "scrollWidth": 245,
+          "right": 282.40625
+        },
+        {
+          "text": "40",
+          "width": 245,
+          "scrollWidth": 245,
+          "right": 282.40625
+        }
+      ]
+    }
+  ]
+}

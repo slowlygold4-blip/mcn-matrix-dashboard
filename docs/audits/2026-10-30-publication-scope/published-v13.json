@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-10-29T20:55:53.196377+00:00",
+  "status": "success",
+  "generation": "2026-10-29T20:44:32.057Z",
+  "revision": "catalog-date-range-v13-publication-scope",
+  "active": false,
+  "batches": 343,
+  "activated": true,
+  "ordinaryReadbacks": 41,
+  "storageReceipts": {
+    "files": 11814,
+    "reused": 11425,
+    "stored": 389
+  },
+  "publisherPid": 65106,
+  "nice": 10,
+  "mainPid": 51709,
+  "sourceWorkerPid": 50348,
+  "runtimeAI": false
+}

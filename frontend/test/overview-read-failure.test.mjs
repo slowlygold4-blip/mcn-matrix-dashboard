@@ -16,7 +16,7 @@ const latest=Object.fromEntries(['followers','likes','posts'].map((field,index)=
 }]));
 const account={id:1,label:'合成账号甲',platform:'douyin',enabled:true,boardKeys:['tuantuan'],classification:{theme:{key:'tuantuan',label:'团团'},labels:[]},latest};
 const point=(date,followers,likes,posts)=>({targetId:1,date,capturedAt:date+'T03:00:00.000Z',followers,followersAt:date+'T03:00:00.000Z',likes,likesAt:date+'T03:00:00.000Z',posts,postsAt:date+'T03:00:00.000Z'});
-const loaded={accounts:[account],boards:[{key:'tuantuan',name:'团团'}],topics:{topics:[],items:[]},points:[point('2026-09-12',100,200,10),point('2026-10-23',110,210,11)],summaryLoaded:true,summaryError:'',dateIndexed:false,topicsLoaded:true};
+const loaded={accounts:[account],boards:[{key:'tuantuan',name:'团团'},{key:'empty-matrix',name:'空矩阵'}],topics:{topics:[],items:[]},points:[point('2026-09-12',100,200,10),point('2026-10-23',110,210,11)],summaryLoaded:true,summaryError:'',dateIndexed:false,topicsLoaded:true};
 const shells={
  'account-panel':'export function AccountPanel(){return null}',
  'growth-panel':'export function GrowthPanel(){return null}',
@@ -74,6 +74,14 @@ test('overview discloses initial read failure, retry, and failed refresh without
    await page.getByText('粉丝总数',{exact:true}).waitFor();
    assert.match(await page.locator('.metric-ledger').innerText(),/110/);
    await page.locator('.sidebar').getByRole('button',{name:'总览',exact:true}).click();
+
+   const overviewScope=page.getByRole('region',{name:'总览范围与日期'}),matrix=overviewScope.getByRole('combobox',{name:'矩阵',exact:true});
+   assert.equal(await matrix.count(),1,'overview has its own directly usable scope controls');
+   await matrix.selectOption('empty-matrix');
+   await page.waitForFunction(()=>new URL(location.href).searchParams.get('board')==='empty-matrix');
+   assert.equal(await matrix.inputValue(),'empty-matrix');
+   await matrix.selectOption('all');
+   await page.waitForFunction(()=>!new URL(location.href).searchParams.has('board'));
 
    apiStatus=500;
    await page.getByRole('button',{name:'重新读取已保存数据',exact:true}).click();
