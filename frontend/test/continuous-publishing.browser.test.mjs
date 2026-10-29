@@ -12,7 +12,7 @@ test('actual continuous publication controls preserve selected day/page across i
  });
  await page.goto('https://mcn-publishing.test/');await page.addStyleTag({content:['replica.css','source-operations.css','visual-theme.css','observatory.css'].map(name=>readFileSync(site+'app/'+name,'utf8')).join('\n')});await page.addScriptTag({content:bundle.outputFiles[0].text});
  await page.getByRole('button',{name:'重新读取发片索引',exact:true}).click();
- await page.getByRole('heading',{name:'全部已入库作品 · 43 条',exact:true}).waitFor();
+ await page.getByRole('heading',{name:'已收录发片记录 · 43 条',exact:true}).waitFor();
  const panel=page.locator('[aria-label="所选发布日作品"]');
  await t.test('unrecorded dates stay missing and undated works have a direct verified entry',async()=>{
   assert.match(await page.locator('[aria-label="发布记录完整情况"]').textContent(),/有记录 2 天 · 无记录 46 天/);

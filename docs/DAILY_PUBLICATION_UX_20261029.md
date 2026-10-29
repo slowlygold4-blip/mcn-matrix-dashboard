@@ -11,3 +11,5 @@ No new dependencies or stylesheets. Existing product styles are reused; keyboard
 Validation: TypeScript and all348frontend tests pass, including the actual React component/browser scenarios and source integrity tests. Initial new pagination fixtures used unequal-length toy IDs, whose lexical sort differed from their expected numeric order; the fixture now uses realistic fixed-length synthetic IDs. Production sorting was not changed. A before-fix browser regression separately reproduces the actual false-peak bug.
 
 This improves presentation and navigation, not Douyin collection coverage. It does not claim that all platform works have been collected, that source cumulative plays are daily plays, or that every network can reach the hosted site.
+
+The title is scoped to collected publication records, rather than claiming the number covers every work ever archived. The related6browser tests and typecheck were rerun after this wording correction.

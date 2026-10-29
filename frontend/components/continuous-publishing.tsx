@@ -44,7 +44,7 @@ export function ContinuousPublishing({manifest}:{manifest:Row}){
  const chooseDay=(date:string)=>{if(date!==day)setPage(1);setDay(date);};
  return <section className="panel source-ops" id="source-ops-publishing" tabIndex={-1} aria-label="持续监控每日发片">
   <p className="eyebrow">团团全矩阵 · 9 月 12 日起 · 持续积累</p>
-  {index&&<h2>全部已入库作品 · {index.count.toLocaleString('zh-CN')} 条</h2>}
+  {index&&<h2>已收录发片记录 · {index.count.toLocaleString('zh-CN')} 条</h2>}
   <p className="meta">同一作品按 ID 去重，按发布日期统计已发现数量。作品尚未全覆盖，无记录日期不等于没有发布。数据截至 {new Date(manifest.asOf).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false})}（北京时间）；本图覆盖团团全矩阵。</p>
   {indexError&&<div role="alert" className="notice">{indexError} <Button variant="outline" onClick={()=>retryIndex(value=>value+1)}>重新读取发片索引</Button></div>}
   {!index&&!indexError?<p role="status">正在读取每日发片索引…</p>:index&&<>
