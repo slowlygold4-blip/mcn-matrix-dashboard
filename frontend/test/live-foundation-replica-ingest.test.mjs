@@ -38,3 +38,16 @@ test('only an explicitly older manifest without foundation partitions permits st
  await readSourceIndex('/table-foundation/index.json',{preferReplica:true,manifest:{asOf:p.asOf,files:[]},fetcher:async url=>{calls.push(url);return Response.json(p.index);}});
  assert.deepEqual(calls,['/table-foundation/index.json']);
 });
+
+test('storage failure identifies the fixed activation phase without leaking a response or publishing',async()=>{
+ const p=foundationPublication('2026-10-29T01:00:00.000Z');
+ assert.equal((await post({action:'upload',asOf:p.asOf,files:p.files.map(({path,sha256,data})=>({path,sha256,data}))})).status,200);
+ const original=fixture.env.BUCKET.get,warn=console.warn,messages=[];
+ fixture.env.BUCKET.get=async()=>{throw Error('SYNTHETIC_PRIVATE_STORAGE_DETAIL');};console.warn=value=>messages.push(value);
+ try{
+  const response=await post({action:'activate',asOf:p.asOf,manifest:p.manifest});assert.equal(response.status,503);
+  assert.equal(fixture.sqlite.prepare('SELECT count(*) n FROM replica_generations').get().n,0);
+  assert.equal(messages.length,1);const event=JSON.parse(messages[0]);assert.equal(event.event,'replica-activation-failed');assert.equal(event.phase,'summary');assert.equal(event.requestAborted,false);assert.ok(Number.isSafeInteger(event.elapsedMs));
+  assert.equal(JSON.stringify(messages).includes('SYNTHETIC_PRIVATE'),false);assert.equal((await response.text()).includes('SYNTHETIC_PRIVATE'),false);
+ }finally{fixture.env.BUCKET.get=original;console.warn=warn;}
+});

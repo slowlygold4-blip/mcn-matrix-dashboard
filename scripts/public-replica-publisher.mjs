@@ -210,7 +210,7 @@ async function run(){
   await privateDirectory(home);await acquirePublisherLock(join(home,'lock.json'));
   const statePath=join(home,'state.json');let state=await privateRead(statePath);if(state.version!==1)fail('invalid-state');
   let busy=false,stopping=false,immutableStage=null;const signal=new AbortController();
-  const sync=createPublicReplicaSync({getCredential:()=>privateRead(join(home,'credential'),{credential:true}),
+  const sync=createPublicReplicaSync({activationTimeoutMs:300_000,getCredential:()=>privateRead(join(home,'credential'),{credential:true}),
     loadCheckpoint:async()=>{try{return await privateRead(join(home,'checkpoint.json'));}catch(e){if(e.code==='ENOENT')return null;throw e;}},
     saveCheckpoint:value=>privateWrite(join(home,'checkpoint.json'),value)});
   const tick=async()=>{

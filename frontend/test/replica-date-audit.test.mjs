@@ -88,3 +88,20 @@ test('abort stops dispatch and never reports a complete publication',async()=>{
  }}),/client disconnected/);
  assert.ok(dailyReads<=6,'aborted requests must not keep dispatching the rest of the manifest');
 });
+
+test('progress exposes only fixed phases and verified counts, never unfinished or private source data',async()=>{
+ const {manifest,texts}=fixture(70),events=[];
+ await auditDatePublication({manifest,readText:path=>texts.get(path),onProgress:e=>events.push(e)});
+ assert.deepEqual(events.map(e=>e.phase),['index','shards','daily','daily','daily','done']);
+ assert.deepEqual(events.at(-1),{phase:'done',verifiedDaily:70,expectedDaily:70});
+ assert.ok(events.every(e=>Object.keys(e).sort().join(',')==='expectedDaily,phase,verifiedDaily'));
+ const failed=[];await assert.rejects(auditDatePublication({manifest,readText:path=>path==='daily/2.json'?Promise.reject(Error('SYNTHETIC_PRIVATE_COOKIE')):texts.get(path),onProgress:e=>failed.push(e)}),e=>e.code==='date-storage-read'&&!e.message.includes('SYNTHETIC_PRIVATE'));
+ assert.equal(failed.some(e=>e.phase==='done'),false);
+});
+
+test('fixed missing, checksum and digest codes identify the failure without leaking content',async()=>{
+ for(const kind of ['missing','checksum','digest']){
+  const {manifest,texts}=fixture(2,{mismatch:kind==='digest'});
+  await assert.rejects(auditDatePublication({manifest,readText:path=>path==='daily/1.json'&&kind!=='digest'?kind==='missing'?undefined:'SYNTHETIC_PRIVATE_DATA':texts.get(path)}),e=>e.code===({'missing':'date-source-missing',checksum:'date-source-checksum',digest:'date-source-digest'})[kind]&&!e.message.includes('SYNTHETIC_PRIVATE'));
+ }
+});

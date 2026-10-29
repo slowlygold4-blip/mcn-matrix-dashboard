@@ -50,6 +50,7 @@ export async function POST(request: Request) {
   // A producer-only endpoint. Anonymous readers can never upload or activate.
   const producer = (env as unknown as Record<string,unknown>).REPLICA_INGEST_SECRET;
   if (typeof producer !== "string" || producer.length < 48 || request.headers.get("Authorization") !== `Bearer ${producer}`) return json({error:"只读访问"},403);
+  let activationPhase:string|null=null,activationStartedAt:number|null=null;
   try {
     const text=await request.text(); if(new TextEncoder().encode(text).length>REPLICA_UPLOAD_MAX_BYTES) return json({error:"批次过大"},413);
     const input=JSON.parse(text); const {db,bucket}=runtime();
@@ -98,11 +99,22 @@ export async function POST(request: Request) {
     }
     if(input.action!=="activate"||input.manifest?.asOf!==input.asOf||!Array.isArray(input.manifest.files)||privateKey(input.manifest))return json({error:"无效发布清单"},400);
     const files=input.manifest.files;
+    activationStartedAt=Date.now();activationPhase='metadata';
+    const filesByPath=new Map<string,any>(files.map((f:any)=>[f.path,f]));
+    // Fixed diagnostic codes only. Do not log provider bodies, credentials or source rows.
+    const activationRejected=(phase:string,error?:unknown,progress:Record<string,unknown>={})=>{
+      const codes=new Set(['date-storage-read','date-source-missing','date-source-checksum','date-source-json','date-source-digest','date-source-extra-target']);
+      const code=error&&typeof error==='object'&&'code'in error?String(error.code):'';
+      console.warn(JSON.stringify({event:'replica-activation-rejected',phase,stage:progress.phase??null,
+        verifiedDaily:progress.verifiedDaily??null,expectedDaily:progress.expectedDaily??null,
+        requestAborted:request.signal.aborted,reason:codes.has(code)?code:'validation-failed',elapsedMs:Date.now()-(activationStartedAt??Date.now())}));
+    };
     if(!files.some((f:{path:string})=>f.path==="catalog.json")||!files.some((f:{path:string})=>f.path==="summary.json")||!files.some((f:{path:string})=>f.path==="topics.json"))return json({error:"必需分区缺失"},400);
     const rows=await db.prepare("SELECT path,checksum,bytes FROM replica_files WHERE generation=?").bind(input.asOf).all<{path:string;checksum:string;bytes:number}>();
     const map=new Map(rows.results.map(x=>[x.path,x]));
     if(new Set(files.map((x:{path:string})=>x.path)).size!==files.length||files.length!==map.size||files.some((f:{path:string;sha256:string;bytes:number})=>!PATH.test(f.path)||!SHA.test(f.sha256)||map.get(f.path)?.checksum!==f.sha256||map.get(f.path)?.bytes!==f.bytes))return json({error:"分区清单不一致，未发布"},409);
-    const summaryMeta=files.find((f:{path:string})=>f.path==='summary.json');
+    activationPhase='summary';
+    const summaryMeta=filesByPath.get('summary.json');
     const summaryObject=await bucket.get(`${input.asOf}/${summaryMeta.sha256}`);
     if(!summaryObject)return json({error:"历史索引缺失，未发布"},409);
     const summaryText=await summaryObject.text();
@@ -110,12 +122,18 @@ export async function POST(request: Request) {
     let descriptors;try {descriptors=summaryDescriptors(JSON.parse(summaryText),input.manifest);}catch{return json({error:"历史分片不一致，未发布"},409);}
     if(descriptors)for(const s of descriptors){const object=await bucket.get(`${input.asOf}/${s.sha256}`);if(!object)return json({error:"历史分片缺失，未发布"},409);const body=await object.text();if(body.length>1_000_000||await bytesHash(body)!==s.sha256)return json({error:"历史分片校验失败，未发布"},409);const parsed=JSON.parse(body);if(!summaryPartValid(parsed,input.asOf)||parsed.items.length!==s.count)return json({error:"历史分片记录数不一致，未发布"},409);}
     if(files.some((f:{kind:string;path:string})=>f.kind==='summaryDateIndex'||f.kind==='summaryDateShard'||f.path==='date-summary-index.json'||f.path.startsWith('date-summary/'))){
-      try{await auditDatePublication({manifest:input.manifest,readText:async(path:string)=>{const meta=files.find((f:{path:string})=>f.path===path);if(!meta)throw Error('missing-date-meta');const object=await bucket.get(`${input.asOf}/${meta.sha256}`);if(!object)throw Error('missing-date-source');return object.text();},signal:request.signal});}
-      catch{return json({error:"日期历史未通过全量来源核对，未发布"},409);}
+      activationPhase='date';
+      let dateProgress:Record<string,unknown>={phase:'index',verifiedDaily:0};
+      try{await auditDatePublication({manifest:input.manifest,readText:async(path:string)=>{const meta=filesByPath.get(path);if(!meta)throw Error('missing-date-meta');const object=await bucket.get(`${input.asOf}/${meta.sha256}`);if(!object)return undefined;return object.text();},signal:request.signal,onProgress:(progress:Record<string,unknown>)=>{dateProgress=progress;}});}
+      catch(error){activationRejected('date',error,dateProgress);return json({error:"日期历史未通过全量来源核对，未发布"},409);}
     }
-    try{await auditPublishing({manifest:input.manifest,readPart:async(path:string)=>{const m=files.find((f:{path:string})=>f.path===path);if(!m)throw Error('missing');const obj=await bucket.get(`${input.asOf}/${m.sha256}`);if(!obj)throw Error('missing');const body=await obj.text();if(await bytesHash(body)!==m.sha256)throw Error('checksum');return JSON.parse(body);}});}catch{return json({error:'每日发片索引核验失败'},409);}
-    try{await auditCreatorPublication({manifest:input.manifest,readPart:async(path:string)=>{const m=files.find((f:{path:string})=>f.path===path);if(!m)throw Error('missing');const obj=await bucket.get(`${input.asOf}/${m.sha256}`);if(!obj)throw Error('missing');const body=await obj.text();if(new TextEncoder().encode(body).length!==m.bytes||await bytesHash(body)!==m.sha256)throw Error('checksum');return JSON.parse(body);}});}catch{return json({error:'作者作品与经营统计核验失败，未发布'},409);}
-    try{await auditFoundationPublication({manifest:input.manifest,readPart:async(path:string)=>{const m=files.find((f:{path:string})=>f.path===path);if(!m)throw Error('missing');const obj=await bucket.get(`${input.asOf}/${m.sha256}`);if(!obj)throw Error('missing');const body=await obj.text();if(new TextEncoder().encode(body).length!==m.bytes||await bytesHash(body)!==m.sha256)throw Error('checksum');return JSON.parse(body);}});}catch{return json({error:'补充来源与统一名册核验失败，未发布'},409);}
+    activationPhase='publishing';
+    try{await auditPublishing({manifest:input.manifest,readPart:async(path:string)=>{const m=filesByPath.get(path);if(!m)throw Error('missing');const obj=await bucket.get(`${input.asOf}/${m.sha256}`);if(!obj)throw Error('missing');const body=await obj.text();if(await bytesHash(body)!==m.sha256)throw Error('checksum');return JSON.parse(body);}});}catch(error){activationRejected('publishing',error);return json({error:'每日发片索引核验失败'},409);}
+    activationPhase='creator';
+    try{await auditCreatorPublication({manifest:input.manifest,readPart:async(path:string)=>{const m=filesByPath.get(path);if(!m)throw Error('missing');const obj=await bucket.get(`${input.asOf}/${m.sha256}`);if(!obj)throw Error('missing');const body=await obj.text();if(new TextEncoder().encode(body).length!==m.bytes||await bytesHash(body)!==m.sha256)throw Error('checksum');return JSON.parse(body);}});}catch(error){activationRejected('creator',error);return json({error:'作者作品与经营统计核验失败，未发布'},409);}
+    activationPhase='foundation';
+    try{await auditFoundationPublication({manifest:input.manifest,readPart:async(path:string)=>{const m=filesByPath.get(path);if(!m)throw Error('missing');const obj=await bucket.get(`${input.asOf}/${m.sha256}`);if(!obj)throw Error('missing');const body=await obj.text();if(new TextEncoder().encode(body).length!==m.bytes||await bytesHash(body)!==m.sha256)throw Error('checksum');return JSON.parse(body);}});}catch(error){activationRejected('foundation',error);return json({error:'补充来源与统一名册核验失败，未发布'},409);}
+    activationPhase='commit';
     const manifest=JSON.stringify(input.manifest);
     const existing=await db.prepare("SELECT manifest FROM replica_generations WHERE generation=?").bind(input.asOf).first<{manifest:string}>();
     if(existing&&existing.manifest!==manifest)return json({error:"历史发布不可改写"},409);
@@ -123,5 +141,9 @@ export async function POST(request: Request) {
     const committed=await db.prepare("SELECT manifest FROM replica_generations WHERE generation=?").bind(input.asOf).first<{manifest:string}>();
     if(committed?.manifest!==manifest)return json({error:"并发发布清单冲突，未确认本次发布"},409);
     return json({published:true,asOf:input.asOf,parts:files.length});
-  } catch {return json({error:"同步未完成，现有已发布数据保持不变"},503);}
+  } catch {
+    if(activationPhase)console.warn(JSON.stringify({event:'replica-activation-failed',phase:activationPhase,
+      requestAborted:request.signal.aborted,elapsedMs:Date.now()-(activationStartedAt??Date.now())}));
+    return json({error:"同步未完成，现有已发布数据保持不变"},503);
+  }
 }

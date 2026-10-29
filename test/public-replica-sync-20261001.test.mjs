@@ -1,3 +1,4 @@
+import {setTimeout as waitWithSignal} from 'node:timers/promises';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -875,4 +876,30 @@ test('synthetic retry timing excludes real HTTP and models',async()=>{
   assert.equal(cold.sourceValidation,'full');assert.equal(warm.sourceValidation,'reused-immutable');
   assert.equal(cloud.calls.length,2);assert.equal(cloud.uploads,0);assert.equal(warm.code,'credential-unavailable');
   console.log(JSON.stringify({syntheticRetryBenchmark:true,accounts:1000,coldMs,warmMs,mockManifestReads:2,realHttpCalls:0,modelCalls:0}));
+});
+
+
+test('activation has its own bounded audit budget; uploads keep the short request budget',async()=>{
+ for(const scenario of ['legacy','activation-budget','upload-timeout']){
+  const cloud=fakeCloud(),original=cloud.fetch;
+  cloud.fetch=async(url,init={})=>{
+   const action=init.method==='POST'?JSON.parse(init.body).action:null;
+   if(action===(scenario==='upload-timeout'?'upload':'activate'))await waitWithSignal(150,undefined,{signal:init.signal});
+   return original(url,init);
+  };
+  const sync=producer(cloud,{requestTimeoutMs:100,...(scenario==='legacy'?{}:{activationTimeoutMs:400})});
+  const r=await sync.sync(fixture({accounts:1}));
+  if(scenario==='activation-budget')assert.equal(r.status,'success');
+  else {assert.equal(r.code,'network-failed');assert.equal(r.transportFailure.kind,'request-timeout');assert.equal(r.transportFailure.phase,scenario==='legacy'?'activate':'upload');assert.equal(r.activated,false);}
+ }
+});
+
+test('activation override cannot remove the enclosing operation deadline or accept an unbounded budget',async()=>{
+ for(const activationTimeoutMs of [0,-1,300001,Infinity,NaN,'300000'])assert.throws(()=>createPublicReplicaSync({getCredential:async()=>SECRET,activationTimeoutMs}),/invalid-configuration/);
+ const cloud=fakeCloud(),original=cloud.fetch;cloud.fetch=async(url,init={})=>{
+  if(init.method==='POST'&&JSON.parse(init.body).action==='activate')await waitWithSignal(300,undefined,{signal:init.signal});
+  return original(url,init);
+ };
+ const r=await producer(cloud,{requestTimeoutMs:100,activationTimeoutMs:400,operationTimeoutMs:200}).sync(fixture({accounts:1}));
+ assert.equal(r.code,'aborted');assert.equal(r.activated,false);
 });

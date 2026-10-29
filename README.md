@@ -1,6 +1,6 @@
 # MCN 矩阵工作台
 
-**最新源码整理：2026-10-29。公开前端对应线上 v112。**
+**最新源码整理：2026-10-29。公开前端对应线上 v114。**
 
 [打开线上工作台](https://mcn-matrix-observatory.slowlygold4.chatgpt.site) · [开发交接说明](docs/DEVELOPER_HANDOFF.md)
 
@@ -63,3 +63,5 @@ MCN_MAIN_ROOT="$PWD/" node --test --test-concurrency=2 frontend/test/*.test.mjs
 本项目为 UNLICENSED；第三方组件许可证见 THIRD_PARTY_NOTICES.md 和各 vendor 目录。
 
 存储治理与恢复：[STORAGE.md](docs/STORAGE.md)。
+
+发布链修复与验收边界见 [PUBLICATION_ACTIVATION_20261029.md](docs/PUBLICATION_ACTIVATION_20261029.md)。
