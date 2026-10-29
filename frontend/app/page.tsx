@@ -241,12 +241,12 @@ export default function Home(){
   // removing the ledger on ordinary return would lose its focus target.
   if(sourceIndex)return;
   let active=true;const controller=new AbortController();setSourceIndexError('');setSourceAuthorsError('');setSourceInsights(null);
-  readSourceIndex('/creator-source/index.json',{signal:controller.signal}).then(body=>{
+  readSourceIndex('/creator-source/index.json',{signal:controller.signal,preferReplica:true,manifest:dataRef.current?.manifest}).then(body=>{
    validateCreatorSourceIndex(body);
    if(active)setSourceIndex(body);
   }).catch(error=>{if(active&&!controller.signal.aborted)setSourceIndexError(error.message);});
   return()=>{active=false;controller.abort();};
- },[tab,theme,sourceRetry,!!personal,sourceIndex]);
+ },[tab,theme,sourceRetry,!!personal,sourceIndex,data?.manifest?.asOf]);
  useEffect(()=>{if(tab!=='overview'||!sourceIndex)return;let active=true;const controller=new AbortController();const file=sourceIndex.files.find((item:Row)=>item.path==='insights.json');if(!file){setSourceInsightsError('当前来源版本没有经营分析分区');return;}const identity=sourcePartsIdentity([file],String(sourceIndex.revision));if(sourceInsights&&sourceInsightsIdentity===identity){setSourceInsightsError('');return;}setSourceInsights(null);setSourceInsightsError('');readCreatorSourcePart(file,String(sourceIndex.revision),controller.signal).then(items=>{const insight=validateCreatorInsights(items,sourceIndex);if(active){setSourceInsights(insight);setSourceInsightsIdentity(identity);setSourceInsightsError('');}}).catch(error=>{if(active&&!controller.signal.aborted)setSourceInsightsError(error.message);});return()=>{active=false;controller.abort();};},[tab,sourceIndex,sourceInsightsIdentity]);
  const sourceAuthorsKey=sourceIndex?sourcePartsIdentity(sourceIndex.files.filter((file:Row)=>file.path==='authors.json'),String(sourceIndex.revision)):'';
  useEffect(()=>{
@@ -264,16 +264,16 @@ export default function Home(){
 useEffect(()=>{if(!data?.dateIndexed||personal||['topics','source'].includes(tab)||!requestedRange||data.receipt?.requestKey===requestedRange.key)return;let active=true;const controller=new AbortController(),manifest=data.manifest;setRangeError('');const readPart=(part:string)=>read(manifest.asOf,part,manifest.files.find((f:Row)=>f.path===part),controller.signal);loadSummaryRange({manifest,readPart,request:requestedRange,signal:controller.signal}).then(loaded=>{if(active)setData(old=>old?.manifest.asOf===manifest.asOf?{...old,...loaded}:old);}).catch(e=>{if(active&&!controller.signal.aborted)setRangeError(e.message);});return()=>{active=false;controller.abort();};},[data?.manifest.asOf,data?.dateIndexed,data?.receipt?.requestKey,requestedRange?.key,personal,tab,rangeRetry]);
  const sourceEditionKey=sourceIndex?sourceEditionIdentity(sourceIndex):'';
  const foundationEditionKey=foundation?foundationEditionIdentity(foundation.index):'';
- useEffect(()=>{if(!data?.manifest?.asOf)return;let active=true,checking=false;const controller=new AbortController(),epoch=editionReadEpoch.current;const check=async()=>{if(checking||document.visibilityState!=='visible')return;checking=true;try{
+ useEffect(()=>{if(!data?.manifest?.asOf)return;let active=true,checking=false;const controller=new AbortController(),epoch=editionReadEpoch.current;const check=async()=>{if(checking||document.visibilityState!=='visible')return;checking=true;try{let sourceManifest=data.manifest;
   try{
    const r=await fetch('/api/replica',{cache:'no-store',signal:controller.signal});
-   if(r.ok){const m=await r.json() as Row,g=m.manifest?.asOf;if(active&&Number.isFinite(Date.parse(g))){if(Date.parse(g)>Date.parse(data.manifest.asOf))setAvailable(old=>!old||Date.parse(g)>Date.parse(old)?g:old);setAutoRetryTick(n=>n+1);}}
+   if(r.ok){const m=await r.json() as Row,g=m.manifest?.asOf;if(active&&Number.isFinite(Date.parse(g))){sourceManifest=m.manifest;if(Date.parse(g)>Date.parse(data.manifest.asOf))setAvailable(old=>!old||Date.parse(g)>Date.parse(old)?g:old);setAutoRetryTick(n=>n+1);}}
   }catch{if(controller.signal.aborted)return;}
   // Reuse the existing visibility/one-minute check. A same-generation source
   // publication is independent of the account replica's asOf timestamp.
   if(personal||!sourceIndex&&!foundation)return;
   const [nextSource,nextFoundation]=await Promise.all([
-   sourceIndex?readSourceIndex('/creator-source/index.json',{signal:controller.signal}).then(validateCreatorSourceIndex):Promise.resolve(null),
+   sourceIndex?readSourceIndex('/creator-source/index.json',{signal:controller.signal,preferReplica:true,manifest:sourceManifest}).then(validateCreatorSourceIndex):Promise.resolve(null),
    foundation?readSourceIndex('/table-foundation/index.json',{signal:controller.signal}).then(validateTableFoundationManifest):Promise.resolve(null),
   ]);
   const sourceChanged=!!nextSource&&sourceEditionIdentity(nextSource)!==sourceEditionKey;

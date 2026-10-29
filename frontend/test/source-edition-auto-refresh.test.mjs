@@ -85,3 +85,36 @@ test('source edition adopts after bad partition and replica fetch failure, prese
   assert.deepEqual(errors,[]);
  }finally{await context.close();await browser.close();}
 });
+
+test('live creator corpus changes are visible in Home without a new frontend build and retain the author task',async()=>{
+ const browser=await chromium.launch({headless:true,executablePath:process.env.MCN_TEST_CHROME||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',args:['--disable-background-networking']});
+ const context=await browser.newContext({viewport:{width:1280,height:800},reducedMotion:'reduce'}),page=await context.newPage();
+ page.setDefaultTimeout(10000);
+ const errors=[],control={edition:1};page.on('pageerror',e=>errors.push(e.message));
+ const generation=e=>`2026-10-23T0${4+e}:00:00.000Z`;
+ const payload=(e,name)=>({version:1,asOf:generation(e),timeZone:'Asia/Shanghai',...(name==='authors.json'?authors(e):works)});
+ const index=e=>({...source(e),asOf:generation(e),timeZone:'Asia/Shanghai',editionFingerprint:String(e).repeat(64),
+  files:['authors.json','works-001.json'].map(name=>({...seal(name,payload(e,name)),generation:generation(e)}))});
+ const indexMeta=e=>{const body=JSON.stringify(index(e));return {path:'creator/index.json',kind:'creatorIndex',count:0,bytes:Buffer.byteLength(body),sha256:createHash('sha256').update(body).digest('hex')};};
+ try{
+  await page.route('**/*',route=>{const url=new URL(route.request().url()),path=url.pathname;
+   if(path==='/')return route.fulfill({contentType:'text/html',body:'<!doctype html><meta charset="utf-8"><div id="root"></div>'});
+   if(path==='/api/replica'){
+    const part=url.searchParams.get('part');if(!part)return route.fulfill({json:{manifest:{...replica,asOf:generation(control.edition),files:[catalogSeal,indexMeta(control.edition)]},publishedAt:generation(control.edition)}});
+    const e=url.searchParams.get('generation')===generation(1)?1:2;
+    if(part==='creator/index.json')return route.fulfill({json:index(e)});
+    if(part==='creator/authors.json'||part==='creator/works-001.json')return route.fulfill({json:payload(e,part.slice(8))});
+   }
+   if(path==='/table-foundation/index.json')return route.fulfill({json:foundation(control.edition)});
+   if(path.startsWith('/table-foundation/')&&foundationNames.includes(path.split('/').at(-1)))return route.fulfill({json:foundationPart(control.edition)});
+   return route.abort();
+  });
+  await page.goto('http://127.0.0.1:49118/#source');await page.addScriptTag({content:bundle.outputFiles[0].text});
+  const ledger=page.locator('.source-ledger');await ledger.locator('tbody tr').first().waitFor();
+  await ledger.getByRole('textbox',{name:'搜索来源作者或作品'}).fill('作者');await ledger.getByLabel(/^排序/).selectOption('row');
+  await ledger.getByRole('button',{name:'下一页',exact:true}).first().click();await ledger.getByText('作者旧31').waitFor();
+  control.edition=2;await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await ledger.getByText('作者新31').waitFor();
+  assert.equal(await ledger.getByRole('textbox',{name:'搜索来源作者或作品'}).inputValue(),'作者');assert.match(await ledger.locator('.source-pager').first().textContent(),/第 2\/2 页/);
+  assert.deepEqual(errors,[]);
+ }finally{await context.close();await browser.close();}
+});

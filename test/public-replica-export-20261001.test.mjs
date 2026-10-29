@@ -74,6 +74,21 @@ test('public replica: private source/config/locator fields are absent while legi
   assert.equal(replica.policy.worksMetricEvidence, 'saved-record-not-independently-verified');
 });
 
+test('creator catalog and full source corpus use the same historical import cutoff',async t=>{
+ const {database,read}=fixture(t),db=database.db;
+ db.exec(`CREATE TABLE creator_source_imports(id INTEGER PRIMARY KEY,source_sha256 TEXT,source_url TEXT,source_revision TEXT,source_modified_at TEXT,imported_at TEXT,metadata_json TEXT,source_row_count INTEGER);
+ CREATE TABLE creator_source_rows(import_id INTEGER,sheet_id TEXT,row_number INTEGER,values_json TEXT);
+ CREATE TABLE creator_source_account_links(import_id INTEGER,author_row INTEGER,target_id INTEGER,matched_id TEXT,matched_at TEXT);
+ CREATE TABLE creator_source_work_links(import_id INTEGER,work_row INTEGER,target_id INTEGER);`);
+ for(const [id,offset]of [[1,-86400000],[2,86400000]]){
+  const at=new Date(Date.parse(AS_OF)+offset).toISOString();
+  db.prepare('INSERT INTO creator_source_imports VALUES(?,?,?,?,?,?,?,0)').run(id,'a'.repeat(64),'https://private.feishu.cn/sheets/fixture',String(id),at,at,'{}');
+ }
+ const replica=read();assert.equal(replica.catalog.creatorSourceLinks.revision,'1');
+ assert.equal(replica.partitions.find(p=>p.kind==='creatorIndex').revision,'1');
+ await preparePublicReplicaPublication(serializePublicReplica(replica));
+});
+
 test('public replica preserves source-only publication day without fabricating a platform timestamp', async t => {
   const { database, target, sample, read } = fixture(t);
   const db = database.db;

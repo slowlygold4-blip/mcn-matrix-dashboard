@@ -172,7 +172,7 @@ async function readPublication(directory){
   const readPart=async relative=>{for(const part of [dirname(directory),directory,...(relative.includes('/')?[join(directory,dirname(relative))]:[])]){const s=await lstat(part);if(!s.isDirectory()||s.isSymbolicLink())fail('unsafe-staging-path');}
     const fd=await open(join(directory,relative),constants.O_RDONLY|constants.O_NOFOLLOW);try{const s=await fd.stat();if(!s.isFile())fail('unsafe-staging-path');return await fd.readFile('utf8');}finally{await fd.close();}};
   const manifest=JSON.parse(await readPart('manifest.json'));
-  const files=[];for(const meta of manifest.files){if(!/^(catalog|topics|summary|publishing)\.json$|^publishing\/\d{6}\.json$|^(daily|works|work-metrics)\/[1-9]\d{0,7}\.json$/.test(meta.path))fail('invalid-partition-path');files.push({...meta,content:await readPart(meta.path)});}
+  const files=[];for(const meta of manifest.files){if(!/^(catalog|topics|summary|publishing)\.json$|^publishing\/\d{6}\.json$|^creator\/(index|authors|insights|works-\d{3})\.json$|^(daily|works|work-metrics)\/[1-9]\d{0,7}\.json$/.test(meta.path))fail('invalid-partition-path');files.push({...meta,content:await readPart(meta.path)});}
   return {manifest,files};
 }
 async function observe(db,asOf){

@@ -46,8 +46,11 @@ export async function readSourcePart(file,revision,signal,root='/creator-source/
  validateRoot(root);validateRevision(revision);validateFile(file);
  const {fetcher=fetch,timeoutMs=20000}=options;
  if(typeof fetcher!=='function')throw Error('来源读取方法无效');
+ const generation=file.generation;
+ if(generation!==undefined&&(root!=='/creator-source/'||typeof generation!=='string'||!Number.isFinite(Date.parse(generation))||new Date(generation).toISOString()!==generation||!/^((authors|insights)|works-\d{3})\.json$/.test(file.path)))throw Error('来源分区截面无效');
  return boundedRead(signal,async innerSignal=>{
-  const response=await fetcher(root+file.path,{cache:'no-store',signal:innerSignal});
+  const path=generation?'/api/replica?'+new URLSearchParams({generation,part:'creator/'+file.path}):root+file.path;
+  const response=await fetcher(path,{cache:'no-store',signal:innerSignal});
   if(!response.ok)throw Error(`来源分区读取失败：${file.path}`);
   const bytes=await response.arrayBuffer();
   if(bytes.byteLength!==file.bytes)throw Error(`来源分区长度不符：${file.path}`);
@@ -56,18 +59,41 @@ export async function readSourcePart(file,revision,signal,root='/creator-source/
   if(checksum!==file.sha256)throw Error(`来源分区校验失败：${file.path}`);
   let body;try{body=JSON.parse(new TextDecoder().decode(bytes));}catch{throw Error(`来源分区内容无法读取：${file.path}`);}
   if(body?.revision!==revision||!Array.isArray(body?.items)||body.items.length!==file.count)throw Error(`来源分区版本或行数不符：${file.path}`);
+  if(generation&&(body.version!==1||body.asOf!==generation||body.timeZone!=='Asia/Shanghai'))throw Error('来源分区截面不一致');
   return body.items;
  },timeoutMs);
 }
 
 /**
  * @param {string} url
- * @param {{signal?: AbortSignal, fetcher?: typeof fetch, timeoutMs?: number}} [options]
+ * @param {{signal?: AbortSignal, fetcher?: typeof fetch, timeoutMs?: number, preferReplica?: boolean, manifest?: {asOf: string, files: any[]}}} [options]
  */
-export async function readSourceIndex(url,{signal,fetcher=fetch,timeoutMs=20000}={}) {
+export async function readSourceIndex(url,{signal,fetcher=fetch,timeoutMs=20000,preferReplica=false,manifest:knownManifest}={}) {
  if(typeof url!=='string'||!url.startsWith('/')||!safePart(url.slice(1)))throw Error('来源索引路径无效');
  if(typeof fetcher!=='function')throw Error('来源读取方法无效');
  return boundedRead(signal,async innerSignal=>{
+  if(preferReplica&&url==='/creator-source/index.json'){
+   let manifest=knownManifest;
+   if(!manifest){
+    const manifestResponse=await fetcher('/api/replica',{cache:'no-store',signal:innerSignal});
+    if(!manifestResponse.ok)throw Error('最新作者作品数据暂不可读，请重试。');
+    manifest=(await manifestResponse.json()).manifest;
+   }
+   if(!manifest||typeof manifest.asOf!=='string'||!Number.isFinite(Date.parse(manifest.asOf))||new Date(manifest.asOf).toISOString()!==manifest.asOf||!Array.isArray(manifest.files))throw Error('作者作品发布清单无效');
+   const meta=manifest.files.find(file=>file.path==='creator/index.json');
+   if(meta){
+    if(meta.kind!=='creatorIndex'||!Number.isSafeInteger(meta.bytes)||meta.bytes<1||!/^[a-f0-9]{64}$/.test(meta.sha256))throw Error('作者作品索引校验信息无效');
+    const r=await fetcher('/api/replica?'+new URLSearchParams({generation:manifest.asOf,part:meta.path}),{cache:'no-store',signal:innerSignal});
+    if(!r.ok)throw Error('最新作者作品索引暂不可读，请重试。');
+    const bytes=await r.arrayBuffer(),digest=await crypto.subtle.digest('SHA-256',bytes);
+    if(bytes.byteLength!==meta.bytes||[...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('')!==meta.sha256)throw Error('作者作品索引校验不一致');
+    const index=JSON.parse(new TextDecoder().decode(bytes));
+    if(index.version!==1||index.asOf!==manifest.asOf||index.timeZone!=='Asia/Shanghai'||!Array.isArray(index.files)||index.files.some(f=>f.generation!==manifest.asOf))throw Error('作者作品版本不一致');
+    return index;
+   }
+   // Old already-published generations have no creator corpus. Only this
+   // explicit absence permits the unchanged static fallback during rollout.
+  }
   const response=await fetcher(url,{cache:'no-store',signal:innerSignal});
   if(!response.ok)throw Error('来源索引暂不可读，请重试。');
   try{return await response.json();}catch(error){

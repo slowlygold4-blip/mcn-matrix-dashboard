@@ -15,6 +15,10 @@ export function validateCreatorSourceIndex(index) {
 
 export function sourceEditionIdentity(index) {
  const valid=validateCreatorSourceIndex(index);
+ if(valid.editionFingerprint!==undefined){
+  if(!/^[a-f0-9]{64}$/.test(valid.editionFingerprint))throw Error('作者作品版本校验值无效');
+  return JSON.stringify(['live-creator-v1',String(valid.revision),valid.editionFingerprint]);
+ }
  return JSON.stringify([String(valid.revision),valid.linkFingerprint??'',valid.stats,
   sourcePartsIdentity(valid.files,String(valid.revision))]);
 }
