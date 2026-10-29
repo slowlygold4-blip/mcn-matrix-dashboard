@@ -37,3 +37,10 @@ The works API 403 and complete automatic identity linkage remain unresolved. Exi
 ## Publication preparation observability
 
 During a graceful publisher reload, the persisted state still described the previous completed generation while the next read-only export had already started. The graceful abort retained the new immutable stage and the existing daemon resumed it; main/source workers and business data were untouched. Added a persisted `preparing` state before slow baseline/export work so future maintenance does not infer runtime idleness from the previous success record. The active retry cache was observed as `reused-immutable` on a real network retry; this is not an end-to-end production speed benchmark.
+
+
+## Final network observation
+
+At 07:33–07:35 UTC, the existing proxy route reset TLS to the public Site before any HTTP response; a direct diagnostic received Cloudflare HTTP 403. GitHub through the same proxy returned 200. The next generation remains checkpointed at 96/342 batches, while the earlier generation had been fully read back at 07:16 UTC. Existing bounded retry continues; no checkpoint reset, duplicate publisher, global proxy change or challenge handling. Public availability at the final observation is not claimed. This Site connectivity problem is separate from the Douyin works API failure.
+
+The preparation-status patch passes related tests and is committed, but is not yet loaded in the active publisher; it awaits a safe idle reload. Agent Reach reports v1.6.0 available; no tool upgrade was performed during this investigation.
