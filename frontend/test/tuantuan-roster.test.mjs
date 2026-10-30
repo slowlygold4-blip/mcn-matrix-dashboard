@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildTuantuanRoster,filterTuantuanRoster,rosterModeCounts,sourceRosterMetric,tuantuanRosterExport} from '../lib/tuantuan-roster.mjs';
+import {buildTuantuanRoster,filterTuantuanRoster,rosterModeCounts,sourceRosterMetric,tuantuanRosterExport,rosterMonitoringState} from '../lib/tuantuan-roster.mjs';
 import {csv} from '../lib/replica-model.mjs';
 
 const account=(id,theme='tuantuan',enabled=true)=>({id,label:`账号${id}`,platform:'douyin',enabled,classification:{theme:{key:theme},labels:[{key:'slice'}]}});
@@ -11,7 +11,7 @@ test('团团名册按持久化 targetId 去重，源作者不被误称为已监�
   {name:'主播',douyinId:'douyin-c',targetIds:[3],slicePosts:0,creationPosts:0,aiPosts:1},
  ];
  const result=buildTuantuanRoster(source,[account(1),account(2,'tuantuan',false),account(3,'douyin-streamers')]);
- assert.deepEqual(result.counts,{all:4,source:3,baseSource:3,supplementSource:0,pendingSource:0,reconciledAliases:0,monitored:2,monitoredEnabled:1,monitoredPaused:1,linkedSource:1,linkedTargets:1,platformOnly:1,sourceWithoutThemeLink:2});
+ assert.deepEqual(result.counts,{all:4,source:3,baseSource:3,supplementSource:0,pendingSource:0,reconciledAliases:0,monitored:2,monitoredEnabled:1,monitoredPaused:1,linkedSource:1,linkedTargets:1,platformOnly:1,sourceWithoutThemeLink:2,matchedOtherTheme:1});
  assert.equal(filterTuantuanRoster(result.rows,{mode:'monitored'}).length,1);
  assert.equal(filterTuantuanRoster(result.rows,{mode:'paused'}).length,1);
  assert.equal(filterTuantuanRoster(result.rows,{mode:'source-only'}).length,2);

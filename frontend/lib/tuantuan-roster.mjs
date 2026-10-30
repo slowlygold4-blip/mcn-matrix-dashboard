@@ -10,6 +10,8 @@ export function buildTuantuanRoster(authors, accounts, supplements=[], pending=[
  const themed = accounts.filter(account => account?.classification?.theme?.key === 'tuantuan'
   && !isIndependentStreamer(account) && account.platform === 'douyin' && Number.isSafeInteger(account.id) && account.sourceOnly !== true);
  const byId = new Map(themed.map(account => [account.id, account]));
+ const knownById=new Map(accounts.filter(account=>account.platform==='douyin'&&Number.isSafeInteger(account.id)
+  &&account.id>0&&account.sourceOnly!==true).map(account=>[account.id,account]));
  if (byId.size !== themed.length) throw Error('团团监控账号编号重复');
  const byTarget = new Map();
  for (const author of allAuthors) {
@@ -46,10 +48,11 @@ export function buildTuantuanRoster(authors, accounts, supplements=[], pending=[
   if (douyinId) seenAuthors.add(douyinId);
   if (pendingKey) seenRows.add(pendingKey);
   const linked = [...new Set(author.targetIds)].map(id => byId.get(id)).filter(Boolean);
+  const otherScopeAccounts=[...new Set(author.targetIds)].filter(id=>!byId.has(id)).map(id=>knownById.get(id)).filter(Boolean);
   for (const account of linked) linkedIds.add(account.id);
-  return { key: pendingKey ? `source-row:${pendingKey}` : `source:${douyinId}`, source: author, accounts: linked };
+  return { key: pendingKey ? `source-row:${pendingKey}` : `source:${douyinId}`, source: author, accounts: linked,otherScopeAccounts };
  });
- for (const account of themed) if (!linkedIds.has(account.id)) rows.push({ key: `account:${account.id}`, source: null, accounts: [account] });
+ for (const account of themed) if (!linkedIds.has(account.id)) rows.push({ key: `account:${account.id}`, source: null, accounts: [account],otherScopeAccounts:[] });
  return {
   rows,
   counts: {
@@ -66,8 +69,18 @@ export function buildTuantuanRoster(authors, accounts, supplements=[], pending=[
    linkedTargets: linkedIds.size,
    platformOnly: themed.length - linkedIds.size,
    sourceWithoutThemeLink: canonical.filter(author => !author.targetIds.some(id => byId.has(id))).length,
+   matchedOtherTheme:rows.filter(row=>!row.accounts.length&&row.otherScopeAccounts.length).length,
   },
  };
+}
+
+export function rosterMonitoringState(row){
+ const accounts=row.accounts||[],other=row.otherScopeAccounts||[];
+ if(accounts.some(account=>account.enabled))return {label:'已启用采集计划',detail:'已启用采样；实际日期见本行'};
+ if(accounts.length)return {label:'采集计划已暂停',detail:'采样计划已暂停，保留历史数据'};
+ if(other.length){const scopes=[...new Set(other.map(account=>account.classification?.theme?.label||'其他主题'))];
+  return {label:'已匹配其他主题',detail:`已核验账号属于${scopes.join('、')}；保留原分类，不计入当前团团矩阵的主页统计。`};}
+ return {label:'未关联监控账号',detail:'已有登记资料，尚未关联可采样的主页身份'};
 }
 
 function rosterRowMode(row) {
@@ -119,7 +132,7 @@ export function tuantuanRosterExport(rows, context={}) {
    return [source?.name || accounts[0]?.label || '',source?.identifierStatus==='unusable'
     ? `待核验原号：${source.submittedAccountId}`
     : (source?.douyinIds ?? [source?.douyinId]).filter(Boolean).join(' / '),
-    accounts.some(account=>account.enabled)?'启用主页监控':accounts.length?'监控暂停':'仅表格来源',
+    row.otherScopeAccounts?.length&&!accounts.length?'已匹配其他主题':accounts.some(account=>account.enabled)?'启用主页监控':accounts.length?'监控暂停':'仅表格来源',
     accounts.map(account=>account.id).join(' / '),sourceRosterMetric(source,'posts'),
     sourceRosterMetric(source,'plays'),sourceRosterMetric(source,'likes'),
     Array.isArray(source?.sourceTitles)?source.sourceTitles.join(' / '):source?'团团作者总表':'仅监控名册',

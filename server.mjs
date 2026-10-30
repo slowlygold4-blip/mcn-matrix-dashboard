@@ -18,6 +18,7 @@ import { MonitorDatabase, normalizeBoardKey, normalizeBoardName } from "./lib/da
 import { MonitorScheduler } from "./lib/scheduler.mjs";
 import { RefreshCollection } from "./lib/refresh-collection.mjs";
 import { SQLiteBackupManager } from "./lib/backup-manager.mjs";
+import {reconcileCreatorProfileIdentityLinks} from './lib/reconcile-creator-profile-links.mjs';
 import { createScheduledBackupThrottle } from "./lib/scheduled-backup-throttle.mjs";
 import { inspectLatestBackup } from "./lib/backup-audit.mjs";
 import { recordPostIngestionReview, inspectPostIngestionReviews, summarizePostIngestionReviewQueue } from "./lib/post-ingestion-review.mjs";
@@ -193,12 +194,27 @@ function reviewPersistedBatches() {
   });
   return ingestionReviewChain;
 }
+let profileIdentityAdmissionReady=false;
+function reconcileCommittedProfileIdentities(runId){
+  if(!profileIdentityAdmissionReady)return;
+  try{
+    const result=reconcileCreatorProfileIdentityLinks(database,{...(runId===undefined?{}:{runId:Number(runId)})});
+    ingestionReviewQueueStatus={...ingestionReviewQueueStatus,profileIdentity:{status:result.status,
+      admitted:result.admitted,eligible:result.eligible??0,remainingEligible:result.remaining??0,
+      unlinkedSourceRows:result.unlinkedSourceRows??null,checkedAt:new Date().toISOString()}};
+    if(result.admitted)consoleReader.invalidate();
+  }catch{
+    ingestionReviewQueueStatus={...ingestionReviewQueueStatus,profileIdentity:{status:'retry-required',checkedAt:new Date().toISOString()}};
+    console.error('已保存主页的来源身份关联待重试；采集及原始入库记录保留');
+  }
+}
 function reviewCommittedBatch(runId) {
   ingestionReviewChain = ingestionReviewChain.catch(() => {}).then(async () => {
     try {
       // The normal hot path is per-run and idempotent. History reconciliation
       // belongs to startup/recovery, not every account's completion callback.
       const result = await recordPostIngestionReview({ database, ledgerDir: ingestionReviewDir, runId });
+      reconcileCommittedProfileIdentities(runId);
       ingestionReviewQueueStatus = { ...ingestionReviewQueueStatus,
         lastRecordedRunId: Number(runId), lastRecordStatus: result.status,
         lastRecordMode: "single-committed-run", lastRecordedAt: new Date().toISOString() };
@@ -2409,6 +2425,10 @@ if (isMainModule) {
         if (strictReplay.requeued || strictReplay.legacyUnverifiable) {
           console.log(`严格身份迁移：逐项复核 ${strictReplay.requeued} 个历史多作品账号；拒绝 ${strictReplay.legacyUnverifiable} 条不可恢复短链`);
         }
+        // Reuse persisted official profile evidence only after the verified
+        // startup restore point exists. Normal runs remain per-run and bounded.
+        profileIdentityAdmissionReady=true;
+        reconcileCommittedProfileIdentities();
       }
       await reviewPersistedBatches();
       // SIGTERM can arrive while startup's review queue is being reconciled.
