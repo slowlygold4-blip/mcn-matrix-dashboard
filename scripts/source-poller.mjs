@@ -208,14 +208,21 @@ export function sourcePollLoopPlan(manifest, { now = new Date(), registry = [], 
   const failedRetryDelayMs = failedEntries.length
     ? Math.min(...failedEntries.map((entry) => entry.delayMs))
     : Infinity;
+  const workLinkEntries=registry.filter(s=>s.sourceType==='lark-work-source'&&s.resolveWorkLinks===true)
+    .map(s=>({key:sourceKey(s),receipt:manifest?.sources?.[sourceKey(s)]}))
+    .filter(({receipt})=>receipt&&receipt.lastStatus!=='failed'&&Number.isFinite(Date.parse(receipt.workLinkResolution?.retryAt)))
+    .map(({key,receipt})=>({key,delay:Math.max(0,Date.parse(receipt.workLinkResolution.retryAt)-now.getTime())}));
+  const workLinkKeys=workLinkEntries.filter(e=>e.delay===0).map(e=>e.key);
+  const workLinkDelayMs=workLinkEntries.length?Math.min(...workLinkEntries.map(e=>e.delay)):Infinity;
   const mode = fullCheckDelayMs === 0 ? "full"
     : uncheckedKeys.length ? "unchecked"
       : pendingDelayMs === 0 ? "pending"
-        : failedKeys.length ? "failed" : "idle";
+        : failedKeys.length ? "failed" : workLinkKeys.length ? 'work-links' : "idle";
   return { mode, hasPending, recoverablePendingCount, unrecoverablePendingCount, uncheckedKeys, uncheckedCount: uncheckedKeys.length, fullCheckDelayMs,
     resumePendingOnly: mode === "pending", uncheckedOnly: mode === "unchecked",
     retryFailedOnly: mode === "failed", failedKeys, failedCount: failedEntries.length, failedRetryDelayMs,
-    nextDelayMs: mode !== "idle" ? 0 : Math.min(fullCheckDelayMs, pendingDelayMs, failedRetryDelayMs,
+    workLinksOnly:mode==='work-links',workLinkKeys,workLinkDelayMs,
+    nextDelayMs: mode !== "idle" ? 0 : Math.min(fullCheckDelayMs, pendingDelayMs, failedRetryDelayMs,workLinkDelayMs,
       Math.max(1_000, Number(discoveryIntervalMs) || SOURCE_REGISTRY_DISCOVERY_INTERVAL_MS)) };
 }
 
@@ -442,19 +449,21 @@ function comparableRevision(source, previous) {
  */
 export async function pollOnce({ session = null, now = new Date(), resumePendingOnly = false, uncheckedOnly = false,
   retryFailedOnly = false, retrySourceKeys = [], failureRetryDelay = retryDelayMs,
+  workLinksOnly=false,workLinkSourceKeys=[],
   maxSources = DEFAULT_UNCHECKED_BATCH_SIZE, monitorMetadataReader = readMonitorOnlyMetadata, workSourceReader = null } = {}) {
-  if ([resumePendingOnly, uncheckedOnly, retryFailedOnly].filter(Boolean).length > 1) {
+  if ([resumePendingOnly, uncheckedOnly, retryFailedOnly,workLinksOnly].filter(Boolean).length > 1) {
     throw new Error("来源补查、失败重试与导入恢复不能同时指定");
   }
   const incrementalLimit = Math.max(1, Math.min(50, Math.trunc(Number(maxSources) || DEFAULT_UNCHECKED_BATCH_SIZE)));
   const failedKeyFilter = new Set(Array.isArray(retrySourceKeys) ? retrySourceKeys.map(String) : []);
+  const linkKeyFilter=new Set(Array.isArray(workLinkSourceKeys)?workLinkSourceKeys.map(String):[]);
   const acquired = await acquireSourcePollLock();
   if (!acquired) return { status: "skipped", reason: "poll-locked", changed: 0, sources: [] };
   try {
     const currentSession = session || await readSession();
     const registry = await readRegistry();
     const sourceList = [
-      ...(!uncheckedOnly && Array.isArray(currentSession.bootstrap?.authorSources) ? currentSession.bootstrap.authorSources : []),
+      ...(!uncheckedOnly && !workLinksOnly && Array.isArray(currentSession.bootstrap?.authorSources) ? currentSession.bootstrap.authorSources : []),
       ...registry,
     ];
     const sourceMap = new Map(sourceList.map((source) => [sourceKey(source), source]));
@@ -480,6 +489,10 @@ export async function pollOnce({ session = null, now = new Date(), resumePending
     for (const [key, source] of sourceMap) {
       if (!clean(source?.sourceUrl)) continue;
       let previous = nextSources[key] || null;
+      if(workLinksOnly&&(source.sourceType!=='lark-work-source'||source.resolveWorkLinks!==true
+        ||linkKeyFilter.size&&!linkKeyFilter.has(key)||previous?.lastStatus==='failed'
+        ||!Number.isFinite(Date.parse(previous?.workLinkResolution?.retryAt))
+        ||Date.parse(previous.workLinkResolution.retryAt)>now.getTime()))continue;
       if (uncheckedOnly && !sourceNeedsInitialCheck(source, previous)) continue;
       if (uncheckedOnly && results.length >= incrementalLimit) break;
       if (resumePendingOnly && previous?.lastStatus !== "pending") continue;
@@ -533,9 +546,11 @@ export async function pollOnce({ session = null, now = new Date(), resumePending
           nextSources[key] = successfulSourceReceipt({ key, sourceType: source.sourceType,
             sourceUrl: clean(source.sourceUrl, 1_000), sourceTitle: clean(source.sourceTitle || source.title, 200),
             readContract: sourceReadContract(source), readPolicy: source.readPolicy, kind: source.kind,
+            resolveWorkLinks:source.resolveWorkLinks===true,
             monitorOnly: false, readMode: 'whole-workbook-facts', contentImported: true,
             sourceRevision: edition.sourceRevision, sourceSha256: edition.sourceSha256,
             sourceVersionId: edition.versionId, workFactCount: edition.factCount, sourceReadAt: edition.sourceReadAt,
+            ...(edition.workLinkResolution?{workLinkResolution:edition.workLinkResolution}:{}),
             lastCheckedAt: now.toISOString(), lastSuccessfulAt: now.toISOString(), lastStatus: status, lastError: null });
           results.push({ ...nextSources[key], status });
           continue;
@@ -682,7 +697,7 @@ export async function pollOnce({ session = null, now = new Date(), resumePending
       }
     }
     const completedAt = now.toISOString();
-    const partial = resumePendingOnly || uncheckedOnly || retryFailedOnly;
+    const partial = resumePendingOnly || uncheckedOnly || retryFailedOnly || workLinksOnly;
     // Incremental/failed recovery must never promote a generic legacy
     // `updatedAt` into proof that a complete daily scan occurred.
     const previousFullFinishedAt = Object.hasOwn(manifest, "lastFinishedAt") ? manifest.lastFinishedAt : null;
@@ -691,6 +706,7 @@ export async function pollOnce({ session = null, now = new Date(), resumePending
       lastFullBusinessDate: partial ? manifest.lastFullBusinessDate || null : sourcePollBusinessDate(now),
       ...(uncheckedOnly ? { lastIncrementalFinishedAt: completedAt } : {}),
       ...(retryFailedOnly ? { lastFailedRetryAt: completedAt } : {}),
+      ...(workLinksOnly ? {lastWorkLinksCheckedAt:completedAt}:{}),
       ...(pendingPolled ? { lastPendingCheckedAt: completedAt } : {}), intervalMs, sources: nextSources };
     await writeManifest(next);
     const failedCount = results.filter((item) => item.status === "failed").length;
@@ -698,8 +714,10 @@ export async function pollOnce({ session = null, now = new Date(), resumePending
     const pendingCount = Object.values(nextSources).filter((item) => item.lastStatus === "pending").length;
     const businessPendingCount = Object.values(nextSources).filter((item) => projectSourceJobSummary(item.sourceJobSummary)?.businessStatus === "pending").length;
     const processedSourceCount = results.filter((item) => item.status === "submitted").length;
-    return { status: failedCount || blockedCount || pendingCount || businessPendingCount ? "warning" : "ok",
-      mode: uncheckedOnly ? "unchecked" : resumePendingOnly ? "pending" : retryFailedOnly ? "failed" : "full",
+    const workLinkIncompleteCount=Object.values(nextSources).filter(s=>s.workLinkResolution?.unresolved>0
+      ||s.workLinkResolution&&s.workLinkResolution.status!=='completed').length;
+    return { status: failedCount || blockedCount || pendingCount || businessPendingCount || workLinkIncompleteCount ? "warning" : "ok",
+      mode: uncheckedOnly ? "unchecked" : resumePendingOnly ? "pending" : retryFailedOnly ? "failed" : workLinksOnly?'work-links':"full",
       uncheckedRemainingCount: new Set(registry.filter((source) => clean(source?.sourceUrl) && sourceNeedsInitialCheck(source, nextSources[sourceKey(source)])).map(sourceKey)).size,
       changed: results.filter((item) => ["submitted", "changed"].includes(item.status)).length,
       processedSourceCount,
@@ -707,6 +725,7 @@ export async function pollOnce({ session = null, now = new Date(), resumePending
       importedSourceCountDeprecated: true,
       processedSourceCountMeaning: "completed-import-jobs-not-all-authors-onboarded",
       businessPendingCount, businessPendingCountUnit: "sources-with-pending-business-outcome-not-authors",
+      workLinkIncompleteCount,workLinkIncompleteCountUnit:'sources-with-unresolved-work-references-not-sampling-coverage',
       businessSummaryMissingCount: Object.values(nextSources).filter((item) => item.lastJobId && !projectSourceJobSummary(item.sourceJobSummary)).length,
       checkedCount: results.length, successfulCount: results.filter((item) => ["unchanged", "submitted", "changed"].includes(item.status)).length,
       failedCount, blockedCount, pendingCount, sources: results };
@@ -734,6 +753,7 @@ async function main() {
         uncheckedOnly: loop ? plan.uncheckedOnly : uncheckedOnly,
         retryFailedOnly: loop && plan.retryFailedOnly,
         retrySourceKeys: plan.failedKeys,
+        workLinksOnly:loop&&plan.workLinksOnly,workLinkSourceKeys:plan.workLinkKeys,
         maxSources });
       console.log(`[${new Date().toISOString()}] 来源轮询：${JSON.stringify(result)}`);
       // A launchd RunAtLoad race is normal: if the workbench has not bound

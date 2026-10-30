@@ -99,3 +99,8 @@ node scripts/integrate-creator-library.mjs --dry-run
 ```
 
 测试仅创建系统临时目录内的小型 SQLite 数据库；覆盖动态增量、只读预演、来源漂移、身份漂移、重复 ID、幂等及事务回滚。不要为了测试执行生产导入或启动全量浏览器采集。
+
+
+### 自动关联新登记作品（2026-10-31）
+
+已审查的作品来源可在原目录启用 `resolveWorkLinks`，复用 `lib/work-source-link-batch.mjs`；即使版本未变也补齐待处理短链。批次接续、拒绝冷却与每日优先使用既有来源循环，不另开调度。CLI保留为显式入口，自动流程不依赖AI调用CLI。补链不产生虚构的指标/发布日期。规则、边界与144项测试见 `SOURCE_WORK_LINK_AUTOMATION_20261031.md`。
