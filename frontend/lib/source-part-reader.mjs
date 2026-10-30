@@ -33,25 +33,30 @@ export function sourcePartsIdentity(files,revision,root='/creator-source/') {
 }
 
 /** Own the deadline controller so timeout remains visible to the caller's error UI. */
-async function boundedRead(signal,operation,timeoutMs) {
+async function boundedRead(signal,operation,timeoutMs,{cancelOnFailure=false}={}) {
  if(signal!=null&&(typeof signal.aborted!=='boolean'||typeof signal.addEventListener!=='function'||typeof signal.removeEventListener!=='function'))throw Error('来源读取取消信号无效');
  const controller=new AbortController();
  const cancel=()=>controller.abort(Object.assign(new Error('来源数据读取已取消。'),{name:'AbortError'}));
  if(signal?.aborted)cancel();else signal?.addEventListener('abort',cancel,{once:true});
  try{return await withReplicaReadDeadline({controller,timeoutMs,operation:()=>operation(controller.signal)});}
+ catch(error){if(cancelOnFailure&&!controller.signal.aborted)controller.abort(error);throw error;}
  finally{signal?.removeEventListener('abort',cancel);}
+}
+
+function sourcePartUrl(file,root){
+ const generation=file.generation;
+ const liveRoot=root==='/creator-source/'?'creator/':root==='/table-foundation/'?'foundation/':null;
+ const livePart=root==='/creator-source/'?/^((authors|insights)|works-\d{3})\.json$/:/^(authors|works|sources|observations|other-authors|other-works|pending-authors)\.json$/;
+ if(generation!==undefined&&(!liveRoot||typeof generation!=='string'||!Number.isFinite(Date.parse(generation))||new Date(generation).toISOString()!==generation||!livePart.test(file.path)))throw Error('来源分区截面无效');
+ return generation?'/api/replica?'+new URLSearchParams({generation,part:liveRoot+file.path}):root+file.path;
 }
 
 export async function readSourcePart(file,revision,signal,root='/creator-source/',options={}) {
  validateRoot(root);validateRevision(revision);validateFile(file);
  const {fetcher=fetch,timeoutMs=20000}=options;
  if(typeof fetcher!=='function')throw Error('来源读取方法无效');
- const generation=file.generation;
- const liveRoot=root==='/creator-source/'?'creator/':root==='/table-foundation/'?'foundation/':null;
- const livePart=root==='/creator-source/'?/^((authors|insights)|works-\d{3})\.json$/:/^(authors|works|sources|observations|other-authors|other-works|pending-authors)\.json$/;
- if(generation!==undefined&&(!liveRoot||typeof generation!=='string'||!Number.isFinite(Date.parse(generation))||new Date(generation).toISOString()!==generation||!livePart.test(file.path)))throw Error('来源分区截面无效');
+ const path=sourcePartUrl(file,root),generation=file.generation;
  return boundedRead(signal,async innerSignal=>{
-  const path=generation?'/api/replica?'+new URLSearchParams({generation,part:liveRoot+file.path}):root+file.path;
   const response=await fetcher(path,{cache:'no-store',signal:innerSignal});
   if(!response.ok)throw Error(`来源分区读取失败：${file.path}`);
   const bytes=await response.arrayBuffer();
@@ -64,6 +69,28 @@ export async function readSourcePart(file,revision,signal,root='/creator-source/
   if(generation&&(body.version!==1||body.asOf!==generation||body.timeZone!=='Asia/Shanghai'))throw Error('来源分区截面不一致');
   return body.items;
  },timeoutMs);
+}
+
+/** Four sealed reads at a time; do not expose a partial corpus on failure. */
+export async function readSourceParts(files,revision,signal,root='/creator-source/',options={}){
+ sourcePartsIdentity(files,revision,root);
+ for(const file of files)sourcePartUrl(file,root);
+ if(new Set(files.map(file=>file.generation??null)).size>1)throw Error('来源分区截面不一致');
+ const {onProgress,totalTimeoutMs=60000,...readOptions}=options;
+ if(onProgress!==undefined&&typeof onProgress!=='function')throw Error('来源读取进度方法无效');
+ return boundedRead(signal,async innerSignal=>{
+  innerSignal.throwIfAborted();
+  const all=[];
+  onProgress?.({verifiedParts:0,totalParts:files.length});
+  for(let start=0;start<files.length;start+=4){
+   innerSignal.throwIfAborted();
+   const parts=await Promise.all(files.slice(start,start+4).map(file=>readSourcePart(file,revision,innerSignal,root,readOptions)));
+   innerSignal.throwIfAborted();
+   for(const part of parts)all.push(...part);
+   onProgress?.({verifiedParts:Math.min(start+4,files.length),totalParts:files.length});
+  }
+  return all;
+ },totalTimeoutMs,{cancelOnFailure:true});
 }
 
 /**

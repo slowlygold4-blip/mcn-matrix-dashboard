@@ -6,7 +6,7 @@ import {Input} from '@/components/ui/input';
 import {UnifiedWorkMetric} from '@/components/unified-work-metric';
 import {AuthorDailyPublishing} from '@/components/author-daily-publishing';
 import {authorDailyPublication,publicationBusinessDay} from '@/lib/author-daily-publication.mjs';
-import {readSourcePart,sourcePartsIdentity} from '@/lib/source-part-reader.mjs';
+import {readSourceParts,sourcePartsIdentity} from '@/lib/source-part-reader.mjs';
 import {readReplicaPart} from '@/lib/replica-reader.mjs';
 import {mergeAuthorWorks,orderAuthorWorks,authorWorkExportRows} from '@/lib/author-unified-works.mjs';
 import {summarizeAdoptedWorks} from '@/lib/work-metric-adoption.mjs';
@@ -17,14 +17,17 @@ export function AuthorUnifiedWorks({author,manifest,source,foundation,preverifie
  const [storedItems,setItems]=useState<Row[]|null>(null),[loadedGeneration,setLoadedGeneration]=useState(''),[error,setError]=useState(''),[retry,setRetry]=useState(0),[query,setQuery]=useState(''),[sort,setSort]=useState('publicationDay'),[direction,setDirection]=useState('desc'),[page,setPage]=useState(1);
  const items=loadedGeneration===manifest.asOf?storedItems:null;
  const [publicationDate,setPublicationDate]=useState(''),[onlyDay,setOnlyDay]=useState(false);
- useEffect(()=>{const c=new AbortController();setItems(null);setError('');setPage(1);
+ const [readProgress,setReadProgress]=useState<{verifiedParts:number;totalParts:number}|null>(null);
+ useEffect(()=>{const c=new AbortController();setItems(null);setError('');setPage(1);setReadProgress(null);
   if(!source||!foundation){setError('作者资料正在读取，请稍后重试。');return;}
   (async()=>{
    const files=source.files.filter((f:Row)=>f.path.startsWith('works-'));
    const identity=sourcePartsIdentity(files,String(source.revision),'/creator-source/');
    const base:Row[]=[];
-   if(preverified?.identity===identity)base.push(...preverified.items);
-   else for(const file of files)base.push(...await readSourcePart(file,String(source.revision),c.signal,'/creator-source/'));
+   if(preverified?.identity===identity){base.push(...preverified.items);setReadProgress({verifiedParts:files.length,totalParts:files.length});}
+   else base.push(...await readSourceParts(files,String(source.revision),c.signal,'/creator-source/',{
+    onProgress:(progress:{verifiedParts:number;totalParts:number})=>{if(!c.signal.aborted)setReadProgress(progress);},
+   }));
    if(base.length!==source.stats.works)throw Error('作品目录条数校验失败');
    const workOwners=readLiveSourceWorkOwners(workOwnerProjection,source,base);
    const foundationWorkOwners=readLiveFoundationWorkOwners(workOwnerProjection,foundation,manifest.asOf);
@@ -50,7 +53,7 @@ export function AuthorUnifiedWorks({author,manifest,source,foundation,preverifie
  {items&&!error&&(daily.model?<AuthorDailyPublishing model={daily.model} onlyDay={onlyDay} onDate={date=>{setPublicationDate(date);setPage(1);}} onFilter={enabled=>{setOnlyDay(enabled);setPage(1);}}/>:<p role="alert" className="error">{daily.error}<Button variant="outline" onClick={()=>{setPublicationDate('');setOnlyDay(false);setPage(1);}}>恢复版本截止日</Button></p>)}
  <Input aria-label="搜索此作者的全部作品" placeholder="搜索标题或作品 ID" value={query} onChange={e=>{setQuery(e.target.value);setPage(1);}}/>
  {items&&!error&&<div className="period-toolbar" aria-label="当前筛选作品指标合计">{[['likes','已知累计点赞'],['plays','已知播放字段']].map(([key,label])=>{const value=(totals as Row)[key];return <span key={key}>{label} <strong>{value.value===null?'—':value.value.toLocaleString('zh-CN')}</strong> · {value.known}/{totals.works} 条有值{value.conflicts?` · ${value.conflicts} 条待核对`:''}{value.overflow?' · 合计超出安全数值范围':''}</span>;})}</div>}
- {error?<div role="alert" className="error">{error}<Button variant="outline" onClick={()=>setRetry(n=>n+1)}>重试作品读取</Button></div>:!items?<p role="status">正在读取已保存的作品，未启动新采集。</p>:<><div className="table-scroll-shell"><table className="source-table"><thead><tr><th>作品</th>{[['publicationDay','发布日期'],['adoptedLikes','点赞'],['adoptedPlays','播放字段']].map(([key,label])=><th key={key} aria-sort={sort===key?(direction==='asc'?'ascending':'descending'):'none'}><Button variant="ghost" onClick={()=>rank(key)}>{label}{sort===key?(direction==='asc'?' ↑':' ↓'):' ↕'}</Button></th>)}</tr></thead><tbody>{rows.slice((page-1)*20,page*20).map((r:Row)=><tr key={r.externalId}><td><a href={`https://www.douyin.com/video/${r.externalId}`} target="_blank" rel="noopener noreferrer">{r.caption||'未记录标题'}</a><small>ID {r.externalId}</small>{r.ownershipClaimOnly&&<small>原登记归属声明 · 未计入此作者统计</small>}{r.canonicalOwnerTargetId&&onOpenAccount&&<Button variant="link" onClick={()=>onOpenAccount(r.canonicalOwnerTargetId)}>查看已核验发布者 →</Button>}</td><td>{r.publicationDay||'未记录'}</td><td><UnifiedWorkMetric work={r} metric="likes"/></td><td><UnifiedWorkMetric work={r} metric="plays"/></td></tr>)}</tbody></table></div>{!rows.length&&<p>没有符合当前条件的已保存作品。</p>}<div className="pager"><Button variant="outline" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>上一页</Button><span>第 {page}/{Math.max(1,Math.ceil(rows.length/20))} 页</span><Button variant="outline" disabled={page*20>=rows.length} onClick={()=>setPage(p=>p+1)}>下一页</Button></div></>}
+ {error?<div role="alert" className="error">{error}<Button variant="outline" onClick={()=>setRetry(n=>n+1)}>重试作品读取</Button></div>:!items?<p role="status">正在读取已保存的作品，未启动新采集。{readProgress&&<><br/>来源作品分区已核验 {readProgress.verifiedParts}/{readProgress.totalParts}{readProgress.verifiedParts===readProgress.totalParts?'；正在核对账号作品与合并结果。':''}</>}</p>:<><div className="table-scroll-shell"><table className="source-table"><thead><tr><th>作品</th>{[['publicationDay','发布日期'],['adoptedLikes','点赞'],['adoptedPlays','播放字段']].map(([key,label])=><th key={key} aria-sort={sort===key?(direction==='asc'?'ascending':'descending'):'none'}><Button variant="ghost" onClick={()=>rank(key)}>{label}{sort===key?(direction==='asc'?' ↑':' ↓'):' ↕'}</Button></th>)}</tr></thead><tbody>{rows.slice((page-1)*20,page*20).map((r:Row)=><tr key={r.externalId}><td><a href={`https://www.douyin.com/video/${r.externalId}`} target="_blank" rel="noopener noreferrer">{r.caption||'未记录标题'}</a><small>ID {r.externalId}</small>{r.ownershipClaimOnly&&<small>原登记归属声明 · 未计入此作者统计</small>}{r.canonicalOwnerTargetId&&onOpenAccount&&<Button variant="link" onClick={()=>onOpenAccount(r.canonicalOwnerTargetId)}>查看已核验发布者 →</Button>}</td><td>{r.publicationDay||'未记录'}</td><td><UnifiedWorkMetric work={r} metric="likes"/></td><td><UnifiedWorkMetric work={r} metric="plays"/></td></tr>)}</tbody></table></div>{!rows.length&&<p>没有符合当前条件的已保存作品。</p>}<div className="pager"><Button variant="outline" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>上一页</Button><span>第 {page}/{Math.max(1,Math.ceil(rows.length/20))} 页</span><Button variant="outline" disabled={page*20>=rows.length} onClick={()=>setPage(p=>p+1)}>下一页</Button></div></>}
  <p className="meta">只展示已保存记录；有作品但缺少某项指标时显示 —。来源与观察时间可在各指标详情中核对。</p>
  </DialogContent></Dialog>;
 }

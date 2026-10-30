@@ -6,7 +6,7 @@ import {Input} from '@/components/ui/input';
 import {TableScrollFrame} from '@/components/table-scroll-frame';
 import {filterSourceLedgerRows,sourceDateRangeError,sourceLedgerCsv,sourcePublicationDate,sourceLedgerRowKey} from '@/lib/source-ledger-filters.mjs';
 import {sourceLedgerDefaults,sourceLedgerSelection,sourceLedgerSelectionPath,sourceLedgerShareLink} from '@/lib/source-ledger-navigation.mjs';
-import {readSourcePart,sourcePartsIdentity} from '@/lib/source-part-reader.mjs';
+import {readSourcePart,readSourceParts,sourcePartsIdentity} from '@/lib/source-part-reader.mjs';
 import './creator-source-filters.css';
 
 type RecordRow=Record<string,any>;
@@ -89,7 +89,7 @@ export function CreatorSourceLedger({source,sourceError='',onRetrySource,foundat
  async function copySelection(){try{const href=sourceLedgerShareLink(window.location.href,selection);setManualLink(href);try{await navigator.clipboard.writeText(href);setCopyStatus('已复制，打开链接可恢复当前筛选与页码。');setManualLink('');}catch{setCopyStatus('浏览器未允许自动复制，请选中下方链接手动复制。');}}catch(e){setCopyStatus((e as Error).message);}}
  useEffect(()=>{if(!source)return;let active=true;const controller=new AbortController();const files=selectedFiles;
  if((view==='authors'?authorParts:workParts)?.identity===partsIdentity){setError('');return;}
- setError('');(async()=>{try{const all:RecordRow[]=[];for(let start=0;start<files.length;start+=4){const parts=await Promise.all(files.slice(start,start+4).map(file=>readCreatorSourcePart(file,String(source.revision),controller.signal)));for(const part of parts)all.push(...part);}const expected=view==='authors'?source.stats.authors:source.stats.works;if(all.length!==expected)throw Error('来源记录总数不符');if(active)(view==='authors'?setAuthors:setWorks)({identity:partsIdentity,items:all});}catch(e){if(active&&!controller.signal.aborted)setError((e as Error).message);}})();return()=>{active=false;controller.abort();};},[source,view,authorParts,workParts,retry,selectedFiles,partsIdentity]);
+ setError('');(async()=>{try{const all=await readSourceParts(files,String(source.revision),controller.signal,sourceRoot);const expected=view==='authors'?source.stats.authors:source.stats.works;if(all.length!==expected)throw Error('来源记录总数不符');if(active)(view==='authors'?setAuthors:setWorks)({identity:partsIdentity,items:all});}catch(e){if(active&&!controller.signal.aborted)setError((e as Error).message);}})();return()=>{active=false;controller.abort();};},[source,view,authorParts,workParts,retry,selectedFiles,partsIdentity]);
  const list=useMemo(()=>{
   const loaded=view==='authors'?authorParts:workParts;
   if(!loaded||loaded.identity!==partsIdentity)return null;

@@ -10,6 +10,60 @@ function sealed(items=[],revision='1697',path='authors.json') {
 const responder=bytes=>async()=>({ok:true,arrayBuffer:async()=>bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength)});
 const never=()=>new Promise(()=>{});
 
+test('multi-part reads are capped at four, preserve file order and report only verified batches',async()=>{
+ const {readSourceParts}=await import('../lib/source-part-reader.mjs');
+ const data=Array.from({length:9},(_,i)=>sealed([{id:i,likes:i===0?0:null}],'1697',`works-${String(i+1).padStart(3,'0')}.json`));
+ const started=[],releases=[],progress=[];let active=0,peak=0;
+ const pending=readSourceParts(data.map(d=>d.file),'1697',undefined,'/creator-source/',{onProgress:p=>progress.push({...p}),fetcher:async url=>{
+  const i=data.findIndex(d=>url.endsWith(d.file.path));started.push(i);active++;peak=Math.max(peak,active);
+  await new Promise(resolve=>releases[i]=resolve);active--;return responder(data[i].bytes)();
+ }});
+ const flush=()=>new Promise(resolve=>setImmediate(resolve));await flush();assert.deepEqual(started,[0,1,2,3]);
+ for(const batch of [[3,1,0,2],[7,5,4,6],[8]]){
+  for(const i of batch)releases[i]();
+  const expected=Math.min(9,batch[0]===3?8:9),deadline=Date.now()+3000;
+  while(started.length<expected&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,5));
+  assert.equal(started.length,expected);
+ }
+ assert.deepEqual(await pending,data.flatMap(d=>JSON.parse(new TextDecoder().decode(d.bytes)).items));
+ assert.equal(peak,4);assert.equal(active,0);
+ assert.deepEqual(progress,[{verifiedParts:0,totalParts:9},{verifiedParts:4,totalParts:9},{verifiedParts:8,totalParts:9},{verifiedParts:9,totalParts:9}]);
+});
+
+test('failed part cancels its siblings, starts no later batch and never returns partial rows',async()=>{
+ const {readSourceParts}=await import('../lib/source-part-reader.mjs');
+ const data=Array.from({length:7},(_,i)=>sealed([{id:i}],'1697',`works-${String(i+1).padStart(3,'0')}.json`));
+ const parent=new AbortController(),signals=[],progress=[];let calls=0;
+ await assert.rejects(readSourceParts(data.map(d=>d.file),'1697',parent.signal,'/creator-source/',{onProgress:p=>progress.push({...p}),fetcher:async(url,{signal})=>{
+  calls++;signals.push(signal);return url.endsWith('001.json')?responder(data[1].bytes)():never();
+ }}),/校验失败/);
+ assert.equal(calls,4);assert.ok(signals.slice(1).every(signal=>signal.aborted));assert.equal(parent.signal.aborted,false);
+ assert.deepEqual(progress,[{verifiedParts:0,totalParts:7}]);
+});
+
+test('whole-read deadline and parent cancellation abort all active parts without starting later batches',async()=>{
+ const {readSourceParts}=await import('../lib/source-part-reader.mjs');
+ const data=Array.from({length:5},(_,i)=>sealed([],'1697',`works-${String(i+1).padStart(3,'0')}.json`));
+ for(const mode of ['deadline','parent']){
+  const parent=new AbortController(),signals=[];
+  const pending=readSourceParts(data.map(d=>d.file),'1697',parent.signal,'/creator-source/',{totalTimeoutMs:mode==='deadline'?5:1000,fetcher:async(url,{signal})=>{signals.push(signal);return never();}});
+  if(mode==='parent')parent.abort(new Error('closed dialog'));
+  await assert.rejects(pending,{name:mode==='deadline'?'TimeoutError':'AbortError'});
+  assert.equal(signals.length,4);assert.ok(signals.every(signal=>signal.aborted));
+ }
+});
+
+test('multi-part preflight rejects duplicate paths and mixed or invalid generations without issuing requests',async()=>{
+ const {readSourceParts}=await import('../lib/source-part-reader.mjs');
+ const {file}=sealed();let calls=0;const options={fetcher:()=>{calls++;return never();}};
+ for(const files of [[file,file],[file,{...file,path:'works-001.json',generation:'invalid'}],
+  [{...file,generation:'2026-10-26T00:00:00.000Z'},{...file,path:'works-001.json',generation:'2026-10-27T00:00:00.000Z'}]])
+  await assert.rejects(readSourceParts(files,'1697',undefined,'/creator-source/',options),/重复|截面/);
+ await assert.rejects(readSourceParts([file],'1697',undefined,'/creator-source/',{...options,onProgress:true}),/进度/);
+ assert.deepEqual(await readSourceParts([],'1697',undefined,'/creator-source/',options),[]);
+ assert.equal(calls,0);
+});
+
 test('source identity changes with same-revision content and includes directory, counts and lengths',()=>{
  const first=sealed([{name:'旧名字'}]),second=sealed([{name:'新名字'}]);
  assert.notEqual(sourcePartsIdentity([first.file],'1697'),sourcePartsIdentity([second.file],'1697'));
