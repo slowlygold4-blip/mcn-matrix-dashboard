@@ -3,6 +3,7 @@ import {createHash} from 'node:crypto';import {readFileSync,existsSync} from 'no
 import {MonitorDatabase} from '../lib/database.mjs';
 import {creatorSourcePartitions} from '../lib/public-creator-source.mjs';
 import {auditCreatorPublication,creatorPartValid} from '../lib/replica-creator.mjs';
+import {readUnifiedCreatorSourceCorpus} from '../lib/creator-source-corpus.mjs';
 const asOf='2026-10-25T00:00:00.000Z',hash=s=>createHash('sha256').update(s).digest('hex');
 function fixture(t){const database=new MonitorDatabase(':memory:');t.after(()=>database.close());const db=database.db;
  db.exec(`CREATE TABLE creator_source_imports(id INTEGER,source_sha256 TEXT,source_url TEXT,source_revision TEXT,source_modified_at TEXT,imported_at TEXT,metadata_json TEXT,source_row_count INTEGER);
@@ -17,6 +18,30 @@ function fixture(t){const database=new MonitorDatabase(':memory:');t.after(()=>d
  const read=(cutoff=asOf,options={})=>{const parts=creatorSourcePartitions(db,cutoff,options);const files=parts.map(({path,kind,count,...body})=>{const content=JSON.stringify({version:1,asOf:cutoff,timeZone:'Asia/Shanghai',...body})+'\n';return {path,kind,count,bytes:Buffer.byteLength(content),sha256:hash(content),content};});
  return {manifest:{asOf:cutoff,files:files.map(({content,...meta})=>meta)},files};};return {db,read};}
 const audit=publication=>auditCreatorPublication({manifest:publication.manifest,readPart:async path=>JSON.parse(publication.files.find(f=>f.path===path).content)});
+
+test('explicit field-order aliases collapse even without works, retain originals, and reappear as unverified if their proof changes',async t=>{
+ const {db,read}=fixture(t);
+ db.exec('CREATE TABLE creator_source_sheets(import_id INTEGER,sheet_id TEXT,headers_json TEXT)');
+ db.prepare('INSERT INTO creator_source_sheets VALUES(1,?,?)').run('08',JSON.stringify(['作者名','主抖音号','账号别名']));
+ db.prepare('INSERT INTO creator_source_sheets VALUES(1,?,?)').run('14',JSON.stringify(['作者名','填报账号']));
+ const primary=['现在的显示名','87654321',null,null,null,null,0,0,0,0,0,0,0];
+ const displaced=[87654321,'明确作者','保留备注',null,null,null,0,0,0,0,0,0,0];
+ const insert=db.prepare('INSERT INTO creator_source_rows VALUES(1,?,?,?)');
+ insert.run('08',4,JSON.stringify(primary));insert.run('08',5,JSON.stringify(displaced));insert.run('14',4,JSON.stringify(['明确作者','87654321']));
+ const before=db.prepare('SELECT total_changes() n').get().n;
+ let result=read(),authors=JSON.parse(result.files.find(f=>f.kind==='creatorAuthors').content).items;
+ assert.equal(authors.length,2);assert.equal(authors.filter(a=>a.douyinId==='87654321').length,1);
+ assert.equal((await audit(result)).works,2);
+ const corpus=readUnifiedCreatorSourceCorpus(db,asOf).source,author=corpus.authors.find(a=>a.accountId==='87654321');
+ assert.equal(author.sourceAliases[0].row,5);assert.equal(author.sourceAliases[0].identityFieldRepair.original.name,87654321);
+ assert.equal(db.prepare("SELECT values_json FROM creator_source_rows WHERE sheet_id='08' AND row_number=5").get().values_json,JSON.stringify(displaced));
+ assert.equal(db.prepare('SELECT total_changes() n').get().n,before);
+ assert.equal(JSON.stringify(result).includes('rowSha256'),false);assert.equal(JSON.stringify(result).includes('保留备注'),false);
+ db.prepare("UPDATE creator_source_rows SET values_json=? WHERE sheet_id='14' AND row_number=4").run(JSON.stringify(['另一个作者','87654321']));
+ result=read();authors=JSON.parse(result.files.find(f=>f.kind==='creatorAuthors').content).items;
+ assert.equal(authors.length,3,'changed source proof must not leave a cached confirmed alias');
+ assert.equal(authors.some(a=>a.name==='87654321'&&a.douyinId==='明确作者'),true);
+});
 test('explicit registration categories publish even when no works have been recorded, without private evidence',async t=>{
  const {db,read}=fixture(t);
  const add=(sheet,row,values)=>db.prepare('INSERT INTO creator_source_rows VALUES(1,?,?,?)').run(sheet,row,JSON.stringify(values));

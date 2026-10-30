@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { validateSubmittedAccountId } from '../lib/author-spreadsheet.mjs';
 import { buildAuthorEvidenceRequests } from '../lib/author-resolution.mjs';
 import { creatorSourceWorkEvidence } from '../lib/creator-source-work-evidence.mjs';
+import {readCreatorAuthorRows} from '../lib/creator-author-field-order.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const normalize = value => String(value ?? '').normalize('NFKC').trim().replace(/^@/, '').toLowerCase();
@@ -45,7 +46,7 @@ export function buildCreatorSourceResolutionCandidates(db, { previewLimit = 20, 
   if (!source) throw new Error('尚未入库创作者来源；无法生成候选');
   requireSourceSchema(db, source.id);
 
-  const authorRows = db.prepare("SELECT row_number,values_json FROM creator_source_rows WHERE import_id=? AND sheet_id='08' ORDER BY row_number").all(source.id);
+  const authorRows = readCreatorAuthorRows(db,source).rows.filter(row=>row.canonicalAuthorRow==null||row.canonicalAuthorRow===row.row_number);
   const workRows = db.prepare("SELECT row_number,values_json FROM creator_source_rows WHERE import_id=? AND sheet_id='09' ORDER BY row_number").all(source.id);
   const linked = new Set(db.prepare('SELECT author_row FROM creator_source_account_links WHERE import_id=?').all(source.id).map(row => row.author_row));
   const targets = knownTargetIds(db);
@@ -59,7 +60,7 @@ export function buildCreatorSourceResolutionCandidates(db, { previewLimit = 20, 
   }
   const allQueueKeys = recoverFailed ? new Set(db.prepare('SELECT identity_key FROM author_resolution_queue').all().map(row=>row.identity_key)) : null;
   const authors = authorRows.map(row => {
-    const values = parse(row.values_json);
+    const values = row.values;
     const id = validateSubmittedAccountId(values[1], 'douyin').value;
     return { row: row.row_number, name: String(values[0] ?? '').trim(), id, normalizedId: normalize(id) };
   });
