@@ -36,6 +36,7 @@ for case in json.loads(sys.argv[2]):
             return {"code": 0, "data": {"video": 1088}}
         if "/x/web-interface/view?" in url:
             return {"code": 0, "data": {
+                "bvid": "BV1fi416bEpi",
                 "owner": {"mid": requested_mid}, "title": "最近一条作品",
                 "stat": {"like": 99999999}, "pubdate": 1789250000,
             }}
@@ -113,8 +114,15 @@ test("normal snapshot persistence retains the public card evidence and never bac
   const account = database.createTarget({ ...target, label: "测试 B站作者" });
   const runId = database.beginRun("test", account.id, 1);
   const [old, fresh] = collectFixtures([{}, { likes: 919721 }]);
-  const before = normalizeCollection(account, old.result, { capturedAt: "2026-09-12T12:00:00Z" });
-  const after = normalizeCollection(account, fresh.result, { capturedAt: "2026-09-13T12:00:00Z" });
+  // This fixture represents two real historical collection times, including
+  // the response-clock receipt. Do not relabel only the normalized timestamp.
+  for (const [fixture, at] of [[old, '2026-09-12T12:00:00.000Z'], [fresh, '2026-09-13T12:00:00.000Z']]) {
+    fixture.result.capturedAt = at;
+    fixture.result.workObservationTimes.startedAt = at;
+    fixture.result.workObservationTimes.completedAt = at;
+  }
+  const before = normalizeCollection(account, old.result, { capturedAt: old.result.capturedAt });
+  const after = normalizeCollection(account, fresh.result, { capturedAt: fresh.result.capturedAt });
   database.saveCollection(account, runId, before);
   const original = database.db.prepare("SELECT * FROM snapshots WHERE target_id=?").get(account.id);
   database.saveCollection(account, runId, after);

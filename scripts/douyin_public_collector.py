@@ -1221,6 +1221,7 @@ def bili_latest_videos(opener, mid, limit, *, evidence=None):
 
 
 def collect_bilibili_account(locator, limit):
+    started_at = observation_timestamp()
     mid = extract_bilibili_mid(locator)
     opener = bili_opener()
     card_url = "https://api.bilibili.com/x/web-interface/card?mid=%s&photo=true" % mid
@@ -1256,18 +1257,23 @@ def collect_bilibili_account(locator, limit):
         warnings.append("B站公开账号卡片未返回有效累计获赞；保留为空，未用作品点赞合计或 0 替代")
     works_list_evidence = {}
     video_refs = bili_latest_videos(opener, mid, limit, evidence=works_list_evidence)
+    list_observed_at = observation_timestamp()
     confirmed_empty_list = (nav.get("video") == 0 and works_list_evidence.get("status") == "success"
                             and works_list_evidence.get("listObserved") is True
                             and works_list_evidence.get("rawCount") == 0)
     if not video_refs and not confirmed_empty_list:
         warnings.append("B站公开投稿列表当前受限；已保存账号粉丝与稿件总量，未用空列表覆盖历史作品")
     works = []
+    observations = []
+    seen_bvids = set()
     for video in video_refs:
         bvid = str(video.get("bvid") or "").strip()
-        if not re.fullmatch(r"BV[0-9A-Za-z]{10}", bvid):
+        if not re.fullmatch(r"BV[0-9A-Za-z]{10}", bvid) or bvid in seen_bvids:
             continue
+        seen_bvids.add(bvid)
         try:
             detail = (bili_json(opener, "https://api.bilibili.com/x/web-interface/view?bvid=%s" % bvid).get("data") or {})
+            detail_observed_at = observation_timestamp()
         except CollectorError as exc:
             warnings.append("B站作品 %s 详情暂未读取；已保留投稿列表中的标题、时间和播放/评论字段：%s" % (bvid, exc))
             works.append({
@@ -1278,10 +1284,11 @@ def collect_bilibili_account(locator, limit):
                 "statistics": {"comment_count": video.get("comment"), "play_count": video.get("play")},
                 "share_url": "https://www.bilibili.com/video/%s" % bvid,
             })
+            observations.append({"contentId": bvid, "observedAt": list_observed_at, "source": "list"})
             continue
         owner = detail.get("owner") or {}
-        if str(owner.get("mid") or "") != mid:
-            warnings.append("B站作品 %s 的作者 UID 不一致，已剔除" % bvid)
+        if detail.get("bvid") != bvid or str(owner.get("mid") or "") != mid:
+            warnings.append("B站作品 %s 的作品 ID 或作者 UID 不一致，已剔除" % bvid)
             continue
         stat = detail.get("stat") or {}
         works.append({
@@ -1296,8 +1303,13 @@ def collect_bilibili_account(locator, limit):
             },
             "share_url": "https://www.bilibili.com/video/%s" % bvid,
         })
+        observations.append({"contentId": bvid, "observedAt": detail_observed_at, "source": "view"})
+    completed_at = observation_timestamp()
     return {
-        "capturedAt": observation_timestamp(),
+        "capturedAt": completed_at,
+        "workObservationTimes": {"version": 1, "transport": "bilibili-official-http",
+                                 "startedAt": started_at, "completedAt": completed_at,
+                                 "observations": observations},
         "profile": {"user": {
             "uid": returned_mid, "nickname": card.get("name") or "",
             "follower_count": followers, "aweme_count": nav.get("video"),
