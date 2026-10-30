@@ -167,3 +167,32 @@ test('invalid submitted handles are explicitly accounted for rather than silentl
   assert.equal(result.invalidSubmittedItemCount, 3);
   assert.deepEqual(result.invalidSubmittedIds, ['名字不是抖音号', '?!']);
 });
+
+
+test('latest profile selection orders instants, including mixed fractional UTC timestamps', t => {
+  const f = database(t), base = fixture();
+  base.raw.capturedAt = '2026-10-09T12:00:00Z'; base.rehash();
+  f.db.prepare('UPDATE snapshots SET captured_at=?,raw_json=?,source_checksum=?').run(base.raw.capturedAt, base.value.snapshot.raw_json, base.value.snapshot.source_checksum);
+  f.db.prepare('UPDATE audits SET source_checksum=?').run(base.value.snapshot.source_checksum);
+  assert.equal(f.read().matches.length, 2);
+  f.db.prepare('INSERT INTO snapshots VALUES(11,1,?,?,?,?,?)').run('2026-10-09T12:00:00.001Z', 'warning', 'available', 'f'.repeat(64), base.value.snapshot.raw_json);
+  assert.equal(f.read().matches.length, 0, 'a newer invalid millisecond snapshot must suppress the older no-millisecond proof');
+});
+
+test('latest audit selection cannot hide a newer failed audit behind lexical UTC ordering', t => {
+  const f = database(t), base = fixture();
+  f.db.prepare('UPDATE audits SET created_at=?').run('2026-10-09T12:00:00Z');
+  f.db.prepare('INSERT INTO audits VALUES(21,1,30,?,?,?,?)').run('2026-10-09T12:00:00.001Z', 'public-web', 'rejected', base.value.snapshot.source_checksum);
+  assert.equal(f.read().matches.length, 0);
+});
+
+test('a newer lifecycle hold is not hidden by an older whole-second timestamp', t => {
+  const f = database(t), base = fixture();
+  base.raw.capturedAt = '2026-10-09T12:00:00.001Z'; base.rehash();
+  f.db.prepare('UPDATE snapshots SET captured_at=?,raw_json=?,source_checksum=?').run(base.raw.capturedAt, base.value.snapshot.raw_json, base.value.snapshot.source_checksum);
+  f.db.prepare('UPDATE audits SET source_checksum=?').run(base.value.snapshot.source_checksum);
+  f.db.prepare('INSERT INTO account_events VALUES(1,1,?,?,?)').run('lifecycle', '2026-10-09T12:00:00Z', '{}');
+  assert.equal(f.read().matches.length, 2);
+  f.db.prepare('INSERT INTO account_events VALUES(2,1,?,?,?)').run('lifecycle', '2026-10-09T12:00:00.002Z', '{}');
+  assert.equal(f.read().matches.length, 0);
+});

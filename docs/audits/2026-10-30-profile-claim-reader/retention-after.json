@@ -1,0 +1,1 @@
+{"mode":"after","targets":1000,"sourcePayloadBytes":131072000,"elapsedMs":91,"rssBeforeBytes":226197504,"rssAfterBytes":246038528,"maxRssKiB":241840,"resultsIdenticalExpected":true,"database":"synthetic-in-memory","modelCalls":0,"networkRequests":0}

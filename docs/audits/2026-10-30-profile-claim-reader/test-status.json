@@ -1,0 +1,20 @@
+{
+  "direct": {
+    "total": 80,
+    "passed": 80
+  },
+  "expanded": {
+    "total": 405,
+    "passed": 396,
+    "failed": 9
+  },
+  "baseline49e7d20": {
+    "selectedUnchangedFiles": 3,
+    "total": 26,
+    "passed": 17,
+    "failed": 9
+  },
+  "sameNineFailureNames": true,
+  "allTestsPassed": false,
+  "uiAcceptance": false
+}

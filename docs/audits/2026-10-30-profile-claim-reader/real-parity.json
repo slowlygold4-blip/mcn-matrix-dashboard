@@ -1,0 +1,30 @@
+{
+  "reference": "2026-10-30T00:23:24.461Z",
+  "targetCount": 4130,
+  "requestedIdentityCount": 5380,
+  "results": [
+    {
+      "name": "profiles",
+      "identical": true,
+      "sha256": "253a63cb175a3ca1cdcea7a574bbdc83f567512cc9fd6edbafff61c0699efc24",
+      "matches": 4047,
+      "ambiguous": 0,
+      "beforeMs": 424,
+      "afterMs": 611
+    },
+    {
+      "name": "aliases",
+      "identical": true,
+      "sha256": "b572307f35fc3ceabbae2ef6675293c6743ff2a6bc45ce94c9eb25d7bd0acb9d",
+      "matches": 4,
+      "ambiguous": 0,
+      "beforeMs": 114,
+      "afterMs": 113
+    }
+  ],
+  "databaseWrites": 0,
+  "networkRequests": 0,
+  "modelCalls": 0,
+  "runtimeAI": false,
+  "note": "Same read-only SQLite transaction. Timing is observation, not a controlled benchmark. Historical roster supplied candidate handles only; current DB is authoritative."
+}

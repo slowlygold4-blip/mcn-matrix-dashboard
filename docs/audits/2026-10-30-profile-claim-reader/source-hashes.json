@@ -1,0 +1,5 @@
+{
+  "lib/profile-identity-proof.mjs": "cc9368dd2cd926d00322dcf3b1e5a2fe76a5397dc095b58a35308292ec44c40a",
+  "lib/roster-alias-history.mjs": "7442fc2cc95fcf9592aed6613cc11284f50379a3f6d5127f92606bd1c72b5891",
+  "test/profile-identity-proof.test.mjs": "cc20ff3d5c79e1096655396463aa66424ff6bd634a439c63eebf6fec0f501e5e"
+}
