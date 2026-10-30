@@ -13,6 +13,50 @@ const locator = `https://www.douyin.com/user/${sec}`;
 const targetMetadata = douyinId => JSON.stringify({ platform: 'douyin', douyinId,
   identityVerification: { accountId: locator } });
 
+test('原始总表与补充表统一按已核验作品发布者归属，保留原声明而不合并账号',()=>{
+ const db=fixture(),video='7300000000000000063',other='MS4wLjABAAAA'+'b'.repeat(40);
+ platformFixture(db);db.exec('DELETE FROM posts;DELETE FROM post_metrics');
+ db.prepare('INSERT INTO creator_source_rows VALUES(1,?,?,?)').run('09',7,JSON.stringify([video,'旧声明作者','handle_a','','video','切片激励','切片激励',500,50,'','旧标题']));
+ db.prepare('INSERT INTO creator_source_account_links VALUES(1,3,20,?,?)').run('handle_b','2026-10-20T06:00:00Z');
+ db.prepare('INSERT INTO targets VALUES(20,?,?,?,?)').run('account','public-web',`https://www.douyin.com/user/${other}`,JSON.stringify({platform:'douyin',douyinId:'handle_b',identityVerification:{accountId:`https://www.douyin.com/user/${other}`}}));
+ addPlatformWork(db,{id:video,postId:663,targetId:20,authorId:other,rawAuthor:other,metricAt:'2026-10-22T08:00:00Z',likes:7,plays:70});
+ const original=db.prepare("SELECT values_json FROM creator_source_rows WHERE sheet_id='09' AND row_number=7").get().values_json;
+ try{
+  const rows=readUnifiedPublicationWorks(db,'2026-10-28T08:00:00.000Z',{includeMetrics:true}),work=rows.find(w=>w.contentId===video);
+  assert.equal(rows.filter(w=>w.contentId===video).length,1);
+  assert.equal(work.targetId,20);assert.equal(work.accountId,'handle_b');
+  assert.equal(work.sourceAccountId,'handle_a');assert.equal(work.sourceOwnershipConflict,true);
+  assert.equal(work.publishedOn,'2026-10-22');assert.equal(work.latestLikes,7);assert.equal(work.latestPlays,70);
+  assert.equal(work.cumulativeLikes,null,'错误作者声明下的累计不冒充该作者有效指标');
+  assert.equal(work.sourceClaimedCumulativeLikes,50);assert.equal(work.sourceClaimedCumulativePlays,500);
+  db.exec('UPDATE post_metrics SET plays=NULL');
+  const missing=readUnifiedPublicationWorks(db,'2026-10-28T08:00:00.000Z',{includeMetrics:true}).find(w=>w.contentId===video);
+  assert.equal(missing.latestPlays,null);assert.equal(missing.metricOrigin.plays,'conflict','保留冲突值证据，不能伪装成从未提供数据');
+  assert.equal(missing.sourceClaimedCumulativePlays,500);
+  assert.equal(db.prepare("SELECT values_json FROM creator_source_rows WHERE sheet_id='09' AND row_number=7").get().values_json,original);
+  assert.deepEqual(db.prepare('SELECT author_row,target_id FROM creator_source_account_links ORDER BY author_row').all().map(r=>[r.author_row,r.target_id]),[[2,10],[3,20]],'没有把两个账号或来源作者自动合并');
+ }finally{db.close();}
+});
+
+test('未来发布者观测不改写历史作者，相同作品的多个严格发布者也不强选',()=>{
+ for(const fault of ['future','duplicate','invalid-raw']){
+  const db=fixture(),video='7300000000000000064',other='MS4wLjABAAAA'+'b'.repeat(40);
+  platformFixture(db);db.exec('DELETE FROM posts;DELETE FROM post_metrics');
+  db.prepare('INSERT INTO creator_source_rows VALUES(1,?,?,?)').run('09',7,JSON.stringify([video,'旧声明作者','handle_a','','video','切片激励','切片激励',500,50,'','旧标题']));
+  db.prepare('INSERT INTO creator_source_account_links VALUES(1,3,20,?,?)').run('handle_b','2026-10-20T06:00:00Z');
+  db.prepare('INSERT INTO targets VALUES(20,?,?,?,?)').run('account','public-web',`https://www.douyin.com/user/${other}`,JSON.stringify({platform:'douyin',douyinId:'handle_b',identityVerification:{accountId:`https://www.douyin.com/user/${other}`}}));
+  addPlatformWork(db,{id:video,postId:664,targetId:20,authorId:other,rawAuthor:other,metricAt:'2026-10-22T08:00:00Z',likes:7,plays:70});
+  if(fault==='future')db.exec("UPDATE posts SET last_seen_at='2026-10-29T08:00:00.000Z'");
+  if(fault==='invalid-raw')db.exec("UPDATE posts SET raw_json='{}'");
+  if(fault==='duplicate')addPlatformWork(db,{id:video,postId:665,metricAt:'2026-10-22T08:00:00Z',likes:8,plays:80});
+  try{
+   const work=readUnifiedPublicationWorks(db,'2026-10-28T08:00:00.000Z',{includeMetrics:true}).find(w=>w.contentId===video);
+   assert.equal(work.targetId,10,fault);assert.equal(work.accountId,'handle_a',fault);assert.equal(work.latestLikes,50,fault);
+   assert.equal(work.sourceOwnershipConflict,undefined,fault);
+  }finally{db.close();}
+ }
+});
+
 test('提交时间不冒充指标采样时间，列表和作者合计保留有效观测值',()=>{
  const db=fixture(),id='7300000000000000061';platformFixture(db);
  const source=[id,'同名作者','handle_a','2026-10-21','video','切片激励','切片激励',50,5,'','观测作品'];

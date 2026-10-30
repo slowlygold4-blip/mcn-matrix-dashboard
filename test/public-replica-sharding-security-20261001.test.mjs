@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash, webcrypto } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import { DatabaseSync } from 'node:sqlite';
@@ -13,7 +14,9 @@ import { preparePublicReplicaPublication, createPublicReplicaSync,
 
 const AS_OF = '2026-09-20T12:00:00.000Z';
 const AT = '2026-09-20T02:00:00.000Z';
-const SITE = process.env.MCN_SITE_ROOT?pathToFileURL(resolve(process.env.MCN_SITE_ROOT)+'/'):new URL('../../mcn-public-site/', import.meta.url);
+const SITE = process.env.MCN_SITE_ROOT?pathToFileURL(resolve(process.env.MCN_SITE_ROOT)+'/')
+  :existsSync(new URL('../frontend/lib/replica-summary.mjs',import.meta.url))?new URL('../frontend/',import.meta.url)
+  :new URL('../../mcn-public-site/', import.meta.url);
 const hash = text => createHash('sha256').update(text).digest('hex');
 const common = { version: 1, asOf: AS_OF, timeZone: 'Asia/Shanghai' };
 const clone = value => structuredClone(value);
