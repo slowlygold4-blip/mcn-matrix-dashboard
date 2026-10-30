@@ -23,12 +23,13 @@ export function authorDailyPublication(rows,{asOf,date=publicationBusinessDay(as
   if(previous&&previous.futureTime!==futureTime)throw Error('同一作品的发布时间冲突，停止统计发布数');
   if(!previous)works.set(row.externalId,{row,date:published,futureTime});
  }
- const selected=[],undated=[],future=[];
+ const selected=[],undated=[],future=[],claims=[];
  for(const entry of works.values()){
-  if(entry.futureTime||entry.date>end)future.push(entry.row.externalId);
+  if(entry.row.ownershipClaimOnly===true)claims.push(entry.row.externalId);
+  else if(entry.futureTime||entry.date>end)future.push(entry.row.externalId);
   else if(entry.date===null)undated.push(entry.row.externalId);
   else if(entry.date===date)selected.push(entry.row);
  }
  return {date,end,status:selected.length?'published':'unknown',knownWorks:selected.length,rows:selected,
-  undatedWorks:undated.length,futureDatedWorks:future.length,complete:false,currentDay:date===end};
+  undatedWorks:undated.length,futureDatedWorks:future.length,ownershipClaimWorks:claims.length,complete:false,currentDay:date===end};
 }

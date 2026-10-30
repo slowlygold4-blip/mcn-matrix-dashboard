@@ -1,17 +1,23 @@
 import {presentUnifiedWorkMetric} from './unified-work-presentation.mjs';
 import {workPublicationDay} from './replica-work-publication.mjs';
 import {indexWorkObservations,observationsForWork,workOwnerKey} from './work-metric-adoption.mjs';
+import {validateSourceWorkOwners} from './source-work-owner-contract.mjs';
 const known=v=>Number.isSafeInteger(v)&&v>=0?v:null;
 /** Same content ID is one work. Sources are evidence, never independent addends. */
-export function mergeAuthorWorks({author,sourceWorks,platformWorks,sourceObservations=[],asOf}){
+/** @param {{author:any,sourceWorks:any[],platformWorks:any[],sourceObservations?:any[],workOwners?:Array<{workRow:number,contentId:string,targetId:number}>,asOf?:string}} options */
+export function mergeAuthorWorks({author,sourceWorks,platformWorks,sourceObservations=[],workOwners=[],asOf}){
  const ids=new Set([author.douyinId,...(author.douyinIds||[])].map(workOwnerKey).filter(Boolean));
  const targets=new Set(author.targetIds||[]), works=new Map();
+ const ownerById=new Map(validateSourceWorkOwners(workOwners,{sourceRows:new Map(sourceWorks.map(row=>[row.row,row]))}).map(owner=>[owner.contentId,owner]));
  for(const [index,row] of sourceWorks.entries()){
-  if(!ids.has(workOwnerKey(row.douyinId)))continue;
+  const owner=ownerById.get(row.contentId),claimed=ids.has(workOwnerKey(row.douyinId)),owned=owner&&targets.has(owner.targetId);
+  if(!claimed&&!owned)continue;
   const key=String(row.contentId||'');
   if(!/^\d{15,25}$/.test(key))throw Error('作者作品 ID 无效，停止合并');
   if(works.has(key))throw Error('原始作品索引存在重复 ID，需核对');
-  works.set(key,{id:`creator-source:1:${index+1}`,externalId:key,source:'creator-source',caption:row.title||'',url:row.url||`https://www.douyin.com/video/${key}`,publishedOn:row.publishDate||null,publicationDateBasis:'creator-source-date-only',likes:known(row.likes),plays:known(row.plays),sourceCumulativeLikes:known(row.likes),sourceCumulativePlays:known(row.plays),sourcePublishedOn:row.publishDate||null});
+  works.set(key,{id:`creator-source:1:${index+1}`,externalId:key,source:'creator-source',caption:row.title||'',url:row.url||`https://www.douyin.com/video/${key}`,publishedOn:row.publishDate||null,publicationDateBasis:'creator-source-date-only',likes:known(row.likes),plays:known(row.plays),sourceCumulativeLikes:known(row.likes),sourceCumulativePlays:known(row.plays),sourcePublishedOn:row.publishDate||null,
+   ...(owner?{canonicalOwnerTargetId:owner.targetId,sourceOwnershipConflict:true,ownershipClaimOnly:!owned,
+    sourceClaimedCumulativeLikes:known(row.likes),sourceClaimedCumulativePlays:known(row.plays)}:{})});
  }
  const samples=new Map();
  for(const row of platformWorks){
@@ -26,6 +32,8 @@ export function mergeAuthorWorks({author,sourceWorks,platformWorks,sourceObserva
   if(!saved){works.set(key,row);continue;}
   const numeric=Number.isSafeInteger(row.id)&&row.id>0;
   works.set(key,{...row,source:numeric?'platform-and-creator-source':'creator-source',caption:row.caption||saved.caption,url:row.url||saved.url,
+   ...(saved.sourceOwnershipConflict?{canonicalOwnerTargetId:saved.canonicalOwnerTargetId,sourceOwnershipConflict:true,ownershipClaimOnly:saved.ownershipClaimOnly,
+    sourceClaimedCumulativeLikes:saved.sourceClaimedCumulativeLikes,sourceClaimedCumulativePlays:saved.sourceClaimedCumulativePlays}:{}),
    sourceCumulativeLikes:saved.sourceCumulativeLikes??row.sourceCumulativeLikes??null,
    sourceCumulativePlays:saved.sourceCumulativePlays??row.sourceCumulativePlays??null,
    sourcePublishedOn:saved.sourcePublishedOn||row.sourcePublishedOn||null,

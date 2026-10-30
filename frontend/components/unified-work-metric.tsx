@@ -21,6 +21,7 @@ export function UnifiedWorkMetric({work,metric}:{work:Work;metric:Metric}){
    <div className="unified-work-metric-evidence"><p>采用记录：{origin}</p>
     <p>平台{label}：{number(value.platformValue)}{value.platformValue!==null&&!value.platformUsable?'（未采用）':''}{value.platformObservedAt?` · ${value.platformValue!==null&&value.platformUsable?'指标采样':'作品记录'} ${beijing(value.platformObservedAt)}（北京）`:''}</p>
     <p>原表{label}累计：{number(value.sourceValue)}{value.sourceRefreshedAt?` · 表格版本刷新 ${beijing(value.sourceRefreshedAt)}（北京）`:''}</p>
+    {value.sourceClaimValue!==null&&<p>原登记归属冲突的{label}累计：{number(value.sourceClaimValue)}（未采用；保留待核对）</p>}
     {value.sourceObservedAt&&<p>有日期的已存{label}：{number(value.sourceObservationValue)} · 指标采样 {beijing(value.sourceObservedAt)}（北京）{value.sourceRows.length?` · 来源行 ${value.sourceRows.join('、')}`:''}</p>}
     {value.sourceRecordCount>0&&<p>提交记录{label}：{number(value.sourceRecordValue)}{value.sourceRecordedAt?` · ${value.sourceTimeBasis==='submission-time'?'提交':'原记录'}时间 ${beijing(value.sourceRecordedAt)}（北京）`:''}；该时间不是指标采样时间，未据此覆盖有效观测。</p>}
     {value.sourceNote&&value.sourceNote!==value.note&&<small>{value.sourceNote}</small>}

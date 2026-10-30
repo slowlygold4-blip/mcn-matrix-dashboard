@@ -57,6 +57,19 @@ test('未来发布者观测不改写历史作者，相同作品的多个严格�
  }
 });
 
+test('已核验精确发布时间按北京时间归日，原登记日期保留但不覆盖实际发布日',()=>{
+ const db=fixture(),id='7300000000000000065';platformFixture(db);
+ const row=[id,'同名作者','handle_a','2026-09-30','video','切片激励','切片激励',500,50,'','跨北京午夜作品'];
+ db.prepare('INSERT INTO creator_source_rows VALUES(1,?,?,?)').run('09',7,JSON.stringify(row));
+ addPlatformWork(db,{id,postId:665,metricAt:'2026-10-22T08:00:00Z',publishedAt:'2026-09-30T16:30:00.000Z',likes:7,plays:70});
+ try{
+  const work=readUnifiedPublicationWorks(db,'2026-10-28T08:00:00.000Z',{includeMetrics:true}).find(w=>w.contentId===id);
+  assert.equal(work.publishedOn,'2026-10-01');assert.equal(work.sourcePublishedOn,'2026-09-30');
+  assert.equal(work.sourcePublicationDateConflict,true);assert.equal(work.dateSource,'platform-published-at');
+  assert.equal(work.latestLikes,7);assert.equal(JSON.parse(db.prepare("SELECT values_json FROM creator_source_rows WHERE sheet_id='09' AND row_number=7").get().values_json)[3],'2026-09-30');
+ }finally{db.close();}
+});
+
 test('提交时间不冒充指标采样时间，列表和作者合计保留有效观测值',()=>{
  const db=fixture(),id='7300000000000000061';platformFixture(db);
  const source=[id,'同名作者','handle_a','2026-10-21','video','切片激励','切片激励',50,5,'','观测作品'];
