@@ -479,13 +479,15 @@ test("retryable collection warnings are retried while public-window limitations 
   await scheduler.tick(new Date(firstTick.getTime() + 1_500));
   assert.equal(calls.get(limited.locator), 1, "a valid limited public window must not be collected twice");
   assert.equal(calls.get(blocked.locator), 2, "the UIFID-blocked target must be retried");
+  const recovered = database.getOverview().recentRuns[0].details.find(item => item.targetId === blocked.id);
+  assert.equal(recovered.reviewState, "limited", "returned sample remains useful but is not a complete work inventory");
   const runs = database.db.prepare(`
     SELECT status,target_count,success_count,error_count,warning_count FROM runs
     WHERE trigger_type='scheduled' ORDER BY id
   `).all().map((row) => ({ ...row }));
   assert.deepEqual(runs, [
     { status: "partial", target_count: 2, success_count: 1, error_count: 1, warning_count: 2 },
-    { status: "success", target_count: 1, success_count: 1, error_count: 0, warning_count: 0 },
+    { status: "success", target_count: 1, success_count: 1, error_count: 0, warning_count: 1 },
   ]);
 });
 

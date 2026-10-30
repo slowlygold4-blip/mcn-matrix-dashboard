@@ -1,0 +1,19 @@
+{
+  "checkedAt": "2026-10-30T03:20:27.713Z",
+  "selection": "all-account-snapshots-in-one-read-transaction",
+  "readOnly": true,
+  "rawRows": 129097,
+  "checksumValidRows": 129097,
+  "checksumInvalidRows": 0,
+  "manualRows": 110,
+  "accountMetricDifferences": 0,
+  "postMetricDifferences": 0,
+  "profileStatusChanges": {},
+  "worksCoverageChanges": {
+    "complete->limited": 1455
+  },
+  "sourceValidationChanges": {},
+  "databaseWrites": 0,
+  "platformRequests": 0,
+  "modelCalls": 0
+}
