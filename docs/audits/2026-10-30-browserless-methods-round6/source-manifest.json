@@ -1,0 +1,268 @@
+{
+  "reviewedAt": "2026-10-30T00:16:31.317445+00:00",
+  "runtimeThirdPartyExecution": false,
+  "repositories": [
+    {
+      "repo": "yzfly/douyin-mcp-server",
+      "commit": "b0bb8b1fbe4f514bf28099b1471928ebb3716ad2",
+      "license": "Apache-2.0",
+      "candidatePaths": [
+        "README.md",
+        "pyproject.toml",
+        "douyin-video/SKILL.md",
+        "douyin-video/scripts/douyin_downloader.py",
+        "douyin_mcp_server/__init__.py",
+        "douyin_mcp_server/__main__.py",
+        "douyin_mcp_server/asr_module.py",
+        "douyin_mcp_server/server.py"
+      ],
+      "files": [
+        {
+          "path": "README.md",
+          "sha256": "f9eb766f7734668c411c259c56dd97b9a08d8afb273299b53261ba612ddda9f0",
+          "bytes": 7409,
+          "url": "https://raw.githubusercontent.com/yzfly/douyin-mcp-server/b0bb8b1fbe4f514bf28099b1471928ebb3716ad2/README.md"
+        },
+        {
+          "path": "douyin-video/SKILL.md",
+          "sha256": "98cbdcf16a7f0c8e799fff482bef736ecd1f7f79538ca688328fc460f7a4cf15",
+          "bytes": 4421,
+          "url": "https://raw.githubusercontent.com/yzfly/douyin-mcp-server/b0bb8b1fbe4f514bf28099b1471928ebb3716ad2/douyin-video/SKILL.md"
+        },
+        {
+          "path": "douyin-video/scripts/douyin_downloader.py",
+          "sha256": "f460977e346d23db4baaef2e8bce999353bc7037b3faa0bd733fecaabf696bca",
+          "bytes": 17599,
+          "url": "https://raw.githubusercontent.com/yzfly/douyin-mcp-server/b0bb8b1fbe4f514bf28099b1471928ebb3716ad2/douyin-video/scripts/douyin_downloader.py"
+        },
+        {
+          "path": "douyin_mcp_server/server.py",
+          "sha256": "0d5aee169ef0ff32cf3b436036f2ffd648fc9c77026c09b18914685426863c1d",
+          "bytes": 17283,
+          "url": "https://raw.githubusercontent.com/yzfly/douyin-mcp-server/b0bb8b1fbe4f514bf28099b1471928ebb3716ad2/douyin_mcp_server/server.py"
+        }
+      ]
+    },
+    {
+      "repo": "pazwusimple-netizen/douyin-mcp",
+      "commit": "ab9eb3b36cd47e9091e520f9a5faabf72f1f16e4",
+      "license": "MIT",
+      "candidatePaths": [
+        "README.md",
+        "pyproject.toml",
+        "src/douyin.js"
+      ],
+      "files": [
+        {
+          "path": "README.md",
+          "sha256": "19604d4f9242ea7c6379bbd2070a2d9e3a414ec2c6dfb56f3b069ccad323baa2",
+          "bytes": 14840,
+          "url": "https://raw.githubusercontent.com/pazwusimple-netizen/douyin-mcp/ab9eb3b36cd47e9091e520f9a5faabf72f1f16e4/README.md"
+        },
+        {
+          "path": "src/douyin.js",
+          "sha256": "2897f7b06b5e0b49b00b5a7afb1f0d6a7486ad374638db290930377ad32bcc8a",
+          "bytes": 547191,
+          "url": "https://raw.githubusercontent.com/pazwusimple-netizen/douyin-mcp/ab9eb3b36cd47e9091e520f9a5faabf72f1f16e4/src/douyin.js"
+        },
+        {
+          "path": "src/client.py",
+          "sha256": "f5188e94d6f13c6d25bafa6461653bb6ec2b0a8b1053422d5431366f16b0eee2",
+          "bytes": 19320,
+          "url": "https://raw.githubusercontent.com/pazwusimple-netizen/douyin-mcp/ab9eb3b36cd47e9091e520f9a5faabf72f1f16e4/src/client.py"
+        },
+        {
+          "path": "src/browser_search.py",
+          "sha256": "dd177608a67509059e7c64b0e67b28ccd369f8609f5f9a56579a47abcd87585e",
+          "bytes": 7359,
+          "url": "https://raw.githubusercontent.com/pazwusimple-netizen/douyin-mcp/ab9eb3b36cd47e9091e520f9a5faabf72f1f16e4/src/browser_search.py"
+        },
+        {
+          "path": "src/video/resolver.py",
+          "sha256": "9ce857929a256c98e16595108923110ec772a8c0c53c19f607dec9d5e737fb0d",
+          "bytes": 2661,
+          "url": "https://raw.githubusercontent.com/pazwusimple-netizen/douyin-mcp/ab9eb3b36cd47e9091e520f9a5faabf72f1f16e4/src/video/resolver.py"
+        }
+      ]
+    },
+    {
+      "repo": "liaogx/douyin-mcp",
+      "commit": "61668adda5a719afa09396513801cbeca65fffb1",
+      "license": "NOASSERTION",
+      "candidatePaths": [
+        "README.md",
+        "douyin/README.md",
+        "douyin/attention.go",
+        "douyin/attention_browser_test.go",
+        "douyin/browser_test.go",
+        "douyin/login.go",
+        "douyin/media.go",
+        "douyin/media_test.go",
+        "douyin/page.go",
+        "douyin/publish.go",
+        "douyin/publish_page.go",
+        "douyin/types.go",
+        "douyin/web.go",
+        "douyin/web_ack.go",
+        "douyin/web_ack_browser_test.go",
+        "douyin/web_ack_test.go",
+        "douyin/web_browser_test.go",
+        "douyin/web_comments.go",
+        "douyin/web_detail.go",
+        "douyin/web_editor.go",
+        "douyin/web_interaction.go",
+        "douyin/web_picker.go",
+        "douyin/web_reactions.go",
+        "douyin/web_receipt.go",
+        "douyin/web_receipt_test.go",
+        "douyin/web_search.go",
+        "douyin/web_types.go",
+        "douyin/web_types_test.go"
+      ],
+      "files": [
+        {
+          "path": "README.md",
+          "sha256": "6075578154c0f09b7b08a428ddcda7a15bd3dbd57977eb5012cb4ecec77f5bf8",
+          "bytes": 29624,
+          "url": "https://raw.githubusercontent.com/liaogx/douyin-mcp/61668adda5a719afa09396513801cbeca65fffb1/README.md"
+        },
+        {
+          "path": "douyin/web.go",
+          "sha256": "dab693150f3d5eb325443a125ae3cfe80730d2188ee862a94a06f77acd673a89",
+          "bytes": 8862,
+          "url": "https://raw.githubusercontent.com/liaogx/douyin-mcp/61668adda5a719afa09396513801cbeca65fffb1/douyin/web.go"
+        },
+        {
+          "path": "douyin/web_search.go",
+          "sha256": "8c40c75464ba05c7c4cd7554051f1e98c4ff0c2af4386257a5f00d9a2f0cb311",
+          "bytes": 24529,
+          "url": "https://raw.githubusercontent.com/liaogx/douyin-mcp/61668adda5a719afa09396513801cbeca65fffb1/douyin/web_search.go"
+        }
+      ]
+    },
+    {
+      "repo": "TikHub/tikhub-plugin",
+      "commit": "755a540afa53dbc31993cb7567376db0ea0fca4f",
+      "license": "MIT",
+      "candidatePaths": [
+        "README.md",
+        "skills/bulk-data-export/SKILL.md",
+        "skills/comments-analysis/SKILL.md",
+        "skills/competitor-analysis/SKILL.md",
+        "skills/creator-analytics/SKILL.md",
+        "skills/douyin/SKILL.md",
+        "skills/hashtag-research/SKILL.md",
+        "skills/instagram/SKILL.md",
+        "skills/social-listening/SKILL.md",
+        "skills/social-media-downloader/SKILL.md",
+        "skills/tikhub-endpoint-discovery/SKILL.md",
+        "skills/tikhub-mcp/SKILL.md",
+        "skills/tikhub-onboarding/SKILL.md",
+        "skills/tikhub-python-sdk/SKILL.md",
+        "skills/tikhub-rest-api/SKILL.md",
+        "skills/tiktok/SKILL.md",
+        "skills/trend-research/SKILL.md",
+        "skills/twitter-threads/SKILL.md",
+        "skills/xiaohongshu/SKILL.md",
+        "skills/youtube/SKILL.md"
+      ],
+      "files": [
+        {
+          "path": "skills/douyin/SKILL.md",
+          "sha256": "f6cce8822d2c73b530223cb331ca57d3283270a1cdaf6fb31f8dc7e12dce4724",
+          "bytes": 2942,
+          "url": "https://raw.githubusercontent.com/TikHub/tikhub-plugin/755a540afa53dbc31993cb7567376db0ea0fca4f/skills/douyin/SKILL.md"
+        },
+        {
+          "path": "skills/tikhub-onboarding/SKILL.md",
+          "sha256": "f8f441349833a86322d99139a4c22841a20b7617e47411ffb415b0d7f4d8082d",
+          "bytes": 2432,
+          "url": "https://raw.githubusercontent.com/TikHub/tikhub-plugin/755a540afa53dbc31993cb7567376db0ea0fca4f/skills/tikhub-onboarding/SKILL.md"
+        },
+        {
+          "path": "skills/bulk-data-export/SKILL.md",
+          "sha256": "6bda661122980da29818d11bf1e852a729acaa2c67c1de7cc60cc471c0a877c9",
+          "bytes": 2252,
+          "url": "https://raw.githubusercontent.com/TikHub/tikhub-plugin/755a540afa53dbc31993cb7567376db0ea0fca4f/skills/bulk-data-export/SKILL.md"
+        }
+      ]
+    },
+    {
+      "repo": "dynamiclu/Mcp-ChatBI",
+      "commit": "41a46898ddb076178d7ce41b032e47a903876a04",
+      "license": null,
+      "candidatePaths": [
+        "README.md",
+        "server/douyin_open_api_server.py",
+        "session/douyin_open_api_session.py"
+      ],
+      "files": [
+        {
+          "path": "server/douyin_open_api_server.py",
+          "sha256": "ddedd13766676c19653e8eaca2a19841a701efd3a6a8d7c04ec8ab555fe68ec6",
+          "bytes": 23062,
+          "url": "https://raw.githubusercontent.com/dynamiclu/Mcp-ChatBI/41a46898ddb076178d7ce41b032e47a903876a04/server/douyin_open_api_server.py"
+        },
+        {
+          "path": "session/douyin_open_api_session.py",
+          "sha256": "5fc95112f0fb372cb5084dd8125d5f2e34861ad8cbf1158a4fc3cc0b72454f91",
+          "bytes": 11535,
+          "url": "https://raw.githubusercontent.com/dynamiclu/Mcp-ChatBI/41a46898ddb076178d7ce41b032e47a903876a04/session/douyin_open_api_session.py"
+        }
+      ]
+    },
+    {
+      "repo": "DIYgod/RSSHub",
+      "commit": "9dae4709c8fc2bbd4a0012e2412de609eb0c6872",
+      "license": "AGPL-3.0",
+      "candidatePaths": [
+        "lib/routes/douyin/collection.ts",
+        "lib/routes/douyin/hashtag.ts",
+        "lib/routes/douyin/likes.ts",
+        "lib/routes/douyin/live.ts",
+        "lib/routes/douyin/namespace.ts",
+        "lib/routes/douyin/saved-posts.ts",
+        "lib/routes/douyin/types.ts",
+        "lib/routes/douyin/user.ts",
+        "lib/routes/douyin/utils.ts",
+        "lib/routes/newrank/douyin.ts",
+        "lib/routes/newrank/namespace.ts",
+        "lib/routes/newrank/utils.ts",
+        "lib/routes/newrank/wechat.ts"
+      ],
+      "files": [
+        {
+          "path": "lib/routes/douyin/user.ts",
+          "sha256": "c488decd8de984cc58e9c2fa2080b316c0237d462ef8b340ecd7509daee3b85c",
+          "bytes": 4760,
+          "url": "https://raw.githubusercontent.com/DIYgod/RSSHub/9dae4709c8fc2bbd4a0012e2412de609eb0c6872/lib/routes/douyin/user.ts"
+        },
+        {
+          "path": "lib/routes/douyin/utils.ts",
+          "sha256": "c6ce6b857c6a35ff6bdc557b11b4f6c1246148fa297d4b81fe31804f865db131",
+          "bytes": 1978,
+          "url": "https://raw.githubusercontent.com/DIYgod/RSSHub/9dae4709c8fc2bbd4a0012e2412de609eb0c6872/lib/routes/douyin/utils.ts"
+        },
+        {
+          "path": "lib/routes/douyin/hashtag.ts",
+          "sha256": "5b80049afcdaef56cc8079f0ddf20cd60030cc960868fad00933734575d35a67",
+          "bytes": 4872,
+          "url": "https://raw.githubusercontent.com/DIYgod/RSSHub/9dae4709c8fc2bbd4a0012e2412de609eb0c6872/lib/routes/douyin/hashtag.ts"
+        },
+        {
+          "path": "lib/routes/newrank/douyin.ts",
+          "sha256": "5306f2a323d10a1fcc218fca423b6c313992479c3404bd35bd5129242586b47e",
+          "bytes": 3048,
+          "url": "https://raw.githubusercontent.com/DIYgod/RSSHub/9dae4709c8fc2bbd4a0012e2412de609eb0c6872/lib/routes/newrank/douyin.ts"
+        },
+        {
+          "path": "lib/routes/newrank/utils.ts",
+          "sha256": "8432336065fd2a9a36aa695995287297bb4e3f03588abf3729234e238bae23b6",
+          "bytes": 3615,
+          "url": "https://raw.githubusercontent.com/DIYgod/RSSHub/9dae4709c8fc2bbd4a0012e2412de609eb0c6872/lib/routes/newrank/utils.ts"
+        }
+      ]
+    }
+  ],
+  "fileCount": 22
+}

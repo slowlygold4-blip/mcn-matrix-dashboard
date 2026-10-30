@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { officialDailyReadiness, parseOfficialDaily, probeOfficialDaily } from '../lib/douyin-official-daily-probe.mjs';
+import { officialDailyReadiness, parseOfficialDaily, probeOfficialDaily, officialVideoPlayReadiness, probeOfficialVideoPlays } from '../lib/douyin-official-daily-probe.mjs';
 const retrievedAt = '2026-10-29T16:10:00.000Z'; // Beijing Oct30, not Oct29.
 const credentials = { accountKey: 'test:author', openId: 'test-openid', accessToken: 'act.fixture-not-real', scopes: ['data.external.user'] };
 const envelope = rows => ({ data: { error_code: '0', result_list: rows }, extra: { error_code: 0 } });
@@ -116,4 +116,80 @@ test('readiness CLI is network-free and reports unavailable credentials without 
   const r = JSON.parse(child.stdout);
   assert.equal(r.accessTokenPresent, false); assert.equal(r.networkRequests, 0);
   assert.equal(r.modelCalls, 0); assert.equal(r.databaseWrites, 0);
+});
+
+const videoCredentials = { ...credentials, scopes: ['data.external.item'], itemId: '@opaque/a+b=c%2F' };
+test('official dated video plays uses one owner-scoped request and encodes opaque IDs exactly once', async () => {
+  let calls = 0;
+  const r = await probeOfficialVideoPlays(videoCredentials, { clock: () => retrievedAt, fetchImpl: async (url, opts) => {
+    calls++;
+    assert.equal(url.origin, 'https://open.douyin.com');
+    assert.equal(url.pathname, '/data/external/item/play/');
+    assert.equal(url.searchParams.get('item_id'), videoCredentials.itemId);
+    assert.equal(url.searchParams.get('date_type'), '7');
+    assert.equal(url.searchParams.get('open_id'), credentials.openId);
+    assert.equal(url.searchParams.has('access_token'), false);
+    assert.equal(opts.headers['access-token'], credentials.accessToken);
+    assert.equal(opts.redirect, 'error'); assert.equal(opts.credentials, 'omit');
+    return new Response(JSON.stringify(envelope([{ date: '2026-10-29', play: '0' }, { date: '2026-10-28' }])));
+  } });
+  assert.equal(calls, 1);
+  assert.deepEqual(r.dataset.rows.map(x => x.values.play), [null, 0]);
+  assert.equal(r.dataset.missingDays, 5);
+  assert.equal(r.cumulativePlays, null); assert.equal(r.authorWorksComplete, false);
+  assert.equal(r.identityBindingVerified, false); assert.equal(r.productionAdmitted, false);
+  assert.equal(r.modelCalls, 0); assert.equal(r.databaseWrites, 0);
+  for (const secret of [credentials.accessToken, credentials.openId, videoCredentials.itemId]) assert.ok(!JSON.stringify(r).includes(secret));
+});
+
+test('video permission differs from account daily permission; all invalid inputs stop before network', async () => {
+  let calls = 0;
+  for (const changes of [{ accessToken: null }, { scopes: ['data.external.user'] }, { itemId: '' },
+    { itemId: 7300000000000000000 }, { itemId: 'x\ny' }, { itemId: 'x'.repeat(1025) }, { days: 30 }, { accountKey: '../a' }]) {
+    await assert.rejects(probeOfficialVideoPlays({ ...videoCredentials, ...changes }, { fetchImpl: async () => { calls++; } }));
+  }
+  for (const value of ['invalid', '2026-10-30', '2026-10-30T10:00:00']) {
+    await assert.rejects(probeOfficialVideoPlays(videoCredentials, { clock: () => value, fetchImpl: async () => { calls++; } }), { code: 'invalid_clock' });
+  }
+  const controller = new AbortController(); controller.abort();
+  await assert.rejects(probeOfficialVideoPlays(videoCredentials, { signal: controller.signal, fetchImpl: async () => { calls++; } }), { code: 'cancelled' });
+  assert.equal(calls, 0);
+  assert.equal(officialVideoPlayReadiness(videoCredentials).itemDataScopeDeclared, true);
+});
+
+test('video dates and counts reject duplicates, impossible values and old window; 15 days allowed, 30 disallowed', () => {
+  const parseVideo = (rows, days = 7) => parseOfficialDaily(envelope(rows), { kind: 'video_plays', days, retrievedAt });
+  for (const play of [-1, 'NaN', '1.5', true, '9007199254740993']) assert.throws(() => parseVideo([{ date: '2026-10-29', play }]), { code: 'invalid_metric' });
+  for (const date of ['2026-10-30', '2026-10-22', '2026-02-30']) assert.throws(() => parseVideo([{ date, play: 1 }]), { code: 'invalid_date' });
+  assert.throws(() => parseVideo([{ date: '2026-10-29' }, { date: '2026-10-29' }]), { code: 'invalid_date' });
+  assert.equal(parseVideo([{ date: '2026-10-15', play: '200' }], 15).rows[0].values.play, 200);
+  assert.throws(() => parseVideo([], 30), { code: 'invalid_input' });
+  assert.equal(parseVideo([]).missingDays, 7);
+});
+
+test('dated video refusal, malformed response and sub-errors never pass as measurements or trigger a retry', async () => {
+  for (const status of [401, 403, 429, 500]) {
+    let calls = 0;
+    await assert.rejects(probeOfficialVideoPlays(videoCredentials, { clock: () => retrievedAt, fetchImpl: async () => { calls++; return new Response('denied', { status }); } }));
+    assert.equal(calls, 1);
+  }
+  for (const body of [{}, { data: { error_code: 0, result_list: null } },
+    { ...envelope([]), extra: { error_code: 0, sub_error_code: 2100005, description: credentials.accessToken } }]) {
+    await assert.rejects(probeOfficialVideoPlays(videoCredentials, { clock: () => retrievedAt, fetchImpl: async () => new Response(JSON.stringify(body)) }));
+  }
+  await assert.rejects(probeOfficialVideoPlays(videoCredentials, { clock: () => retrievedAt,
+    fetchImpl: async () => { throw Error(credentials.accessToken); } }), { code: 'network_error', message: 'network_error' });
+  await assert.rejects(probeOfficialVideoPlays(videoCredentials, { clock: () => retrievedAt,
+    fetchImpl: async () => new Response('x'.repeat(65537)) }), { code: 'response_too_large' });
+});
+
+test('video CLI readiness is offline and does not echo environmental credentials', () => {
+  const env = { ...process.env, DOUYIN_OPEN_ACCESS_TOKEN: credentials.accessToken,
+    DOUYIN_OPEN_ID: credentials.openId, DOUYIN_OPEN_SCOPES: 'data.external.item', DOUYIN_OPEN_ITEM_ID: videoCredentials.itemId };
+  const result = spawnSync(process.execPath, ['scripts/probe-douyin-official-daily.mjs', '--video-plays'], { env, encoding: 'utf8' });
+  assert.equal(result.status, 0);
+  const r = JSON.parse(result.stdout); assert.equal(r.networkRequests, 0);
+  assert.equal(r.itemDataScopeDeclared, true); assert.equal(r.officialItemIdPresent, true);
+  assert.equal(r.modelCalls, 0); assert.equal(r.databaseWrites, 0);
+  for (const secret of [credentials.accessToken, credentials.openId, videoCredentials.itemId]) assert.ok(!result.stdout.includes(secret));
 });

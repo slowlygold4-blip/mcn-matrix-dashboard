@@ -18,7 +18,7 @@
 
 ## 启动本地服务
 
-需要 Node.js **24+**（使用 `node:sqlite`）和 Python 3。默认停用抖音浏览器采集；HTTP 采集与来源表同步不需要打开抖音网页。前端浏览器测试另需本机 Chrome，仅用于模拟数据或本控制台验收。 当前无浏览器采集的[最新源码核验与作者列表接口验证](docs/COLLECTION_METHODS_BROWSERLESS_ROUND5_20261030.md)已整理；`node scripts/probe-douyin-open-api.mjs --author-list`检查绑定作者近期作品列表所需配置，`--miniapp`检查作品指标查询配置，均默认不发平台请求。需要真实获批应用及作者授权后才能显式运行该隔离接口。
+需要 Node.js **24+**（使用 `node:sqlite`）和 Python 3。默认停用抖音浏览器采集；HTTP 采集与来源表同步不需要打开抖音网页。前端浏览器测试另需本机 Chrome，仅用于模拟数据或本控制台验收。 当前无浏览器采集的[最新源码核验与单作品播放曲线验证](docs/COLLECTION_METHODS_BROWSERLESS_ROUND6_20261030.md)已整理；`node scripts/probe-douyin-open-api.mjs --author-list`检查绑定作者近期作品列表所需配置，`--miniapp`检查作品指标查询配置，均默认不发平台请求。需要真实获批应用及作者授权后才能显式运行该隔离接口。
 
 ```sh
 npm ci
@@ -91,3 +91,5 @@ npm run test:browser
 覆盖口径、发布器空闲内存生命周期及长期查询上限审查见 [COVERAGE_QUALITY_AND_PUBLISHER_LIFETIME_20261030.md](docs/COVERAGE_QUALITY_AND_PUBLISHER_LIFETIME_20261030.md)。
 
 日期历史长期读取已改造并部署v124；[当轮记录](docs/STREAMED_DATE_HISTORY_20261030.md)保留当时的验证与缺口。公开源码的17项数据依赖失败与构建脚手架缺口已在后续[独立运行修复](docs/PORTABLE_DEVELOPER_HANDOFF_20261030.md)处理，不代表完整平台采集已解决。
+
+官方单作品按日播放隔离验证：`node scripts/probe-douyin-official-daily.mjs --video-plays` 默认仅检查配置、0平台请求。需对应作者授权、`data.external.item` 权限和可靠官方作品ID映射；仅支持近30天创建作品，不能用作无限历史回补。真实授权验收前未接生产调度。
