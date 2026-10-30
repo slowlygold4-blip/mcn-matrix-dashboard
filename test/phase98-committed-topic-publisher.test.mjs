@@ -6,20 +6,22 @@ import { resolve, join, sep } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
+import { createPublisherProcessProbe, publisherProbePreload } from './helpers/publisher-process-probe.mjs';
 
 const main = fileURLToPath(new URL('../', import.meta.url));
 const root = pathToFileURL(realpathSync(resolve(process.env.PHASE98_CANDIDATE || main)) + sep);
 const { MonitorDatabase } = await import(new URL('lib/database.mjs', root));
+const {readPublicSourceMarker}=await import(new URL('lib/public-source-marker.mjs',root));
 const { normalizeCollection } = await import(new URL('lib/providers/normalize.mjs', root));
 const { PUBLIC_REPLICA_EXPORT_REVISION, exportPublicReplica, writePublicReplica, serializePublicReplica } = await import(new URL('lib/public-replica-export.mjs', root));
 const { preparePublicReplicaPublication } = await import(new URL('lib/public-replica-sync.mjs', root));
 const { readCommittedTargetPublication, releaseCommittedTargetPublication } = await import(new URL('lib/committed-target-publication.mjs', root));
 const hash = value => createHash('sha256').update(value).digest('hex');
 const marker = hash(JSON.stringify({ events: [], source: null }));
-const preload = `import fs from 'node:fs';import {syncBuiltinESMExports} from 'node:module';import {DatabaseSync} from 'node:sqlite';
-const originalOpen=fs.promises.open;fs.promises.open=async(path,...args)=>{if(String(path).endsWith('/credential')){process.send?.({kind:'credential-read'});throw Error('FORBIDDEN_CREDENTIAL');}return originalOpen(path,...args);};syncBuiltinESMExports();
-const close=DatabaseSync.prototype.close;DatabaseSync.prototype.close=function(){const result=close.call(this);setTimeout(()=>process.send?.({kind:'read-completed'}),120);return result;};
-globalThis.fetch=async()=>{process.send?.({kind:'network-call'});throw Error('FORBIDDEN_NETWORK');};process.channel?.unref();`;
+const preload = `import fs from 'node:fs';import {syncBuiltinESMExports} from 'node:module';
+const originalOpen=fs.promises.open;fs.promises.open=async(path,...args)=>{if(String(path).endsWith('/credential')){publisherTestNotify({kind:'credential-read'});throw Error('FORBIDDEN_CREDENTIAL');}return originalOpen(path,...args);};syncBuiltinESMExports();
+
+globalThis.fetch=async()=>{publisherTestNotify({kind:'network-call'});throw Error('FORBIDDEN_NETWORK');};process.channel?.unref();`;
 
 function setup(t, variant) {
   const directory = mkdtempSync(join(tmpdir(), 'phase98-cloud-lifecycle-'));
@@ -42,7 +44,7 @@ function setup(t, variant) {
     database.db.prepare(`INSERT INTO snapshots(target_id,captured_at,hashtag_participants,hashtag_views,quality_status,account_status,works_coverage,warnings_json,source_checksum,raw_json)
       VALUES(?,?,?,?,?,'unknown','not-applicable','[]',?,?)`).run(target.id,capturedAt,12,34,'validated',hash(JSON.stringify(raw)),JSON.stringify(raw));
   } else database.saveCollection(target, runId, normalizeCollection(target, raw, { capturedAt }));
-  const state = { version: 1, active: null, coveredMarker: marker, coveredSource: null,
+  const state = { version: 1, active: null, coveredMarker: hash(JSON.stringify({events:[],source:null,dataMarker:readPublicSourceMarker(database.db,capturedAt)})), coveredSource: null,
     exportRevision: PUBLIC_REPLICA_EXPORT_REVISION, status: 'success',
     publishedAsOf: '2026-09-25T01:00:00.000Z', lastConfirmedPublishedAt: '2026-09-25T01:01:00.000Z', sync: { status: 'success' } };
   const checkpoint = { version: 1, asOf: state.publishedAsOf, activated: true, completedBatches: [0], readbackFiles: ['catalog.json'] };
@@ -64,15 +66,16 @@ for (const variant of ['wrong-identity', 'no-source-audit', 'no-parent']) {
       releaseCommittedTargetPublication(proof);
     } finally { db.exec('ROLLBACK'); }
     const before = Object.fromEntries(['state.json','checkpoint.json'].map(name => [name,hash(readFileSync(join(f.home,name)))]));
-    const child = spawn(process.execPath, ['--import','data:text/javascript,'+encodeURIComponent(preload),fileURLToPath(new URL('scripts/public-replica-publisher.mjs',root))],
-      { env: { ...process.env, DATA_DIR: f.directory }, stdio: ['ignore','pipe','pipe','ipc'] });
+    const probe=createPublisherProcessProbe(f.directory);
+    const child = spawn(process.execPath, ['--import','data:text/javascript,'+encodeURIComponent(publisherProbePreload+preload),fileURLToPath(new URL('scripts/public-replica-publisher.mjs',root))],
+      { env: { ...process.env, ...probe.env, DATA_DIR: f.directory }, stdio: ['ignore','pipe','pipe','ipc'] });
     let output = ''; const messages = []; child.stdout.on('data', data => output += data); child.stderr.on('data', data => output += data);
     const closed = new Promise(resolve => child.once('close', (code,signal) => resolve({code,signal})));
-    let timeout;
+    let timeout,stopProbe;
     try {
       await new Promise((resolve,reject) => {
         timeout=setTimeout(()=>reject(Error('CLI read did not finish: '+output)),4000);
-        child.on('message',message=>{messages.push(message);if(message.kind==='read-completed')resolve();});
+        stopProbe=probe.watch(message=>{messages.push(message);if(message.kind==='cycle-completed')resolve();});
         child.once('error',reject); child.once('exit',code=>reject(Error('CLI exited early '+code+': '+output)));
       });
       child.kill('SIGTERM'); assert.deepEqual(await closed,{code:0,signal:null});
@@ -85,6 +88,7 @@ for (const variant of ['wrong-identity', 'no-source-audit', 'no-parent']) {
     } finally {
       clearTimeout(timeout);
       if(child.exitCode===null&&child.signalCode===null){child.kill('SIGKILL');await closed;}
+      stopProbe?.();probe.close();
     }
   });
 }
@@ -143,19 +147,23 @@ test('actual topic-only CLI publishes via explicit proof while default readers, 
   const state={version:1,active:null,coveredMarker:marker,coveredSource:null,exportRevision:PUBLIC_REPLICA_EXPORT_REVISION,status:'success',publishedAsOf:baselineAsOf,lastConfirmedPublishedAt:baselineAsOf,
     sync:{status:'success',asOf:baselineAsOf,manifestSha256:hash(JSON.stringify(previousAccepted.manifest))}};
   writeFileSync(join(home,'state.json'),JSON.stringify(state),{mode:0o600});writeFileSync(join(home,'credential'),'e'.repeat(64),{mode:0o600});
-  const transport=`const files=new Map();let manifest=null;globalThis.fetch=async(url,init={})=>{const u=new URL(url);if(u.origin!=='https://mcn-matrix-observatory.slowlygold4.chatgpt.site'||u.pathname!=='/api/replica'){process.send?.({kind:'forbidden-origin'});throw Error('FORBIDDEN_ORIGIN');}if(init.method==='POST'){const b=JSON.parse(init.body);if(b.action==='upload'){for(const f of b.files)files.set(f.path,f);return Response.json({accepted:b.files.length,asOf:b.asOf});}manifest=b.manifest;process.send?.({kind:'activated',topics:JSON.parse(files.get('topics.json').data)});return Response.json({published:true,asOf:b.asOf,parts:files.size});}if(!manifest)return Response.json({}, {status:404});const part=u.searchParams.get('part');return part?new Response(files.get(part).data):Response.json({manifest,publishedAt:new Date().toISOString(),readOnly:true,collectionRequiresLocalComputer:true});};const log=console.log;console.log=(line)=>{log(line);try{if(JSON.parse(line).status==='success')process.send?.({kind:'success'});}catch{}};process.channel?.unref();`;
-  const child=spawn(process.execPath,['--import','data:text/javascript,'+encodeURIComponent(transport),fileURLToPath(new URL('scripts/public-replica-publisher.mjs',root))],{env:{...process.env,DATA_DIR:directory},stdio:['ignore','pipe','pipe','ipc']});
-  const messages=[];let output='',timeout;child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);
+  const transport=`const files=new Map();let manifest=null;globalThis.fetch=async(url,init={})=>{const u=new URL(url);if(u.origin!=='https://mcn-matrix-observatory.slowlygold4.chatgpt.site'||u.pathname!=='/api/replica'){publisherTestNotify({kind:'forbidden-origin'});throw Error('FORBIDDEN_ORIGIN');}if(init.method==='POST'){const b=publisherTestBody(init);if(b.action==='upload'){for(const f of b.files)files.set(f.path,f);return Response.json({accepted:b.files.length,asOf:b.asOf});}manifest=b.manifest;publisherTestNotify({kind:'activated',topics:JSON.parse(files.get('topics.json').data)});return Response.json({published:true,asOf:b.asOf,parts:files.size});}if(!manifest)return Response.json({}, {status:404});const part=u.searchParams.get('part');return part?new Response(files.get(part).data):Response.json({manifest,publishedAt:new Date().toISOString(),readOnly:true,collectionRequiresLocalComputer:true});};const log=console.log;console.log=(line)=>{log(line);try{if(JSON.parse(line).status==='success')publisherTestNotify({kind:'success'});}catch{}};process.channel?.unref();`;
+  const probe=createPublisherProcessProbe(directory);
+  const child=spawn(process.execPath,['--import','data:text/javascript,'+encodeURIComponent(publisherProbePreload+transport),fileURLToPath(new URL('scripts/public-replica-publisher.mjs',root))],{env:{...process.env,...probe.env,DATA_DIR:directory},stdio:['ignore','pipe','pipe','ipc']});
+  const messages=[];let output='',timeout,stopProbe;child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);
   const closed=new Promise(resolve=>child.once('close',(code,signal)=>resolve({code,signal})));
   try {
-    await new Promise((resolve,reject)=>{timeout=setTimeout(()=>reject(Error('topic CLI did not publish: '+output)),4500);child.on('message',message=>{messages.push(message);if(message.kind==='success')resolve();});child.once('error',reject);child.once('exit',code=>reject(Error('topic CLI exited '+code+': '+output)));});
+    await new Promise((resolve,reject)=>{timeout=setTimeout(()=>reject(Error('topic CLI did not publish: '+output)),4500);stopProbe=probe.watch(message=>{messages.push(message);if(message.kind==='success')resolve();});child.once('error',reject);child.once('exit',code=>reject(Error('topic CLI exited '+code+': '+output)));});
     child.kill('SIGTERM');assert.deepEqual(await closed,{code:0,signal:null});
     assert.equal(messages.some(m=>m.kind==='forbidden-origin'),false);
+    const bodies=messages.filter(m=>m.kind==='request-body');
+    assert.ok(bodies.length>=2,'real CLI uploaded and activated a generation');
+    assert.ok(bodies.every(m=>m.gzip===true),'gzip was decoded in the synthetic server rather than disabled in production');
     assert.deepEqual(messages.find(m=>m.kind==='activated').topics.items.filter(row=>row.capturedAt===capturedAt).map(row=>[row.participants,row.views]),[[12,34]]);
     const saved=JSON.parse(readFileSync(join(home,'state.json'),'utf8'));
     assert.equal(saved.active,null);assert.equal(saved.status,'success');assert.notEqual(saved.coveredMarker,marker);
-    assert.equal(saved.coveredMarker,hash(JSON.stringify({events:[],source:null,contract:'committed-target-atomic-audit-v1',committedTargets:proofMarker})));
+    assert.equal(saved.coveredMarker,hash(JSON.stringify({events:[],source:null,dataMarker:readPublicSourceMarker(db,asOf),contract:'committed-target-atomic-audit-v1',committedTargets:proofMarker})));
     assert.equal(db.prepare('SELECT status FROM runs WHERE id=?').get(runId).status,'running');
     assert.equal(output.includes('e'.repeat(64)),false);
-  } finally {clearTimeout(timeout);if(child.exitCode===null&&child.signalCode===null){child.kill('SIGKILL');await closed;}}
+  } finally {clearTimeout(timeout);if(child.exitCode===null&&child.signalCode===null){child.kill('SIGKILL');await closed;}stopProbe?.();probe.close();}
 });

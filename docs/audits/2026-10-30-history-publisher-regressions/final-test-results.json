@@ -1,0 +1,22 @@
+[
+  {
+    "copy": "private",
+    "fileCount": 25,
+    "exitCode": 0,
+    "summary": [
+      "\u2139 tests 406",
+      "\u2139 pass 406",
+      "\u2139 fail 0"
+    ]
+  },
+  {
+    "copy": "public",
+    "fileCount": 25,
+    "exitCode": 0,
+    "summary": [
+      "\u2139 tests 406",
+      "\u2139 pass 406",
+      "\u2139 fail 0"
+    ]
+  }
+]

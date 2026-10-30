@@ -1,0 +1,7 @@
+{
+  "test/helpers/publisher-process-probe.mjs": "f3a17c3075c150b0774c2ac18b171f9500e6a0bccff91dc1a5200d2cfc933472",
+  "test/phase76-history-reader-peer.test.mjs": "37c3cf5f388f9bd5e805e1003dc1280a9298e88557417b29cf9a46190077386a",
+  "test/phase97-ordinary-handoff-peer.test.mjs": "89b027413dac5f5c04858d74179086c3c7a43e705d71f508b05cc01d56610cd3",
+  "test/phase98-committed-topic-publisher.test.mjs": "37b5fc325383ec7596ccf3de2b698b9d63d087e340af70455fb6e475501a7268",
+  "test/public-coverage-peer-20261001.test.mjs": "70890ea4f23dec01f148599be883344e806762161af0a7f367d067352ad79b7f"
+}

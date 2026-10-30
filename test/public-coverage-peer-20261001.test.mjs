@@ -1,15 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash, webcrypto } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { resolve, sep } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { MonitorDatabase } from '../lib/database.mjs';
 import { normalizeCollection } from '../lib/providers/normalize.mjs';
 import { checksum } from '../lib/utils.mjs';
 import { exportPublicReplica, serializePublicReplica } from '../lib/public-replica-export.mjs';
 import { buildUpdateSla } from '../lib/update-sla.mjs';
 import { describeWorksObservation } from '../lib/works-observation.mjs';
-import { readReplicaPart } from '../../mcn-public-site/lib/replica-reader.mjs';
+
 import { publicAccountCoverage } from '../lib/public-account-coverage.mjs';
-import { accountCoverage, coverageTotals, validCoverage } from '../../mcn-public-site/lib/replica-coverage.mjs';
+const siteRoots = process.env.MCN_SITE_ROOT === undefined
+  ? [new URL('../frontend/', import.meta.url), new URL('../../mcn-public-site/', import.meta.url)]
+  : [pathToFileURL(resolve(process.env.MCN_SITE_ROOT) + sep)];
+const siteRoot = siteRoots.find(root => ['replica-reader.mjs', 'replica-coverage.mjs'].every(file => existsSync(new URL('lib/' + file, root))));
+assert.ok(siteRoot, 'Frontend coverage modules missing: use bundled frontend or set MCN_SITE_ROOT');
+const { readReplicaPart } = await import(new URL('lib/replica-reader.mjs', siteRoot));
+const { accountCoverage, coverageTotals, validCoverage } = await import(new URL('lib/replica-coverage.mjs', siteRoot));
 import { preparePublicReplicaPublication } from '../lib/public-replica-sync.mjs';
 
 // Independent offline counterexamples. These are not real platform observations

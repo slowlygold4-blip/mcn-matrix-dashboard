@@ -1,0 +1,47 @@
+{
+  "checkedAt": "2026-10-30T00:36:52.018967+00:00",
+  "previousBaseline": {
+    "commit": "7644f6137a4af1fd7381df0e165e3cc67bf7750f",
+    "expandedTests": 405,
+    "pass": 396,
+    "fail": 9
+  },
+  "now": {
+    "testFiles": 25,
+    "tests": 406,
+    "pass": 406,
+    "fail": 0,
+    "newHistoricalCutoffTest": true
+  },
+  "productionCodeChanged": false,
+  "productionDatabaseWrites": 0,
+  "newPlatformRequests": 0,
+  "newModelCalls": 0,
+  "browserUsed": false,
+  "serviceRestarted": false,
+  "health": {
+    "status": "ready",
+    "runtimeAI": false
+  },
+  "coverage": {
+    "accounts": 4081,
+    "profiles": 4072,
+    "worksComplete": 0,
+    "topics": 4
+  },
+  "limitations": [
+    "temporary databases and synthetic transport; not live Douyin collection or browser acceptance",
+    "coverage gaps and source identity links remain open",
+    "Public anonymous access 403 unresolved at final check"
+  ],
+  "publicPortableCoverage": {
+    "envConfigured": false,
+    "tests": 25,
+    "pass": 25,
+    "fail": 0
+  },
+  "changedTestFiles": 4,
+  "testHelpers": 1,
+  "anonymousAvailabilityVerified": false,
+  "newOpenIssue": "Local anonymous HTTP clients receive 403 while Sites reports public active v125"
+}

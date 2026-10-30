@@ -7,6 +7,7 @@ import {createHash} from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {setTimeout as delay} from 'node:timers/promises';
+import {createPublisherProcessProbe,publisherProbePreload} from './helpers/publisher-process-probe.mjs';
 
 const moduleRoot=process.env.PHASE97_CANDIDATE?pathToFileURL(realpathSync(resolve(process.env.PHASE97_CANDIDATE))+sep):new URL('../',import.meta.url);
 const {MonitorDatabase}=await import(new URL('lib/database.mjs',moduleRoot));
@@ -15,26 +16,28 @@ const {normalizeCollection}=await import(new URL('lib/providers/normalize.mjs',m
 const {exportPublicReplica,writePublicReplica,PUBLIC_REPLICA_EXPORT_REVISION}=await import(new URL('lib/public-replica-export.mjs',moduleRoot));
 const {buildPostIngestionReview}=await import(new URL('lib/post-ingestion-review.mjs',moduleRoot));
 const {shouldStagePublicReplica,validatedReceipt}=await import(new URL('scripts/public-replica-publisher.mjs',moduleRoot));
+const {readPublicSourceMarker}=await import(new URL('lib/public-source-marker.mjs',moduleRoot));
 const publisherPath=fileURLToPath(new URL('scripts/public-replica-publisher.mjs',moduleRoot));
 const bytesHash=value=>createHash('sha256').update(value).digest('hex');
 const readJSON=path=>JSON.parse(readFileSync(path,'utf8'));
 const syntheticSecret='d'.repeat(64);
-const idlePreload=`process.channel?.unref();process.on('newListener',event=>{if(event==='SIGTERM')setImmediate(()=>process.send?.({kind:'ready'}));});globalThis.fetch=async()=>{process.send?.({kind:'forbidden-network'});throw Error('NO_NETWORK');};`;
-const activePreload=`let released=false;const drains=[];process.on('message',message=>{if(message?.kind==='release-drain'){released=true;for(const done of drains.splice(0))done();}});process.channel?.unref();process.on('newListener',event=>{if(event==='SIGTERM')setImmediate(()=>process.send?.({kind:'ready'}));});globalThis.fetch=async(_url,init={})=>{if(init.method!=='POST')return Response.json({}, {status:404});const body=JSON.parse(init.body);if(body.action!=='upload')throw Error('NO_ACTIVATION');process.send?.({kind:'upload',asOf:body.asOf});return await new Promise((resolve,reject)=>{const abort=()=>{process.send?.({kind:'draining'});let timer;const done=()=>{clearTimeout(timer);process.send?.({kind:'drained'});reject(Error('synthetic-private-error'));};if(released)done();else{drains.push(done);timer=setTimeout(done,5000);}};if(init.signal.aborted)abort();else init.signal.addEventListener('abort',abort,{once:true});});};`;
+const idlePreload=`process.channel?.unref();process.on('newListener',event=>{if(event==='SIGTERM')setImmediate(()=>publisherTestNotify({kind:'ready'}));});globalThis.fetch=async()=>{publisherTestNotify({kind:'forbidden-network'});throw Error('NO_NETWORK');};`;
+const activePreload=`globalThis.fetch=async(_url,init={})=>{if(init.method!=='POST')return Response.json({}, {status:404});const body=publisherTestBody(init);if(body.action!=='upload')throw Error('NO_ACTIVATION');publisherTestNotify({kind:'upload',asOf:body.asOf});return await new Promise((resolve,reject)=>{const abort=()=>{publisherTestNotify({kind:'draining'});let timer,poll;const done=()=>{clearTimeout(timer);clearInterval(poll);publisherTestNotify({kind:'drained'});reject(Error('synthetic-private-error'));};if(publisherTestReleased())done();else{poll=setInterval(()=>{if(publisherTestReleased())done();},10);timer=setTimeout(done,5000);}};if(init.signal.aborted)abort();else init.signal.addEventListener('abort',abort,{once:true});});};`;
 function launch(directory,preload=idlePreload){
- const child=spawn(process.execPath,['--import','data:text/javascript,'+encodeURIComponent(preload),publisherPath],{env:{...process.env,DATA_DIR:directory},stdio:['ignore','pipe','pipe','ipc']});
- const messages=[];let output='';child.on('message',m=>messages.push(m));child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);
+ const probe=createPublisherProcessProbe(directory);
+ const child=spawn(process.execPath,['--import','data:text/javascript,'+encodeURIComponent(publisherProbePreload+preload),publisherPath],{env:{...process.env,...probe.env,DATA_DIR:directory},stdio:['ignore','pipe','pipe','ipc']});
+ const messages=[];const stopProbe=probe.watch(m=>messages.push(m));child.once('close',stopProbe);let output='';child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);
  const closed=new Promise(resolve=>child.once('close',(code,signal)=>resolve({code,signal})));
  const message=async kind=>{for(let i=0;i<500;i++){const found=messages.find(m=>m.kind===kind);if(found)return found;if(child.exitCode!==null||child.signalCode!==null)throw Error('child exited before '+kind+': '+output);await delay(10);}throw Error('child timeout '+kind);};
- return{child,messages,closed,message,activeTransport:preload===activePreload,output:()=>output};
+ return{child,probe,messages,closed,message,activeTransport:preload===activePreload,output:()=>output};
 }
-async function closeChild(owner){if(!owner)return;let timer;try{if(owner.child.exitCode===null&&owner.child.signalCode===null){owner.child.kill('SIGTERM');if(owner.activeTransport){await owner.message('draining');if(owner.child.connected)owner.child.send({kind:'release-drain'});}}return await Promise.race([owner.closed,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('synthetic child did not drain')),3000);})]);}finally{clearTimeout(timer);if(owner.child.exitCode===null&&owner.child.signalCode===null){owner.child.kill('SIGKILL');await owner.closed;}}}
-async function cleanupOwners(owners,directory){const results=await Promise.allSettled(owners.map(closeChild));rmSync(directory,{recursive:true,force:true});const failed=results.find(result=>result.status==='rejected');if(failed)throw failed.reason;}
+async function closeChild(owner){if(!owner)return;let timer;try{if(owner.child.exitCode===null&&owner.child.signalCode===null){owner.child.kill('SIGTERM');if(owner.activeTransport){await owner.message('draining');owner.probe.release();}}return await Promise.race([owner.closed,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('synthetic child did not drain')),3000);})]);}finally{clearTimeout(timer);if(owner.child.exitCode===null&&owner.child.signalCode===null){owner.child.kill('SIGKILL');await owner.closed;}}}
+async function cleanupOwners(owners,directory){const results=await Promise.allSettled(owners.map(closeChild));rmSync(directory,{recursive:true,force:true});owners.filter(Boolean).forEach(owner=>owner.probe.close());const failed=results.find(result=>result.status==='rejected');if(failed)throw failed.reason;}
 function publisherFixture(){
  const directory=mkdtempSync(join(tmpdir(),'phase97-publisher-')),home=join(directory,'public-replica-publisher');mkdirSync(home,{mode:0o700});
  const database=new MonitorDatabase(join(directory,'douyin-monitor.sqlite'));
- const runId=database.beginRun('scheduled',null,705);database.close();
- const state={version:1,active:null,coveredMarker:marker([]),coveredSource:null,exportRevision:PUBLIC_REPLICA_EXPORT_REVISION,status:'success',publishedAsOf:'2026-09-25T01:00:00.000Z',lastConfirmedPublishedAt:'2026-09-25T01:01:00.000Z',sync:{status:'success'}};
+ const runId=database.beginRun('scheduled',null,705);const dataMarker=readPublicSourceMarker(database.db,new Date().toISOString());database.close();
+ const state={version:1,active:null,coveredMarker:bytesHash(JSON.stringify({events:[],source:null,dataMarker})),coveredSource:null,exportRevision:PUBLIC_REPLICA_EXPORT_REVISION,status:'success',publishedAsOf:'2026-09-25T01:00:00.000Z',lastConfirmedPublishedAt:'2026-09-25T01:01:00.000Z',sync:{status:'success'}};
  const checkpoint={version:1,asOf:state.publishedAsOf,activated:true,completedBatches:[0],readbackFiles:['catalog.json']};
  writeFileSync(join(home,'state.json'),JSON.stringify(state),{mode:0o600});writeFileSync(join(home,'checkpoint.json'),JSON.stringify(checkpoint),{mode:0o600});
  return{directory,home,runId,state};
@@ -113,7 +116,9 @@ test('actual publisher SIGTERM drains in-flight upload before exit, retains immu
   writeFileSync(join(f.home,'state.json'),JSON.stringify({...f.state,status:'staged',active}),{mode:0o600});writeFileSync(join(f.home,'credential'),syntheticSecret,{mode:0o600});
   first=launch(f.directory,activePreload);await first.message('upload');first.child.kill('SIGTERM');await first.message('draining');
   contender=launch(f.directory);assert.equal((await contender.closed).code,1);assert.match(contender.output(),/publisher-already-running/);
-  first.child.send({kind:'release-drain'});assert.equal((await first.closed).code,0);assert.ok(first.messages.some(m=>m.kind==='drained'));const stopped=readJSON(join(f.home,'state.json'));assert.equal(stopped.code,'aborted');assert.deepEqual(stopped.active,active);assert.equal(stopped.publishedAsOf,f.state.publishedAsOf);
+  assert.equal(first.messages.some(m=>m.kind==='drained'),false,'the in-flight Worker cannot finish before the synthetic server releases its response');
+  assert.ok(first.messages.some(m=>m.kind==='request-body'&&m.gzip===true),'actual production request used gzip');
+  first.probe.release();assert.equal((await first.closed).code,0);assert.ok(first.messages.some(m=>m.kind==='drained'));const stopped=readJSON(join(f.home,'state.json'));assert.equal(stopped.code,'aborted');assert.deepEqual(stopped.active,active);assert.equal(stopped.publishedAsOf,f.state.publishedAsOf);
   const checkpoint=readJSON(join(f.home,'checkpoint.json'));assert.equal(checkpoint.asOf,active.asOf);assert.equal(checkpoint.activated,false);assert.deepEqual(checkpoint.completedBatches,[]);
   replacement=launch(f.directory,activePreload);assert.equal((await replacement.message('upload')).asOf,active.asOf);assert.equal((await closeChild(replacement)).code,0);
   assert.deepEqual(readJSON(join(f.home,'state.json')).active,active);assert.equal(readJSON(join(f.home,'checkpoint.json')).manifestSha256,checkpoint.manifestSha256);

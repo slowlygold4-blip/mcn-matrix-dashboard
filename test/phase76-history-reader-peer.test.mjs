@@ -29,6 +29,9 @@ function fixture(t, { damageOldSource = false, mutate = null } = {}) {
   const writer = new MonitorDatabase(path);
   const target = writer.createTarget({ type: 'account', provider: 'public-web', locator: SEC,
     label: 'Phase76 isolated worker fixture', metadata: { platform: 'douyin' } });
+  // The fixture account must already exist at its historical query time.
+  writer.db.prepare('UPDATE targets SET created_at=? WHERE id=?').run('2026-09-28T00:00:00.000Z', target.id);
+  writer.db.prepare('UPDATE target_boards SET created_at=? WHERE target_id=?').run('2026-09-28T00:00:00.000Z', target.id);
   const save = (capturedAt, followers, likes, posts, works = []) => {
     const raw = { capturedAt, profile: { user: { sec_uid: SEC, uid: UID,
       follower_count: followers, total_favorited: likes, aweme_count: posts } }, worksCoverage: 'limited',
@@ -246,7 +249,7 @@ test('phase76 actual UI all-pages CSV transport uses default real Worker and fre
   const f = fixture(t), first = await f.history({ kind: 'works', pageSize: 1, sort: 'likes', order: 'asc' });
   const source = readFileSync(new URL('../public/rebuild.js', import.meta.url), 'utf8'), requests = [];
   const context = { ...consoleModel, fmt: consoleModel.formatNumber, URL, URLSearchParams, Date, Intl,
-    AbortController, Set, Map, location: new URL('http://127.0.0.1:4188/'), document: {}, window: {},
+    AbortController, Set, Map, setTimeout, clearTimeout, location: new URL('http://127.0.0.1:4188/'), document: {}, window: {},
     fetch: async path => {
       const url = new URL(path, 'http://isolated-fixture');
       assert.equal(url.pathname, `/api/rebuild/accounts/${f.target.id}/history`);
@@ -270,4 +273,15 @@ test('phase76 actual UI all-pages CSV transport uses default real Worker and fre
   assert.match(result.csv, /保存的来源值，未逐条独立核验/);
   assert.match(result.csv, /来源未提供/);
   assert.doesNotMatch(result.csv, /FUTURE_TITLE/);
+});
+
+
+test('historical detail and overview exclude an account created after the requested cutoff', async t => {
+  const f = fixture(t, { mutate(writer, target) {
+    writer.db.prepare('UPDATE targets SET created_at=? WHERE id=?').run(NEW, target.id);
+  } });
+  const options = { reference: ASOF, period: 'day', timeZone: 'Asia/Shanghai', includeRecordedWindow: false };
+  assert.deepEqual(await f.reader.account(f.target.id, options), { account: null }, 'Worker preserves its no-account envelope; HTTP maps it to 404');
+  assert.equal(getAccountInsight({ db: f.db }, f.target.id, options), null);
+  assert.deepEqual((await f.reader.overview(options)).accounts, []);
 });
