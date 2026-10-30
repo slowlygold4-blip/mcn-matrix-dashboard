@@ -1,0 +1,46 @@
+{
+  "recordedAt": "2026-10-30T02:41:41.638298+00:00",
+  "change": "bounded-chronological-works-policy-restoration",
+  "relatedTests": 315,
+  "newRegressionTests": 10,
+  "sourceAndLiveSuitesBothPassed": true,
+  "databaseSchemaIndex": "idx_snapshots_target_epoch_id",
+  "businessHistoryRewritten": false,
+  "verificationPlatformRequests": 0,
+  "newCollectionCommands": 0,
+  "newSchedulers": 0,
+  "runtimeAI": false,
+  "serviceStatus": "ready",
+  "controlledIdleMainReloads": 2,
+  "sourceAndPublisherRestarted": false,
+  "normalStartupBackupsCreated": 2,
+  "backupSHA256Matched": true,
+  "backupQuickCheck": "ok",
+  "temporaryFullDatabaseCopyBytes": 0,
+  "sourceCodeParity": true,
+  "postReloadSnapshotRowsInspected": 6,
+  "latestPostReloadSnapshotAt": "2026-10-30T02:38:00.590Z",
+  "postReloadWorksRequestsRecorded": 3,
+  "postReloadDeferredWorksRecorded": 3,
+  "observedPolicyReadMs": [
+    {
+      "implementation": "initial-promoted",
+      "elapsedMs": 612
+    },
+    {
+      "implementation": "bounded-payloads",
+      "elapsedMs": 214
+    },
+    {
+      "implementation": "bounded-payloads",
+      "elapsedMs": 144
+    },
+    {
+      "implementation": "initial-promoted",
+      "elapsedMs": 633
+    }
+  ],
+  "completeWorksCollectionRecovered": false,
+  "overallGoalComplete": false,
+  "frontendVersionUnchanged": 126
+}

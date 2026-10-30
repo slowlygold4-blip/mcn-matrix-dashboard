@@ -1,0 +1,52 @@
+{
+  "reference": "2026-10-30T02:25:42.171Z",
+  "sameDatabaseSnapshot": true,
+  "samePolicyAlgorithm": true,
+  "decisionParity": true,
+  "decisions": [
+    {
+      "transport": "anonymous-http",
+      "attempted": false,
+      "deferred": true,
+      "errorCode": "blocked",
+      "cooldownErrorCode": "blocked",
+      "reason": "transport-cooldown",
+      "retryAfterStatus": null,
+      "nextEligibleAt": "2026-10-30T02:27:46.061Z"
+    },
+    {
+      "transport": "authorised-browser",
+      "attempted": false,
+      "deferred": false,
+      "errorCode": null,
+      "cooldownErrorCode": null,
+      "reason": null,
+      "retryAfterStatus": null,
+      "nextEligibleAt": null
+    }
+  ],
+  "measurements": [
+    {
+      "index": "text-index-only",
+      "elapsedMs": 626
+    },
+    {
+      "index": "epoch-index",
+      "elapsedMs": 599
+    },
+    {
+      "index": "epoch-index",
+      "elapsedMs": 601
+    },
+    {
+      "index": "text-index-only",
+      "elapsedMs": 632
+    }
+  ],
+  "queryPlan": [
+    "SEARCH snapshots USING COVERING INDEX idx_snapshots_target_epoch_id (target_id=? AND <expr><?)"
+  ],
+  "platformRequests": 0,
+  "databaseWrites": 0,
+  "newSamples": 0
+}

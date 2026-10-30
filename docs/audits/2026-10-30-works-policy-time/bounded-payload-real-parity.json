@@ -1,0 +1,114 @@
+{
+  "reference": "2026-10-30T02:29:26.413Z",
+  "sameReadOnlyTransaction": true,
+  "decisionParity": true,
+  "measurements": [
+    {
+      "implementation": "initial-promoted",
+      "elapsedMs": 612,
+      "decisions": [
+        {
+          "transport": "anonymous-http",
+          "attempted": false,
+          "deferred": false,
+          "errorCode": null,
+          "cooldownErrorCode": null,
+          "reason": null,
+          "retryAfterStatus": null,
+          "nextEligibleAt": null
+        },
+        {
+          "transport": "authorised-browser",
+          "attempted": false,
+          "deferred": false,
+          "errorCode": null,
+          "cooldownErrorCode": null,
+          "reason": null,
+          "retryAfterStatus": null,
+          "nextEligibleAt": null
+        }
+      ]
+    },
+    {
+      "implementation": "bounded-payloads",
+      "elapsedMs": 214,
+      "decisions": [
+        {
+          "transport": "anonymous-http",
+          "attempted": false,
+          "deferred": false,
+          "errorCode": null,
+          "cooldownErrorCode": null,
+          "reason": null,
+          "retryAfterStatus": null,
+          "nextEligibleAt": null
+        },
+        {
+          "transport": "authorised-browser",
+          "attempted": false,
+          "deferred": false,
+          "errorCode": null,
+          "cooldownErrorCode": null,
+          "reason": null,
+          "retryAfterStatus": null,
+          "nextEligibleAt": null
+        }
+      ]
+    },
+    {
+      "implementation": "bounded-payloads",
+      "elapsedMs": 144,
+      "decisions": [
+        {
+          "transport": "anonymous-http",
+          "attempted": false,
+          "deferred": false,
+          "errorCode": null,
+          "cooldownErrorCode": null,
+          "reason": null,
+          "retryAfterStatus": null,
+          "nextEligibleAt": null
+        },
+        {
+          "transport": "authorised-browser",
+          "attempted": false,
+          "deferred": false,
+          "errorCode": null,
+          "cooldownErrorCode": null,
+          "reason": null,
+          "retryAfterStatus": null,
+          "nextEligibleAt": null
+        }
+      ]
+    },
+    {
+      "implementation": "initial-promoted",
+      "elapsedMs": 633,
+      "decisions": [
+        {
+          "transport": "anonymous-http",
+          "attempted": false,
+          "deferred": false,
+          "errorCode": null,
+          "cooldownErrorCode": null,
+          "reason": null,
+          "retryAfterStatus": null,
+          "nextEligibleAt": null
+        },
+        {
+          "transport": "authorised-browser",
+          "attempted": false,
+          "deferred": false,
+          "errorCode": null,
+          "cooldownErrorCode": null,
+          "reason": null,
+          "retryAfterStatus": null,
+          "nextEligibleAt": null
+        }
+      ]
+    }
+  ],
+  "platformRequests": 0,
+  "databaseWrites": 0,
+  "newSamples": 0
+}

@@ -215,13 +215,13 @@ test('new instances restore only bounded persisted works-only waits without requ
     try {
       db.exec(`CREATE TABLE targets(id INTEGER,type TEXT,provider TEXT);
         CREATE TABLE snapshots(id INTEGER,target_id INTEGER,raw_json TEXT,captured_at TEXT);
-        CREATE TABLE runs(id INTEGER PRIMARY KEY,trigger_type TEXT,details_json TEXT);`);
+        CREATE TABLE runs(id INTEGER PRIMARY KEY,trigger_type TEXT,details_json TEXT,started_at TEXT,finished_at TEXT);`);
       const f = fixture(); const browser = f.provider.worksRequestPolicy.record('authorised-browser', { targetKey: SEC, errorCode: 'login_required' });
       const policy = { version: 1, endpoint: 'douyin.author_posts', scope: 'endpoint-transport', browser };
-      if (source === 'run') db.prepare('INSERT INTO runs VALUES(?,?,?)').run(1, 'works-only', JSON.stringify([{ requestPolicy: policy }]));
+      if (source === 'run') db.prepare('INSERT INTO runs VALUES(?,?,?,?,?)').run(1, 'works-only', JSON.stringify([{ requestPolicy: policy }]), START, START);
       else {
-        db.exec('CREATE TABLE works_observations(id INTEGER PRIMARY KEY,raw_json TEXT)');
-        db.prepare('INSERT INTO works_observations VALUES(?,?)').run(1, JSON.stringify({ worksRequestPolicy: policy }));
+        db.exec('CREATE TABLE works_observations(id INTEGER PRIMARY KEY,raw_json TEXT,observed_at TEXT,created_at TEXT)');
+        db.prepare('INSERT INTO works_observations VALUES(?,?,?,?)').run(1, JSON.stringify({ worksRequestPolicy: policy }), START, START);
       }
       const restored = new PublicWebProvider({}, { database: { db }, worksRequestPolicyOptions: { now: () => Date.parse(START) } });
       assert.equal(restored.worksRequestPolicy.decision('authorised-browser').deferred, true);
@@ -230,11 +230,11 @@ test('new instances restore only bounded persisted works-only waits without requ
       const expired = new PublicWebProvider({}, { database: { db }, worksRequestPolicyOptions: { now: () => Date.parse(START) + 900_001 } });
       assert.equal(expired.worksRequestPolicy.decision('authorised-browser').deferred, false);
       if (source === 'run') {
-        const insert = db.prepare('INSERT INTO runs VALUES(?,?,?)');
-        for (let id = 2; id <= 1001; id++) insert.run(id, 'works-only', '[]');
+        const insert = db.prepare('INSERT INTO runs VALUES(?,?,?,?,?)');
+        for (let id = 2; id <= 1001; id++) insert.run(id, 'works-only', '[]', START, START);
       } else {
-        const insert = db.prepare('INSERT INTO works_observations VALUES(?,?)');
-        for (let id = 2; id <= 1001; id++) insert.run(id, '{}');
+        const insert = db.prepare('INSERT INTO works_observations VALUES(?,?,?,?)');
+        for (let id = 2; id <= 1001; id++) insert.run(id, '{}', START, START);
       }
       const bounded = new PublicWebProvider({}, { database: { db }, worksRequestPolicyOptions: { now: () => Date.parse(START) } });
       assert.equal(bounded.worksRequestPolicy.decision('authorised-browser').deferred, false);
@@ -247,7 +247,7 @@ test('an existing provider merges newly persisted profile cooldown without erasi
   try {
     db.exec(`CREATE TABLE targets(id INTEGER,type TEXT,provider TEXT);
       CREATE TABLE snapshots(id INTEGER,target_id INTEGER,raw_json TEXT,captured_at TEXT);
-      CREATE TABLE runs(id INTEGER PRIMARY KEY,trigger_type TEXT,details_json TEXT);`);
+      CREATE TABLE runs(id INTEGER PRIMARY KEY,trigger_type TEXT,details_json TEXT,started_at TEXT,finished_at TEXT);`);
     const provider = new PublicWebProvider({}, { database: { db }, worksRequestPolicyOptions: { now: () => Date.parse(START) } });
     provider.worksRequestPolicy.record('authorised-browser', { targetKey: 'earlier', errorCode: 'blocked' });
     const failures = structuredClone(provider.worksRequestPolicy.lane('authorised-browser').failures);
