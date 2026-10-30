@@ -323,6 +323,30 @@ function addPlatformWork(db, { id, postId, targetId = 10, authorId = sec,
     .run(postId, metricAt, likes, plays);
 }
 
+test('invalid publication and metric clocks cannot create a next-day release or supersede a valid counter',()=>{
+ const db=fixture();platformFixture(db);
+ try{
+  const id='7300000000000000091';
+  addPlatformWork(db,{id,postId:991,publishedAt:'2026-10-21T24:00:00Z',
+   metricAt:'2026-10-21T18:00:00Z',likes:7,plays:70});
+  db.prepare('INSERT INTO post_metrics(post_id,captured_at,likes,plays) VALUES(101,?,?,?)')
+   .run('2026-10-21T24:00:00Z',99999,999999);
+  const query={asOf:'2026-10-23T00:00:00.000Z',view:'works'};
+  const view=readCreatorOperatingView(db,query);
+  const malformed=view.items.find(work=>work.contentId===id);
+  assert.ok(malformed,'retain the separately verified work identity');
+  assert.equal(malformed.publishedOn,'','do not invent a release day from a rolled clock');
+  assert.equal(view.daily.find(day=>day.day==='2026-10-22'),undefined);
+  const existing=view.items.find(work=>work.contentId==='111');
+  assert.equal(existing.latestLikes,9,'reject the malformed latest metric, keep the actual prior counter');
+  const exported=readUnifiedPublicationWorks(db,query.asOf,{includeMetrics:true});
+  assert.equal(exported.find(work=>work.contentId===id).publishedOn,'');
+  assert.equal(exported.find(work=>work.contentId==='111').latestLikes,9);
+  assert.equal(db.prepare('SELECT captured_at FROM post_metrics WHERE likes=99999').get().captured_at,
+   '2026-10-21T24:00:00Z','leave raw historical evidence intact');
+ }finally{db.close();}
+});
+
 test('same-instant conflicting likes stay unknown in works, author totals and publication metrics while equal duplicates remain valid',()=>{
  const db=fixture();platformFixture(db);
  const at='2020-01-02T00:00:00Z';
