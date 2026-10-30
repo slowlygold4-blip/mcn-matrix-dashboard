@@ -42,7 +42,7 @@ test('invalid input and dry run create no schema or data',t=>{
 test('initial commit stores complete original, immutable rows, membership and head',t=>{
   const db=open(t),x=input(),result=commitWorkSourceEdition(db,x,{now:now(T1)});
   assert.equal(result.status,'imported');assert.equal(result.factCount,2);
-  assert.deepEqual(counts(db),{work_source_artifacts:1,work_source_versions:1,work_source_fact_blobs:2,work_source_version_facts:2,work_source_heads:1});
+  assert.deepEqual(counts(db),{work_source_artifacts:1,work_source_versions:1,work_source_fact_blobs:2,work_source_version_facts:2,work_source_heads:1,work_source_link_receipts:0});
   const row=db.prepare('SELECT * FROM work_source_artifacts').get();
   assert.equal(createHash('sha256').update(row.content).digest('hex'),row.sha256);
   assert.ok(Buffer.from(row.content).equals(x.buffer));
