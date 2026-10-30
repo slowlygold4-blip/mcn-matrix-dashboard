@@ -18,7 +18,8 @@ function fixture(t) {
   const make = (name, handle, enabled) => {
     const target = database.createTarget({ type: 'account', label: name,
       locator: `MS4wLjABAAAA${handle}abcdefghijklmnop`, provider: 'public-web',
-      metadata: { platform: 'douyin', douyinId: handle } });
+      metadata: { platform: 'douyin', douyinId: handle,
+        identityVerification:{accountId:`MS4wLjABAAAA${handle}abcdefghijklmnop`} } });
     database.db.prepare('UPDATE targets SET created_at=?,updated_at=?,enabled=? WHERE id=?')
       .run('2026-06-01T00:00:00Z', '2026-06-01T00:00:00Z', enabled ? 1 : 0, target.id);
     database.assignTargetsToBoard([target.id], '一条小团团切片矩阵');
@@ -47,15 +48,15 @@ function fixture(t) {
   database.db.exec(`CREATE TABLE creator_source_imports(id INTEGER PRIMARY KEY,source_sha256 TEXT,source_url TEXT,
       source_revision TEXT,source_modified_at TEXT,imported_at TEXT,metadata_json TEXT,source_row_count INTEGER);
     CREATE TABLE creator_source_rows(import_id INTEGER,sheet_id TEXT,row_number INTEGER,values_json TEXT);
-    CREATE TABLE creator_source_account_links(import_id INTEGER,author_row INTEGER,target_id INTEGER);
+    CREATE TABLE creator_source_account_links(import_id INTEGER,author_row INTEGER,target_id INTEGER,matched_id TEXT,matched_at TEXT);
     CREATE TABLE creator_source_work_links(import_id INTEGER,work_row INTEGER,target_id INTEGER);
-    INSERT INTO creator_source_imports VALUES(1,'source-sha','https://my.feishu.cn/sheets/source','42',
+    INSERT INTO creator_source_imports VALUES(1,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','https://my.feishu.cn/sheets/source','42',
       '2026-10-22T00:00:00Z','2026-10-22T01:00:00Z','{"audit":{"sourceRefreshedAt":"2026-10-22T00:00:00Z"}}',3);`);
   const insert = database.db.prepare("INSERT INTO creator_source_rows VALUES(1,'08',?,?)");
   insert.run(2, JSON.stringify(['已监控', 'alice', '', '', 1, 1, 2, 2, 0, 0, 0, 8000, 80, 0, 900, '截图时点未知']));
   insert.run(3, JSON.stringify(['来源原创', 'bob', '', '', 2, 2, 4, 0, 4, 0, 0, 12000, 120, 0, null, null]));
   insert.run(4, JSON.stringify(['来源AI', 'charlie', '', '', 3, 3, 6, 0, 0, 6, 0, null, null, 0, null, null]));
-  database.db.prepare('INSERT INTO creator_source_account_links VALUES(1,2,?)').run(linked.id);
+  database.db.prepare('INSERT INTO creator_source_account_links VALUES(1,2,?,?,?)').run(linked.id,'alice','2026-10-22T01:00:00Z');
   const read = extra => getProductInsights(database, { ...options, ...extra });
   return { database, linked, paused, before, read };
 }
@@ -125,4 +126,13 @@ test('source-linked target created after selected historical endpoint remains so
   assert.equal(result.summary.enabledCount, 0);
   assert.equal(result.summary.sourceOnlyCount, 3);
   assert.equal(result.accounts.some(item => item.id === linked.id), false);
+});
+
+test('a legacy source row without the verified canonical anchor remains separate from the monitored author',t=>{
+ const {database,linked,read}=fixture(t);
+ database.db.prepare('UPDATE targets SET metadata_json=? WHERE id=?').run(JSON.stringify({platform:'douyin',douyinId:'alice'}),linked.id);
+ const result=read({theme:'tuantuan'});
+ assert.equal(result.accounts.length,5);assert.equal(result.summary.sourceOnlyCount,3);
+ assert.equal(result.accounts.filter(account=>account.publicId==='alice').length,2);
+ assert.equal(result.accounts.find(account=>account.id===linked.id).sourceSummary??null,null);
 });

@@ -19,6 +19,7 @@ import { MonitorScheduler } from "./lib/scheduler.mjs";
 import { RefreshCollection } from "./lib/refresh-collection.mjs";
 import { SQLiteBackupManager } from "./lib/backup-manager.mjs";
 import {reconcileCreatorProfileIdentityLinks} from './lib/reconcile-creator-profile-links.mjs';
+import {reconcileSupplementProfileIdentityLinks} from './lib/reconcile-supplement-profile-links.mjs';
 import { createScheduledBackupThrottle } from "./lib/scheduled-backup-throttle.mjs";
 import { inspectLatestBackup } from "./lib/backup-audit.mjs";
 import { recordPostIngestionReview, inspectPostIngestionReviews, summarizePostIngestionReviewQueue } from "./lib/post-ingestion-review.mjs";
@@ -199,10 +200,19 @@ function reconcileCommittedProfileIdentities(runId){
   if(!profileIdentityAdmissionReady)return;
   try{
     const result=reconcileCreatorProfileIdentityLinks(database,{...(runId===undefined?{}:{runId:Number(runId)})});
+    if(result.admitted)consoleReader.invalidate();
+    let supplement;
+    try{
+      supplement=reconcileSupplementProfileIdentityLinks(database,{...(runId===undefined?{}:{runId:Number(runId)})});
+      if(supplement.admitted)consoleReader.invalidate();
+    }catch{
+      supplement={status:'retry-required',admitted:0};
+      console.error('补充来源的主页身份关联待重试；已提交资料与其他身份回执保留');
+    }
     ingestionReviewQueueStatus={...ingestionReviewQueueStatus,profileIdentity:{status:result.status,
       admitted:result.admitted,eligible:result.eligible??0,remainingEligible:result.remaining??0,
+      supplement:{status:supplement.status,admitted:supplement.admitted,remainingEligible:supplement.remaining??0},
       unlinkedSourceRows:result.unlinkedSourceRows??null,checkedAt:new Date().toISOString()}};
-    if(result.admitted)consoleReader.invalidate();
   }catch{
     ingestionReviewQueueStatus={...ingestionReviewQueueStatus,profileIdentity:{status:'retry-required',checkedAt:new Date().toISOString()}};
     console.error('已保存主页的来源身份关联待重试；采集及原始入库记录保留');
@@ -999,6 +1009,9 @@ async function executeAuthorResolveJob(job) {
       if (database.db.isTransaction) database.db.exec("ROLLBACK");
       throw commitError;
     }
+    // The import is already committed. Reuse stored profile evidence now;
+    // a failed association check must never turn a committed source into a failed job.
+    reconcileCommittedProfileIdentities();
     if (scheduleQueuedEvidence) scheduleAuthorResolutionQueue(1_000, true);
   } catch (error) {
     database.failAuthorResolutionJob(job.id, error, claim);

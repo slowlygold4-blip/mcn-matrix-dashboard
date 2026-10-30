@@ -60,10 +60,13 @@ test("source registry additions and external deltas cannot vanish from a backup 
 
 test('stored profile identity receipts are retained and counted without breaking older backups',()=>{
  const legacy=Object.fromEntries(LEGACY_EVIDENCE_TABLES.map(table=>[table,0]));
- const current={...legacy,creator_source_profile_identity_receipts:3};
+ const current={...legacy,creator_source_profile_identity_receipts:3,supplement_profile_identity_receipts:4};
  assert.equal(validationCountsMatch(legacy,legacy),true);assert.equal(validationCountsMatch(current,current),true);
  assert.equal(validationCountsMatch(current,legacy),false);assert.equal(validationCountsMatch(legacy,current),false);
  assert.equal(validationCountsMatch(current,{...current,creator_source_profile_identity_receipts:2}),false);
+ assert.equal(validationCountsMatch(current,{...current,supplement_profile_identity_receipts:3}),false);
+ const {supplement_profile_identity_receipts,...missingSupplement}=current;
+ assert.equal(validationCountsMatch(current,missingSupplement),false);
 });
 
 test('complete source-edition evidence, including raw artifacts and heads, survives backup validation', () => {

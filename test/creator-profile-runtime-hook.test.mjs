@@ -16,6 +16,7 @@ function harness(){
  const calls=[],errors=[];let invalidations=0;
  const context=vm.createContext({profileIdentityAdmissionReady:false,database:{},ingestionReviewQueueStatus:{},
   reconcileCreatorProfileIdentityLinks:(_db,options)=>{calls.push(options);return {status:'admitted',admitted:1,eligible:1,remaining:0,receiptIds:[{targetId:999}]};},
+  reconcileSupplementProfileIdentityLinks:()=>({status:'up-to-date',admitted:0,remaining:0}),
   consoleReader:{invalidate:()=>invalidations++},console:{error:message=>errors.push(message)},
   ingestionReviewChain:Promise.resolve(),recordPostIngestionReview:async()=>({status:'recorded'}),ingestionReviewDir:'fixture',ingestionReviewStartRunId:1});
  for(const code of functions.values())vm.runInContext(code,context);
@@ -40,4 +41,22 @@ test('identity admission failure preserves committed collection/review and does 
  const result=await h.context.reviewCommittedBatch(32);
  assert.equal(result.status,'recorded');assert.equal(h.context.ingestionReviewQueueStatus.profileIdentity.status,'retry-required');
  assert.equal(h.errors.some(message=>message.includes('private-token')),false);assert.equal(h.invalidations,0);
+});
+
+test('a supplementary receipt failure retains committed base identities and invalidates their view',()=>{
+ const h=harness();h.context.profileIdentityAdmissionReady=true;
+ h.context.reconcileSupplementProfileIdentityLinks=()=>{throw Error('private-credential');};
+ h.context.reconcileCommittedProfileIdentities(33);
+ assert.equal(h.invalidations,1);assert.equal(h.context.ingestionReviewQueueStatus.profileIdentity.admitted,1);
+ assert.equal(h.context.ingestionReviewQueueStatus.profileIdentity.supplement.status,'retry-required');
+ assert.equal(h.errors.some(message=>message.includes('private-credential')),false);
+});
+
+test('the real import completion calls reconciliation only after the transaction commit and before queue scheduling',()=>{
+ const commit=source.indexOf('database.db.exec("COMMIT");',source.indexOf('database.completeAuthorResolutionJob'));
+ const call=source.indexOf('reconcileCommittedProfileIdentities();',commit);
+ const schedule=source.indexOf('if (scheduleQueuedEvidence)',commit);
+ assert.ok(commit>0&&call>commit&&schedule>call);
+ const middle=source.slice(commit,call);
+ assert.match(middle,/ROLLBACK/);assert.match(middle,/throw commitError/);
 });
