@@ -1,0 +1,25 @@
+{
+  "mode": "readiness",
+  "accessTokenPresent": false,
+  "openIdPresent": false,
+  "miniappUserDataScopeDeclared": false,
+  "supportedDays": [
+    7,
+    15
+  ],
+  "todayIncluded": false,
+  "eligibility": "officially-authorized-users-above-1000-followers",
+  "firstAuthorizationDelay": "next_day",
+  "platformPermissionVerified": false,
+  "identityBindingVerified": false,
+  "networkRequests": 0,
+  "databaseWrites": 0,
+  "modelCalls": 0,
+  "launchdMiniappCredentialsPresent": {
+    "DOUYIN_MINIAPP_ACCESS_TOKEN": false,
+    "DOUYIN_MINIAPP_OPEN_ID": false,
+    "DOUYIN_MINIAPP_SCOPES": false
+  },
+  "recordedAt": "2026-10-30T02:51:03.328434+00:00",
+  "browserDisabledInLaunchd": true
+}

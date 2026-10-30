@@ -1,0 +1,14 @@
+{
+  "upstreamFixtureOnly": true,
+  "outerSuccessCode": 0,
+  "innerStatusCode": 0,
+  "videoRows": 20,
+  "distinctWorkIds": 20,
+  "hasMore": 1,
+  "cursorType": "int",
+  "playFieldMissing": 0,
+  "playFieldZero": 20,
+  "playFieldPositive": 0,
+  "productionDataWrites": 0,
+  "liveSamplingProof": false
+}

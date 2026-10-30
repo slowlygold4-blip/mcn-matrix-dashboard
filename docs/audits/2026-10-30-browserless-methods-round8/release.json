@@ -1,0 +1,27 @@
+{
+  "recordedAt": "2026-10-30T02:53:23.080222+00:00",
+  "newRepositories": 4,
+  "pinnedFiles": 19,
+  "newRegressionTests": 12,
+  "relatedTests": 71,
+  "sourceAndLiveSuitesBothPassed": true,
+  "testsUseSyntheticTransport": true,
+  "sourceAndLiveCodeSha256": {
+    "lib/douyin-miniapp-daily-probe.mjs": "2f72913fc0353faf80a6a716cf8ec158b3d4b39ae717af8ffbb6b681715fe655",
+    "scripts/probe-douyin-miniapp-daily.mjs": "28c10a586650ce0cb28de1f8fb49b519c1bdb5e334eb46b32cd9254a85ecb008",
+    "test/douyin-miniapp-daily-probe.test.mjs": "ee4a6bc2dc0d007f43611533a0fdbcd461b1a2caaf80450816892dda17e17a52"
+  },
+  "officialApi": "miniapp-ma.user.data",
+  "configuredCredentialsPresent": false,
+  "readinessPlatformRequests": 0,
+  "newProductionSamples": 0,
+  "businessDatabaseWrites": 0,
+  "modelCallsInRuntime": 0,
+  "browserCollectionEnabled": false,
+  "thirdPartyCodeExecuted": false,
+  "newAccountsOrPurchases": false,
+  "newSchedulers": 0,
+  "serviceRestarts": 0,
+  "completeWorksCollectionRecovered": false,
+  "priorPolicyFixPublishedCommit": "f0677ca"
+}
