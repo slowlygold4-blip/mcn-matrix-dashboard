@@ -16,7 +16,7 @@ test('phase102 actual HTTP: route signals, same-key subscriber isolation, bootst
   const dir=mkdtempSync(join(tmpdir(),'phase102-http-'));process.env.DATA_DIR=dir;
   const database=new MonitorDatabase(join(dir,'douyin-monitor.sqlite'));
   const target=database.createTarget({type:'account',provider:'manual',enabled:false,label:'HTTP离线取消',locator:'phase102-http'});
-  const original=Object.fromEntries(['overview','account','history','bootstrapOverview'].map(key=>[key,ConsoleReader.prototype[key]]));
+  const original=Object.fromEntries(['overview','account','history','bootstrapOverview','creatorOperatingView'].map(key=>[key,ConsoleReader.prototype[key]]));
   const auditOriginal=SystemAuditReader.prototype.read, statusOriginal=MonitorScheduler.prototype.getStatusAsync;
   const calls=[];let barrier=null, auditBarrier=null, auditEntered=null, auditReads=0, statusEntered=null;
   for(const kind of Object.keys(original))ConsoleReader.prototype[kind]=async function(...args){
@@ -34,7 +34,7 @@ test('phase102 actual HTTP: route signals, same-key subscriber isolation, bootst
   const auth=await fetch(origin+'/api/auth/session');await auth.json();const cookie=auth.headers.getSetCookie().map(v=>v.split(';')[0]).join('; ');
   const start=path=>{let request;const result=new Promise((resolve,reject)=>{request=httpRequest(origin+path,{headers:{Cookie:cookie}},response=>{let body='';response.on('data',chunk=>{body+=chunk;});response.on('end',()=>resolve({status:response.statusCode,body:JSON.parse(body)}));});request.on('error',reject);request.end();});return{request,result};};
   const waitCalls=async count=>{for(let i=0;i<300&&calls.length<count;i++)await new Promise(r=>setTimeout(r,2));assert.equal(calls.length,count);};
-  const routes=['/api/rebuild/insights?period=day',`/api/rebuild/accounts/${target.id}/insights?period=day`,`/api/rebuild/accounts/${target.id}/history?kind=daily`,'/api/insights?period=day',`/api/accounts/${target.id}/insights?period=day`];
+  const routes=['/api/rebuild/insights?period=day',`/api/rebuild/accounts/${target.id}/insights?period=day`,`/api/rebuild/accounts/${target.id}/history?kind=daily`,'/api/insights?period=day',`/api/accounts/${target.id}/insights?period=day`,'/api/creator-operating-view?view=authors'];
   for(const route of routes){barrier=deferred();const offset=calls.length;
     const first=start(route);const firstRejected=first.result.catch(error=>error);await waitCalls(offset+1);
     const second=start(route);await waitCalls(offset+2);

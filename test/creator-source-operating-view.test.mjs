@@ -14,6 +14,14 @@ const locator = `https://www.douyin.com/user/${sec}`;
 const targetMetadata = douyinId => JSON.stringify({ platform: 'douyin', douyinId,
   identityVerification: { accountId: locator } });
 
+test('invalid publication ranges are rejected before loading the source corpus or native works',()=>{
+ const db=fixture(),prepare=db.prepare.bind(db);let heavyReads=0;
+ db.prepare=sql=>{if(/creator_source_rows|FROM posts|FROM post_metrics/.test(sql)){heavyReads++;throw Error('unnecessary full-data read');}return prepare(sql);};
+ try{for(const query of[{start:'2026-02-30'},{start:'2026-10-02',end:'2026-10-01'}]){
+  const result=readCreatorOperatingView(db,query);assert.equal(result.statusCode,400);assert.equal(result.error,'日期范围无效');
+ }assert.equal(heavyReads,0);}finally{db.close();}
+});
+
 function unlinkedPublisherFixture(db, { handle = 'publisher_b' } = {}) {
   const id = '7300000000000000077', publisherSec = 'MS4wLjABAAAA' + 'b'.repeat(40);
   const publisherUrl = `https://www.douyin.com/user/${publisherSec}`;

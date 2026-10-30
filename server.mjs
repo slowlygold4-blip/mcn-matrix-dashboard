@@ -57,7 +57,6 @@ import { getProductInsights, getAccountInsight } from "./lib/product-insights.mj
 import { ConsoleReader } from "./lib/console-reader.mjs";
 import { CreatorLibraryReader } from "./lib/creator-library.mjs";
 import { readCreatorSourceBridge } from "./lib/creator-source-bridge.mjs";
-import { readCreatorOperatingView } from "./lib/creator-source-operating-view.mjs";
 import { accountHistoryOptions } from "./lib/account-history-options.mjs";
 import { getProductContinuity, getAuthorSources } from "./lib/product-continuity.mjs";
 import { inspectSourcePollManifest } from "./lib/source-poller-status.mjs";
@@ -1494,7 +1493,7 @@ async function handleApi(request, response, url) {
   }
   if (request.method === "GET" && pathname === "/api/creator-operating-view") {
     access.requireRole(request, "viewer");
-    const result = readCreatorOperatingView(database.db, Object.fromEntries(url.searchParams));
+    const result = await requestScopedRead(request,response,signal=>consoleReader.creatorOperatingView(Object.fromEntries(url.searchParams),{signal}));
     return json(response, result.statusCode || 200, result);
   }
   if (request.method === "GET" && pathname === "/api/creator-source/sync-status") {

@@ -19,6 +19,19 @@ function fixture(t, options = {}) {
   return { reader, workers };
 }
 
+test('creator operating queries reuse one bounded reader lane but never stale dashboard caching',async t=>{
+ const {reader,workers}=fixture(t,{maxQueue:2});
+ const query={view:'authors',q:'fixture',asOf:'2026-10-30T18:35:00.000Z'};
+ const first=reader.creatorOperatingView(query),second=reader.creatorOperatingView(query);
+ assert.notStrictEqual(first,second);assert.equal(workers[0].sent.length,1);
+ assert.equal(workers[0].sent[0].kind,'creator-operating');
+ workers[0].answer(0,{version:1});workers[0].answer(1,{version:2});
+ assert.deepEqual(await first,{version:1});assert.deepEqual(await second,{version:2});
+ const fresh=reader.creatorOperatingView(query);assert.equal(workers[0].sent.length,3);
+ workers[0].answer(2,{version:3});assert.deepEqual(await fresh,{version:3});
+ assert.equal(reader.cache.size,0);assert.equal(workers.length,1);
+});
+
 test('one hundred concurrent identical reads share one job and one read-only result', async (t) => {
   const { reader, workers } = fixture(t, { maxQueue: 2 });
   const requests = Array.from({ length: 100 }, () => reader.overview({ period: 'day', theme: 'tuantuan' }));
