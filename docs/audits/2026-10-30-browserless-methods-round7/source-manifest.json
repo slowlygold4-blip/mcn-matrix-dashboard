@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-30T01:34:39.406282+00:00",
+  "reviewType": "targeted-static-transport-and-dependency-review",
+  "repositories": [
+    {
+      "repository": "LIghtJUNction/douyin",
+      "commit": "c70a41e6a8007c09c9d955548f7ab63f25b26df1",
+      "license": "AGPL-3.0",
+      "files": [
+        {
+          "path": ".agents/skills/douyin/SKILL.md",
+          "bytes": 3880,
+          "sha256": "0c5a18ac8ec203faea4f0f3130a7d321ae8380e2a055c87598b52e6b8b051276",
+          "url": "https://github.com/LIghtJUNction/douyin/blob/c70a41e6a8007c09c9d955548f7ab63f25b26df1/.agents/skills/douyin/SKILL.md"
+        },
+        {
+          "path": "src/api.rs",
+          "bytes": 16798,
+          "sha256": "2a16d733fc4fc30caf066652425ce0234997fe1811e030eb578d2d38d7bd3e4d",
+          "url": "https://github.com/LIghtJUNction/douyin/blob/c70a41e6a8007c09c9d955548f7ab63f25b26df1/src/api.rs"
+        },
+        {
+          "path": "src/crawler.rs",
+          "bytes": 48535,
+          "sha256": "b5f645ecdc65395fd1b4e0beb4dd4997c0e69cd8ced87113d7cff9422132d2cf",
+          "url": "https://github.com/LIghtJUNction/douyin/blob/c70a41e6a8007c09c9d955548f7ab63f25b26df1/src/crawler.rs"
+        },
+        {
+          "path": "src/net.rs",
+          "bytes": 7334,
+          "sha256": "93bc309c2ab4ff9f902a1651aa7db73bd07c432e453eb71603926ef7cefeb358",
+          "url": "https://github.com/LIghtJUNction/douyin/blob/c70a41e6a8007c09c9d955548f7ab63f25b26df1/src/net.rs"
+        },
+        {
+          "path": "src/openapi.rs",
+          "bytes": 12608,
+          "sha256": "b184e5545bdaf121d0ae6c9bb85f8c19cba57dd13130b40f13a213bfb832828e",
+          "url": "https://github.com/LIghtJUNction/douyin/blob/c70a41e6a8007c09c9d955548f7ab63f25b26df1/src/openapi.rs"
+        }
+      ]
+    },
+    {
+      "repository": "Super-Bull/douyin-to-feishu",
+      "commit": "917dd6ba1319493e8b80240b63ff52f7c8ee25d0",
+      "license": null,
+      "files": [
+        {
+          "path": "douyin-to-feishu/SKILL.md",
+          "bytes": 5179,
+          "sha256": "c00f97d194532f45cf85c629a204330724531f9145a63b184971484952444e67",
+          "url": "https://github.com/Super-Bull/douyin-to-feishu/blob/917dd6ba1319493e8b80240b63ff52f7c8ee25d0/douyin-to-feishu/SKILL.md"
+        },
+        {
+          "path": "douyin-to-feishu/references/douyin-collect.md",
+          "bytes": 3464,
+          "sha256": "65a906836f25bcd867a17e87cf837ebb4a2d6eaec22b21ec18ac43290ab2ed59",
+          "url": "https://github.com/Super-Bull/douyin-to-feishu/blob/917dd6ba1319493e8b80240b63ff52f7c8ee25d0/douyin-to-feishu/references/douyin-collect.md"
+        }
+      ]
+    },
+    {
+      "repository": "ZhangYukwiver/DouyinDataReview",
+      "commit": "ba852eccb648d9ce345860230a29ac89b50256d6",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "collector/creatorCenter.mjs",
+          "bytes": 13290,
+          "sha256": "43b1db29e6c8cc3db61442ec98a0a4217ceb1e464ef297b36895933d4df3af66",
+          "url": "https://github.com/ZhangYukwiver/DouyinDataReview/blob/ba852eccb648d9ce345860230a29ac89b50256d6/collector/creatorCenter.mjs"
+        },
+        {
+          "path": "collector/credentialOnly.test.mjs",
+          "bytes": 4371,
+          "sha256": "4ae73830cf6f3d790e1c5286f986004b2d8d6ea88ef9828547b524b8e77f1628",
+          "url": "https://github.com/ZhangYukwiver/DouyinDataReview/blob/ba852eccb648d9ce345860230a29ac89b50256d6/collector/credentialOnly.test.mjs"
+        },
+        {
+          "path": "collector/directApi.mjs",
+          "bytes": 21842,
+          "sha256": "7b5cee2d43d01a8b1a3de55225ecc2f5d3dc27d3c4aeb1362b4ad538252782f4",
+          "url": "https://github.com/ZhangYukwiver/DouyinDataReview/blob/ba852eccb648d9ce345860230a29ac89b50256d6/collector/directApi.mjs"
+        },
+        {
+          "path": "collector/directCredentials.mjs",
+          "bytes": 14552,
+          "sha256": "a5b478ff419d1b3f1f88dea20a8a6c34d767c1b0f8302a630368f87032925c1c",
+          "url": "https://github.com/ZhangYukwiver/DouyinDataReview/blob/ba852eccb648d9ce345860230a29ac89b50256d6/collector/directCredentials.mjs"
+        }
+      ]
+    },
+    {
+      "repository": "david0513web3/short-video-data-pipeline",
+      "commit": "50c7e30bb528e8f3d77d977e15883db6e7b6741c",
+      "license": null,
+      "files": [
+        {
+          "path": "step-1-douyin-scraper/README.md",
+          "bytes": 2238,
+          "sha256": "54da12972c7c0ef4f21a7e2393170185ae9e5e0a8995bbb89d61d951494d5bf1",
+          "url": "https://github.com/david0513web3/short-video-data-pipeline/blob/50c7e30bb528e8f3d77d977e15883db6e7b6741c/step-1-douyin-scraper/README.md"
+        }
+      ]
+    },
+    {
+      "repository": "wei04459-blip/douyin-creator-analytics",
+      "commit": "52bf645c4b888334eda3395a8cca91e6b09a35a9",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "skills/analyze-douyin-account/SKILL.md",
+          "bytes": 5083,
+          "sha256": "ac651a8502fd1da9f3b2b07f4152e0e43e5b8909b48bf7255de24d4d5303a848",
+          "url": "https://github.com/wei04459-blip/douyin-creator-analytics/blob/52bf645c4b888334eda3395a8cca91e6b09a35a9/skills/analyze-douyin-account/SKILL.md"
+        },
+        {
+          "path": "src/douyin_creator_analytics/chrome_bridge.py",
+          "bytes": 3211,
+          "sha256": "9a2e890c33732ab742c8151c31b2ccfd022ac798fd42c1e48d03cb48c3ebf7f9",
+          "url": "https://github.com/wei04459-blip/douyin-creator-analytics/blob/52bf645c4b888334eda3395a8cca91e6b09a35a9/src/douyin_creator_analytics/chrome_bridge.py"
+        },
+        {
+          "path": "src/douyin_creator_analytics/creator_api.py",
+          "bytes": 28646,
+          "sha256": "f31b74f9e0d929b3414b0c6ba1e6b9515024cfa73b70ac0ae43f460ef0129c93",
+          "url": "https://github.com/wei04459-blip/douyin-creator-analytics/blob/52bf645c4b888334eda3395a8cca91e6b09a35a9/src/douyin_creator_analytics/creator_api.py"
+        }
+      ]
+    },
+    {
+      "repository": "why20261/douyin-data-research",
+      "commit": "1b14b2a27604081c1fa9e053b381e99560cadb6f",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "bytes": 16776,
+          "sha256": "0128008d574a6e7df0e91ca687bbab15d5789ee8d4fffca2672b4ef0d60fb206",
+          "url": "https://github.com/why20261/douyin-data-research/blob/1b14b2a27604081c1fa9e053b381e99560cadb6f/SKILL.md"
+        },
+        {
+          "path": "src/api/post.js",
+          "bytes": 1570,
+          "sha256": "22eb009b24759a4bd543d328f2933d9b2542781b4ec28ef82563e917bce0c48b",
+          "url": "https://github.com/why20261/douyin-data-research/blob/1b14b2a27604081c1fa9e053b381e99560cadb6f/src/api/post.js"
+        },
+        {
+          "path": "src/config/constants.js",
+          "bytes": 222,
+          "sha256": "1ad27c64654d234a5db1b6afdc6e9ca1fceb040f1477be66226a302fa4b09c29",
+          "url": "https://github.com/why20261/douyin-data-research/blob/1b14b2a27604081c1fa9e053b381e99560cadb6f/src/config/constants.js"
+        },
+        {
+          "path": "src/douyin/post-cli.js",
+          "bytes": 5749,
+          "sha256": "efa20865bc804f76f8fa2401702cbb0db925a91222609b165b955a896beaf911",
+          "url": "https://github.com/why20261/douyin-data-research/blob/1b14b2a27604081c1fa9e053b381e99560cadb6f/src/douyin/post-cli.js"
+        },
+        {
+          "path": "src/utils/request.js",
+          "bytes": 5056,
+          "sha256": "aa245dfa5ba21803a5abeb1423d47c2e7a2482f93e68b10bfb97e42123cedc09",
+          "url": "https://github.com/why20261/douyin-data-research/blob/1b14b2a27604081c1fa9e053b381e99560cadb6f/src/utils/request.js"
+        },
+        {
+          "path": "src/utils/retry.js",
+          "bytes": 1115,
+          "sha256": "b8205f797d38116afb7773d237e67174aa5ce37c55bc20860a08a5b322549395",
+          "url": "https://github.com/why20261/douyin-data-research/blob/1b14b2a27604081c1fa9e053b381e99560cadb6f/src/utils/retry.js"
+        }
+      ]
+    },
+    {
+      "repository": "zJay26/douyin-skills",
+      "commit": "09e9ccb6c484c59d69e11dbb4bc975c47e5510e5",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "bytes": 6356,
+          "sha256": "6d36a950a25c35292b3a5686af49c464a90361a73923df216bb10ab18d75f01a",
+          "url": "https://github.com/zJay26/douyin-skills/blob/09e9ccb6c484c59d69e11dbb4bc975c47e5510e5/SKILL.md"
+        },
+        {
+          "path": "scripts/browser_runtime.py",
+          "bytes": 7295,
+          "sha256": "ea13f85e0ef40a5ca55254ee9d21e2df6ea93f5e8c923f41a1de35356e7682c2",
+          "url": "https://github.com/zJay26/douyin-skills/blob/09e9ccb6c484c59d69e11dbb4bc975c47e5510e5/scripts/browser_runtime.py"
+        },
+        {
+          "path": "scripts/douyin/adapter.py",
+          "bytes": 13745,
+          "sha256": "2347a62f7d75444b1dac8619a52e56a3bb8479a37b00727c8622b58e0b7422f1",
+          "url": "https://github.com/zJay26/douyin-skills/blob/09e9ccb6c484c59d69e11dbb4bc975c47e5510e5/scripts/douyin/adapter.py"
+        }
+      ]
+    }
+  ],
+  "repositoryCount": 7,
+  "downloadedFileCount": 24,
+  "thirdPartyCodeExecuted": false,
+  "browserAccess": false,
+  "platformCollectionRequests": 0,
+  "thirdPartyDataAPIRequests": 0,
+  "newSamples": 0,
+  "productionDatabaseWrites": 0,
+  "collectionSuccessImproved": false,
+  "dependencyLookup": {
+    "repository": "david0513web3/douyin-data-scraper",
+    "readSucceeded": false,
+    "reason": "GitHub API lookup failed; core code not verified"
+  },
+  "officialDocuments": [
+    "https://developer.open-douyin.com/docs/resource/zh-CN/mini-app/develop/server/basic-abilities/video-id-convert/user-recent-video-data/get-base-bc",
+    "https://developer.open-douyin.com/docs/resource/zh-CN/mini-app/develop/server/basic-abilities/interface-request-credential/business-token/query-business",
+    "https://developer.open-douyin.com/docs/resource/zh-CN/mini-app/open-capacity/operation/business-account/standard-account",
+    "https://developer.open-douyin.com/docs/resource/zh-CN/mini-app/open-capacity/operation/business-account/bizaccount",
+    "https://developer.open-douyin.com/docs/resource/zh-CN/mini-app/develop/server/basic-abilities/video-id-convert/user-video-data/video-data"
+  ]
+}
