@@ -1,0 +1,26 @@
+const platforms=['douyin','bilibili','xiaohongshu','kuaishou','unknown'];
+const counter=n=>Number.isSafeInteger(n)&&n>=0;
+const instant=s=>typeof s==='string'&&Number.isFinite(Date.parse(s))&&new Date(s).toISOString()===s;
+const keys=(row,names)=>row&&names.every(name=>counter(row[name]));
+function projectRows(value,fields,valid){
+ if(!Array.isArray(value)||value.length>platforms.length)return null;
+ const seen=new Set(),rows=[];
+ for(const row of value){
+  if(!row||!platforms.includes(row.platform)||seen.has(row.platform)||!keys(row,fields)||!valid(row))return null;
+  seen.add(row.platform);rows.push({platform:row.platform,...Object.fromEntries(fields.map(key=>[key,row[key]]))});
+ }
+ return rows.sort((a,b)=>platforms.indexOf(a.platform)-platforms.indexOf(b.platform));
+}
+export function projectCollectionPlatforms(status){
+ const rolling=projectRows(status?.rolling?.platforms,['accounts','profiles','worksComplete','worksLimited','workIssues'],
+  row=>row.profiles<=row.accounts&&row.worksComplete+row.worksLimited<=row.accounts&&row.workIssues<=row.accounts);
+ const raw=status?.dailyWorkLikes;let daily=null;
+ if(raw?.basis==='stored-work-like-observations'&&instant(raw.asOf)&&raw.asOf===status?.observedAt
+  &&raw.date===new Date(Date.parse(raw.asOf)+8*3600000).toISOString().slice(0,10)
+  &&raw.since===new Date(Date.parse(raw.date+'T00:00:00.000Z')-8*3600000).toISOString()){
+  const rows=projectRows(raw.platforms,['storedWorks','observedWorks','observedAccounts'],row=>row.observedWorks<=row.storedWorks
+   &&(row.observedWorks>0||row.observedAccounts===0)&&(!rolling||rolling.some(item=>item.platform===row.platform&&row.observedAccounts<=item.accounts)));
+  if(rows&&(!rolling||rows.length===rolling.length))daily={date:raw.date,since:raw.since,asOf:raw.asOf,basis:raw.basis,platforms:rows};
+ }
+ return {rolling,daily};
+}
