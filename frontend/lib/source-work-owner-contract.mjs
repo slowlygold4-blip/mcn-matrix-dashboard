@@ -41,7 +41,11 @@ export function validateFoundationWorkOwners(value,{sourceWorks,accountIds}={}){
 
 export function readLiveFoundationWorkOwners(projection,foundation,asOf){
  if(projection?.foundationWorkOwners===undefined)return [];
- if(foundation?.index?.asOf!==asOf||!Array.isArray(foundation.works))throw Error('补充作品归属与来源版本不一致，请刷新数据');
+ // The page intentionally reuses an unchanged source edition between public
+ // generations. Bind its content hash, not the wrapper's publication clock.
+ if(typeof projection.foundationWorkOwnerRevision!=='string'||!/^[a-f0-9]{64}$/.test(projection.foundationWorkOwnerRevision)
+  ||foundation?.index?.revision!==projection.foundationWorkOwnerRevision||!Array.isArray(foundation.works)
+  ||foundation.index.asOf&&(!Number.isFinite(Date.parse(foundation.index.asOf))||!Number.isFinite(Date.parse(asOf))||Date.parse(foundation.index.asOf)>Date.parse(asOf)))throw Error('补充作品归属与来源版本不一致，请刷新数据');
  return validateFoundationWorkOwners(projection.foundationWorkOwners,{sourceWorks:new Map(foundation.works.map(row=>[row.contentId,row]))});
 }
 

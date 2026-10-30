@@ -70,3 +70,6 @@ test('actual source audit checks canonical claims against sealed source rows, ca
 test('older publications require no owner mapping or extra work partition reads',async()=>{
  const f=edition();delete f.bodies.get('catalog.json').creatorSourceLinks.workOwners;await auditCreatorPublication(f);assert.equal(f.calls.includes('works/10.json'),false);
 });
+test('a catalog cannot assert a base-sheet publisher without the sealed source family',async()=>{
+ const x=edition();x.manifest.files=x.manifest.files.filter(f=>!f.path.startsWith('creator/'));await assert.rejects(auditCreatorPublication(x),/source-missing/);
+});

@@ -9,9 +9,12 @@ const source={contentId:id,douyinId:'claim_a',author:'原声明',publishDate:'20
 const native={id:77,targetId:10,externalId:id,caption:'已核验作品',publishedAt:'2026-10-29T20:00:00.000Z',lastObservedAt:asOf,likes:7,plays:null};
 const a={douyinId:'claim_a',targetIds:[9]},b={douyinId:'publisher_b',targetIds:[10]};
 test('supplementary mappings use exact work IDs and their own sealed edition, never made-up row keys',()=>{
- const foundation={index:{asOf},works:[source]},projection={foundationWorkOwners:[owner]};
+ const revision='a'.repeat(64),foundation={index:{asOf,revision},works:[source]},projection={foundationWorkOwners:[owner],foundationWorkOwnerRevision:revision};
  assert.deepEqual(readLiveFoundationWorkOwners({},foundation,asOf),[]);assert.deepEqual(readLiveFoundationWorkOwners(projection,foundation,asOf),[owner]);
- assert.throws(()=>readLiveFoundationWorkOwners(projection,{...foundation,index:{asOf:'2026-10-29T04:00:00.000Z'}},asOf),/版本/);
+ assert.deepEqual(readLiveFoundationWorkOwners(projection,{...foundation,index:{asOf:'2026-10-29T04:00:00.000Z',revision}},asOf),[owner],'unchanged cached source edition remains usable after a new manifest clock');
+ assert.throws(()=>readLiveFoundationWorkOwners(projection,{...foundation,index:{asOf,revision:'b'.repeat(64)}},asOf),/版本/);
+ assert.throws(()=>readLiveFoundationWorkOwners(projection,{...foundation,index:{asOf:'2026-10-31T04:00:00.000Z',revision}},asOf),/版本/);
+ assert.throws(()=>readLiveFoundationWorkOwners({foundationWorkOwners:[owner]},foundation,asOf),/版本/);
  for(const value of [[owner,owner],[{...owner,workRow:1}],[{...owner,cookie:'forbidden'}],[{...owner,contentId:'7500000000000000002'}],[{...owner,targetId:11}]])assert.throws(()=>validateFoundationWorkOwners(value,{sourceWorks:new Map([[id,source]]),accountIds:new Set([9,10])}));
 });
 test('original supplementary declaration remains visible while only the verified publisher contributes',()=>{
@@ -32,13 +35,13 @@ test('author CSV retains undated submitted counters while adopted metrics and pu
 });
 function edition(){
  const base=foundationPublication(asOf,{works:[source]}),bodies=new Map(base.files.map(f=>[f.path,JSON.parse(f.data)])),calls=[];
- Object.assign(bodies.get('catalog.json'),{accounts:[{id:9},{id:10}],creatorSourceLinks:{foundationWorkOwners:[owner]}});
+ Object.assign(bodies.get('catalog.json'),{accounts:[{id:9},{id:10}],creatorSourceLinks:{foundationWorkOwners:[owner],foundationWorkOwnerRevision:base.index.revision}});
  bodies.set('works/10.json',{version:1,asOf,items:[native]});base.manifest.files.push({path:'works/10.json',kind:'works',targetId:10,count:1});
  return {manifest:base.manifest,bodies,calls,readPart:async path=>{calls.push(path);return bodies.get(path);}};
 }
 test('actual foundation activation audits source namespace, exact account and genuine native works',async()=>{
  const f=edition();await auditFoundationPublication(f);assert.equal(f.calls.filter(p=>p==='works/10.json').length,1);
- for(const fault of ['source','account','duplicate','synthetic','missing','version','time','descriptor','namespace']){
+ for(const fault of ['source','account','duplicate','synthetic','missing','version','time','descriptor','namespace','edition']){
   const x=edition(),link=x.bodies.get('catalog.json').creatorSourceLinks;
   if(fault==='source')link.foundationWorkOwners=[{...owner,contentId:'7500000000000000002'}];
   if(fault==='account')link.foundationWorkOwners=[{...owner,targetId:11}];
@@ -49,10 +52,14 @@ test('actual foundation activation audits source namespace, exact account and ge
   if(fault==='time')x.bodies.get('works/10.json').asOf='2026-10-29T04:00:00.000Z';
   if(fault==='descriptor')x.manifest.files.find(p=>p.path==='works/10.json').targetId=9;
   if(fault==='namespace')link.workOwners=[{workRow:7,...owner}];
+  if(fault==='edition')link.foundationWorkOwnerRevision='b'.repeat(64);
   await assert.rejects(auditFoundationPublication(x),undefined,fault);
  }
 });
 test('old foundation editions require no extra native work reads or invented overrides',async()=>{
- const x=edition();delete x.bodies.get('catalog.json').creatorSourceLinks.foundationWorkOwners;await auditFoundationPublication(x);assert.equal(x.calls.includes('works/10.json'),false);
+ const x=edition();delete x.bodies.get('catalog.json').creatorSourceLinks.foundationWorkOwners;delete x.bodies.get('catalog.json').creatorSourceLinks.foundationWorkOwnerRevision;await auditFoundationPublication(x);assert.equal(x.calls.includes('works/10.json'),false);
  const rows=mergeAuthorWorks({author:a,sourceWorks:[source],platformWorks:[],asOf});assert.equal(rows[0].adoptedLikes,50);assert.equal(rows[0].sourceOwnershipConflict,undefined);
+});
+test('a catalog cannot assert a supplementary publisher without its source family',async()=>{
+ const x=edition();x.manifest.files=x.manifest.files.filter(f=>!f.path.startsWith('foundation/'));await assert.rejects(auditFoundationPublication(x),/source-missing/);
 });

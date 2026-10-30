@@ -53,7 +53,13 @@ export function foundationPartValid(part,meta,asOf){
  });
 }
 export async function auditFoundationPublication({manifest,readPart}){
- const metas=manifest.files.filter(foundationFile);if(!metas.length)return;
+ const metas=manifest.files.filter(foundationFile);if(!metas.length){
+  if(manifest.files.some(f=>f.path==='catalog.json')){
+   const link=(await readPart('catalog.json'))?.creatorSourceLinks;
+   if(link?.foundationWorkOwners!==undefined||link?.foundationWorkOwnerRevision!==undefined)throw Error('foundation-work-owner-source-missing');
+  }
+  return;
+ }
  const root=metas.find(m=>m.path==='foundation/index.json');if(!root)throw Error('foundation-index-missing');
  const index=await readPart(root.path);if(!foundationPartValid(index,root,manifest.asOf))throw Error('foundation-index-invalid');
  const parts={};for(const name of FOUNDATION_GROUPS){const descriptor=index.files.find(f=>f.path===name+'.json'),meta=metas.find(f=>f.path==='foundation/'+descriptor.path);
@@ -71,6 +77,9 @@ export async function auditFoundationPublication({manifest,readPart}){
   const catalog=await readPart('catalog.json'),ids=new Set((catalog.accounts??[]).map(a=>a.id));
   if([...parts.authors,...parts.otherAuthors].some(a=>a.targetIds.some(id=>!ids.has(id))))throw Error('foundation-account-link-conflict');
   const owners=validateFoundationWorkOwners(catalog.creatorSourceLinks?.foundationWorkOwners,{sourceWorks:new Map(parts.works.map(work=>[work.contentId,work])),accountIds:ids});
+  const projection=catalog.creatorSourceLinks;
+  if((projection?.foundationWorkOwners!==undefined)!==(projection?.foundationWorkOwnerRevision!==undefined)
+   ||projection?.foundationWorkOwners!==undefined&&projection.foundationWorkOwnerRevision!==index.revision)throw Error('foundation-work-owner-edition-conflict');
   const baseIds=new Set((catalog.creatorSourceLinks?.workOwners||[]).map(work=>work.contentId));
   if(owners.some(work=>baseIds.has(work.contentId)))throw Error('foundation-work-owner-namespace-conflict');
   await auditWorkOwnerNativeEvidence({manifest,owners,readPart});
