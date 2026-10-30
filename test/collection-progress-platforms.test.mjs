@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {collectionProgress} from '../lib/collection-progress.mjs';
 import {dailyStoredWorkLikes,enabledCollectionTargets} from '../lib/collection-platform-progress.mjs';
+import {saveProfileProgressFixture} from './helpers/profile-progress-fixture.mjs';
 function setup(t){
  const db=new DatabaseSync(':memory:');t.after(()=>db.close());
  db.exec(`CREATE TABLE targets(id INTEGER PRIMARY KEY,type TEXT,label TEXT,enabled INTEGER,metadata_json TEXT);
@@ -21,6 +22,7 @@ function run(db,details){db.prepare("INSERT INTO runs VALUES(1,'scheduled','2026
 test('Bilibili work success cannot conceal a Douyin work refusal and raw platform names never leak',t=>{
  const db=setup(t);run(db,[{targetId:1,profileUsable:true,worksCoverage:'unavailable',worksErrorCode:'blocked'},
   {targetId:2,profileUsable:true,worksCoverage:'limited'}, {targetId:4,topicMetricsUsable:true}]);
+ saveProfileProgressFixture(db,1,1,'2026-10-30T01:00:00Z');saveProfileProgressFixture(db,2,1,'2026-10-30T01:00:00Z');
  const x=collectionProgress(db,{now});assert.deepEqual(x.rolling.platforms,[
   {platform:'douyin',accounts:1,profiles:1,worksComplete:0,worksLimited:0,workIssues:1},
   {platform:'bilibili',accounts:1,profiles:1,worksComplete:0,worksLimited:1,workIssues:0},
