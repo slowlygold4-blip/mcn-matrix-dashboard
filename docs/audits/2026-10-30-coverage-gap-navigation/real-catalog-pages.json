@@ -1,0 +1,14 @@
+{
+  "checkedAt": "2026-10-30T03:04:41.081Z",
+  "asOf": "2026-10-30T02:52:02.518Z",
+  "enabledAccounts": 4081,
+  "profileFresh": 4071,
+  "worksComplete": 0,
+  "totalGaps": 4081,
+  "pages": 205,
+  "reachableUniqueIds": 4081,
+  "realCatalogReadOnly": true,
+  "databaseWrites": 0,
+  "platformRequests": 0,
+  "browserVerified": false
+}

@@ -71,3 +71,18 @@ test('real account coverage shows last attempt and prior valid observation as di
  assert.match(html,/保留此前观察，不代表本次取得/);
  assert.notEqual(attempt,observation);
 });
+
+test('real panel renders an accessible search, all issue filters and 205-page navigation for 4081 gaps',()=>{
+ const all=Array.from({length:4081},(_,i)=>make(i+1,'unavailable',at(-0.5),null));
+ const html=render({type:CoveragePanel,props:{accounts:all,topics,asOf,onAccount:()=>{}}});
+ assert.match(html,/完整性待核 4081 个账号/);
+ assert.match(html,/type="search"/);assert.match(html,/查找账号/);assert.match(html,/待核问题/);
+ for(const label of ['全部待核问题','主页过时或缺测','作品尚未完整','作品最近尝试未取得','作品尚无有效观察','作品仅有限观察'])assert.ok(html.includes(label));
+ assert.match(html,/符合筛选 4081 个 · 显示 1–20 个/);
+ assert.match(html,/aria-label="待核账号分页"/);assert.match(html,/aria-label="待核账号页码"/);
+ assert.match(html,/<option value="205">205<\/option>/);
+ assert.match(html,/disabled=""[^>]*>首页/);assert.match(html,/disabled=""[^>]*>上一页/);
+ assert.ok(html.includes('下一页'));assert.ok(html.includes('末页'));
+ assert.equal((html.match(/的经营详情/g)||[]).length,20,'bounded rendering, full population paged by the shared helper');
+ assert.doesNotMatch(html,/当前显示前|gaps\.slice/);
+});

@@ -1,0 +1,42 @@
+{
+  "recordedAt": "2026-10-30T03:06:25.262387+00:00",
+  "siteVersion": 127,
+  "siteCommit": "8d819c5891162501af1625c3fa5a47dee87ccc51",
+  "deploymentId": "appgdep_6ae4095b112c8191a717a5dc832df9b7",
+  "savedVersionId": "appgprj_6abdb56f89fc81919cdcf47e8b7c578e~appgver_4119bdaa9b408191860bb939999526c8",
+  "nativeDeploymentStatus": "succeeded",
+  "url": "https://mcn-matrix-observatory.slowlygold4.chatgpt.site",
+  "frontendTests": 317,
+  "newRegressionTests": 7,
+  "typecheckPassed": true,
+  "productionBuildPassed": true,
+  "browserVerification": "disabled-in-work-settings",
+  "realCatalogNavigation": {
+    "checkedAt": "2026-10-30T03:04:41.081Z",
+    "asOf": "2026-10-30T02:52:02.518Z",
+    "enabledAccounts": 4081,
+    "profileFresh": 4071,
+    "worksComplete": 0,
+    "totalGaps": 4081,
+    "pages": 205,
+    "reachableUniqueIds": 4081,
+    "realCatalogReadOnly": true,
+    "databaseWrites": 0,
+    "platformRequests": 0,
+    "browserVerified": false
+  },
+  "sourceParitySha256": {
+    "components/coverage-panel.tsx": "951c07f2dba2789f3dae156844b7ec667c0ffb4ce9421884ea9673bddefbdfb4",
+    "lib/coverage-gap-view.mjs": "379ce203616959e1e295a68ae231988d43d12faa97d0f1a9de89e769f4b0be91",
+    "test/coverage-gap-view.test.mjs": "2a95579cbf950ce7da4d2b653e4533c2b8e48977f0b425f0ef9cc8f1a1d8c6b9",
+    "test/coverage-panel-status.test.mjs": "a9316c72eed41d3e3e010776ad57e689fd37283ed4e5e2e538709e3041f06079",
+    "app/replica.css": "b7749a6147fd112edaa99a87ca0eb9cae370a4abdce466ce2f331f2fc5bc29ce",
+    "docs/2026-10-30-coverage-gap-navigation.md": "62c21551c9c96792066f753cc19f5ebf521004728d0276d44910c2a2162b0d5f"
+  },
+  "databaseWrites": 0,
+  "newCollectionCommands": 0,
+  "serviceRestarts": 0,
+  "runtimeModelCalls": 0,
+  "completeWorksCollectionRecovered": false,
+  "overallGoalComplete": false
+}
