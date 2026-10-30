@@ -18,7 +18,7 @@
 
 ## 启动本地服务
 
-需要 Node.js **24+**（使用 `node:sqlite`）和 Python 3。默认停用抖音浏览器采集；HTTP 采集与来源表同步不需要打开抖音网页。前端浏览器测试另需本机 Chrome，仅用于模拟数据或本控制台验收。 当前无浏览器采集的[最新源码核验与单作品播放曲线验证](docs/COLLECTION_METHODS_BROWSERLESS_ROUND6_20261030.md)已整理；`node scripts/probe-douyin-open-api.mjs --author-list`检查绑定作者近期作品列表所需配置，`--miniapp`检查作品指标查询配置，均默认不发平台请求。需要真实获批应用及作者授权后才能显式运行该隔离接口。
+需要 Node.js **24+**（使用 `node:sqlite`）和 Python 3。默认停用抖音浏览器采集；HTTP 采集与来源表同步不需要打开抖音网页。前端浏览器测试另需本机 Chrome，仅用于模拟数据或本控制台验收。当前无浏览器采集的[候选源码核验与官方搜索试验](docs/COLLECTION_METHODS_BROWSERLESS_ROUND9_20261030.md)已整理；`node scripts/probe-douyin-open-api.mjs --author-list`检查绑定作者近期作品列表配置，`--miniapp`检查作品指标配置，`--search`检查官方视频搜索配置，均默认不发平台请求。需要对应真实获批应用和合法授权材料后才能显式运行隔离接口；搜索不是完整作者列表或话题总量。
 
 ```sh
 npm ci
