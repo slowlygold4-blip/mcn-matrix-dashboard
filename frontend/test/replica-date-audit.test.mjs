@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {auditDatePublication} from '../lib/replica-date-audit.mjs';
+import {readReplicaText} from '../lib/replica-reference.mjs';
 
 const asOf='2026-10-23T10:00:00.000Z';
 const digest=text=>createHash('sha256').update(text).digest('hex');
@@ -104,4 +105,16 @@ test('fixed missing, checksum and digest codes identify the failure without leak
   const {manifest,texts}=fixture(2,{mismatch:kind==='digest'});
   await assert.rejects(auditDatePublication({manifest,readText:path=>path==='daily/1.json'&&kind!=='digest'?kind==='missing'?undefined:'SYNTHETIC_PRIVATE_DATA':texts.get(path)}),e=>e.code===({'missing':'date-source-missing',checksum:'date-source-checksum',digest:'date-source-digest'})[kind]&&!e.message.includes('SYNTHETIC_PRIVATE'));
  }
+});
+
+test('a recoverable storage read near the observed failure boundary still verifies every daily source',async()=>{
+ const {manifest,texts}=fixture(3001),byKey=new Map(manifest.files.map(meta=>[asOf+'/'+meta.sha256,{meta,text:texts.get(meta.path)}]));
+ const failing=manifest.files.find(meta=>meta.path==='daily/897.json'),reads=new Map();
+ const bucket={get:async key=>{const n=(reads.get(key)||0)+1;reads.set(key,n);
+  if(key===asOf+'/'+failing.sha256&&n===1)throw Error('R2 GET failed PRIVATE_SENTINEL');
+  const item=byKey.get(key);assert.ok(item);return {size:item.meta.bytes,text:async()=>item.text};}};
+ const result=await auditDatePublication({manifest,readText:path=>readReplicaText(bucket,asOf,manifest.files.find(meta=>meta.path===path),null,{wait:async()=>{}})});
+ assert.equal(result.fullySourceBound,true);assert.equal(result.count,3001);
+ assert.equal(reads.size,manifest.files.length);assert.equal(reads.get(asOf+'/'+failing.sha256),2);
+ assert.equal([...reads.values()].filter(n=>n===2).length,1,'retry only the failed source, not the complete history');
 });

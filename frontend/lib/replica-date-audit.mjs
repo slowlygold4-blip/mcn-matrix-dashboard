@@ -2,6 +2,7 @@
 import {createHash} from 'node:crypto';
 import {dateDescriptors,validateDateShard} from './replica-date-range.mjs';
 import {summaryPointValid} from './replica-summary.mjs';
+import {replicaStorageFailure} from './replica-storage-read.mjs';
 const fields=['targetId','date','capturedAt','followers','followersAt','likes','likesAt','posts','postsAt'];
 const demand=(x,code='date-source-invalid')=>{if(!x)throw Object.assign(Error('date-source-audit-failed'),{code});};
 // Six is the worker's bounded concurrent connection ceiling. The public
@@ -13,7 +14,7 @@ export async function auditDatePublication({manifest,readText,signal,onProgress=
  const metas=new Map(manifest.files.map(f=>[f.path,f]));
  let verifiedDaily=0;const expectedDaily=manifest.files.filter(f=>f.kind==='daily').length;
  const progress=phase=>onProgress({phase,verifiedDaily,expectedDaily});progress('index');
- const read=async path=>{signal?.throwIfAborted();const meta=metas.get(path);demand(meta);let text;try{text=await readText(path);}catch(error){signal?.throwIfAborted();if(error?.code==='replica-storage-repair')throw error;demand(false,'date-storage-read');}signal?.throwIfAborted();demand(typeof text==='string','date-source-missing');demand(Buffer.byteLength(text)===meta.bytes&&createHash('sha256').update(text).digest('hex')===meta.sha256,'date-source-checksum');try{return JSON.parse(text);}catch{demand(false,'date-source-json');}};
+ const read=async path=>{signal?.throwIfAborted();const meta=metas.get(path);demand(meta);let text;try{text=await readText(path);}catch(error){signal?.throwIfAborted();if(error?.code==='replica-storage-repair')throw error;throw Object.assign(Error('date-source-audit-failed'),{code:'date-storage-read',storageFailure:replicaStorageFailure(error)});}signal?.throwIfAborted();demand(typeof text==='string','date-source-missing');demand(Buffer.byteLength(text)===meta.bytes&&createHash('sha256').update(text).digest('hex')===meta.sha256,'date-source-checksum');try{return JSON.parse(text);}catch{demand(false,'date-source-json');}};
  const index=await read('date-summary-index.json'),descriptors=await dateDescriptors(index,manifest),digests=new Map();let previous=null;
  progress('shards');
  for(const s of descriptors){const part=await read(s.path);previous=validateDateShard(part,s,manifest,previous);for(const point of part.items){let state=digests.get(point.targetId);if(!state){state={hash:createHash('sha256'),count:0};digests.set(point.targetId,state);}state.hash.update(JSON.stringify(point)+'\n');state.count++;}}

@@ -1,5 +1,6 @@
 // Reuse immutable content while retaining the exact generation-bound public bytes.
 import {createHash}from'node:crypto';
+import {readStoredReplicaText} from './replica-storage-read.mjs';
 const sha=t=>createHash('sha256').update(t).digest('hex');
 const md5=t=>createHash('md5').update(t).digest('hex');
 const time=s=>typeof s==='string'&&Number.isFinite(Date.parse(s))&&new Date(s).toISOString()===s;
@@ -21,14 +22,12 @@ export function referenceCandidate(file,previous,previousGeneration,generation){
  return{source_generation,source_checksum,source_bytes,trailing_newline:ending,etag:md5(source),data:source};
 }
 export function referenceHeadMatches(head,ref){return !!head&&head.size===ref.source_bytes&&head.etag===ref.etag;}
-export async function readReplicaText(bucket,generation,meta,ref){
+export async function readReplicaText(bucket,generation,meta,ref,options={}){
  const referenced=ref?.source_generation!=null;
  if(referenced&&(!time(ref.source_generation)||Date.parse(ref.source_generation)>=Date.parse(generation)||!checksum(ref.source_checksum)||!Number.isSafeInteger(ref.source_bytes)||ref.source_bytes<1||![0,1].includes(ref.trailing_newline)))fail();
- const object=await bucket.get(referenced?`${ref.source_generation}/${ref.source_checksum}`:`${generation}/${meta.sha256}`);
- if(!object)return undefined;
  const expectedBytes=referenced?ref.source_bytes:meta.bytes;
- if(typeof object.size==='number'&&object.size!==expectedBytes)fail();
- let text=await object.text();
+ let text=await readStoredReplicaText(bucket,referenced?`${ref.source_generation}/${ref.source_checksum}`:`${generation}/${meta.sha256}`,expectedBytes,options);
+ if(text===undefined)return undefined;
  if(Buffer.byteLength(text)!==expectedBytes||sha(text)!==(referenced?ref.source_checksum:meta.sha256))fail();
  if(referenced){
   let value;try{value=JSON.parse(text);}catch{fail();}

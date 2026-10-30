@@ -8,6 +8,7 @@ import { env } from "cloudflare:workers";
 import {isReadOnlyFrontend,forwardReadOnlyFrontend} from '@/lib/standalone-readonly.mjs';
 import {summaryDescriptors,summaryPartValid} from '@/lib/replica-summary.mjs';
 import {auditDatePublication} from '@/lib/replica-date-audit.mjs';
+import {replicaStorageFailure} from '@/lib/replica-storage-read.mjs';
 export const dynamic = "force-dynamic";
 const PATH = /^(catalog|topics|summary|date-summary-index|publishing)\.json$|^(daily|works|work-metrics)\/[0-9]{1,8}\.json$|^(summary|date-summary|publishing)\/[0-9]{6}\.json$|^creator\/(index|authors|insights|works-\d{3})\.json$|^foundation\/(index|authors|works|sources|observations|other-authors|other-works|pending-authors)\.json$/;
 const SHA = /^[a-f0-9]{64}$/;
@@ -137,7 +138,8 @@ export async function POST(request: Request) {
       const code=error&&typeof error==='object'&&'code'in error?String(error.code):'';
       console.warn(JSON.stringify({event:'replica-activation-rejected',phase,stage:progress.phase??null,
         verifiedDaily:progress.verifiedDaily??null,expectedDaily:progress.expectedDaily??null,
-        requestAborted:request.signal.aborted,reason:codes.has(code)?code:'validation-failed',elapsedMs:Date.now()-(activationStartedAt??Date.now())}));
+        requestAborted:request.signal.aborted,reason:codes.has(code)?code:'validation-failed',
+        ...(code==='date-storage-read'?{storageFailure:replicaStorageFailure(error)}:{}),elapsedMs:Date.now()-(activationStartedAt??Date.now())}));
     };
     if(!files.some((f:{path:string})=>f.path==="catalog.json")||!files.some((f:{path:string})=>f.path==="summary.json")||!files.some((f:{path:string})=>f.path==="topics.json"))return json({error:"必需分区缺失"},400);
     const rows=await db.prepare("SELECT f.path,f.checksum,f.bytes,r.source_generation,r.source_checksum,r.source_bytes,r.trailing_newline FROM replica_files f LEFT JOIN replica_file_references r ON r.generation=f.generation AND r.path=f.path WHERE f.generation=?").bind(input.asOf).all<any>();
@@ -145,7 +147,7 @@ export async function POST(request: Request) {
     if(new Set(files.map((x:{path:string})=>x.path)).size!==files.length||files.length!==map.size||files.some((f:{path:string;sha256:string;bytes:number})=>!PATH.test(f.path)||!SHA.test(f.sha256)||map.get(f.path)?.checksum!==f.sha256||map.get(f.path)?.bytes!==f.bytes))return json({error:"分区清单不一致，未发布"},409);
     const readPartText=async(path:string)=>{
       const meta=filesByPath.get(path);if(!meta)throw Error('missing-meta');
-      const text=await readReplicaText(bucket,input.asOf,meta,map.get(path));
+      const text=await readReplicaText(bucket,input.asOf,meta,map.get(path),{signal:request.signal});
       if(text===undefined)throw Object.assign(Error('missing-storage'),{code:'replica-storage-repair'});return text;
     };
     activationPhase='summary';
