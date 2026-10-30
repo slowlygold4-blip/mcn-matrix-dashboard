@@ -1,0 +1,35 @@
+{
+  "checkedAt": "2026-10-30T02:01:17.102Z",
+  "scope": "single-configured-runtime-network",
+  "generation": "2026-10-30T01:50:32.377Z",
+  "authorCount": 4389,
+  "registeredAuthors": 934,
+  "creatorAuthorBytes": 864750,
+  "creatorAuthorSHA256": "c6bdab8b8001d08fc985144519ceebb96b1ac74f72a85426c5bddf03e169be34",
+  "exactPartitionSHAAndHeaderVerified": true,
+  "newAndLegacyAuthorContractAccepted": true,
+  "classification": {
+    "slice": {
+      "sourceOnlyFilterBefore": 47,
+      "sourceOnlyFilterAfter": 208,
+      "restoredSourceOnlyAuthors": 161,
+      "registrationWithoutCategoryWorks": 200
+    },
+    "original": {
+      "sourceOnlyFilterBefore": 13,
+      "sourceOnlyFilterAfter": 32,
+      "restoredSourceOnlyAuthors": 19,
+      "registrationWithoutCategoryWorks": 31
+    },
+    "ai-remix": {
+      "sourceOnlyFilterBefore": 366,
+      "sourceOnlyFilterAfter": 518,
+      "restoredSourceOnlyAuthors": 152,
+      "registrationWithoutCategoryWorks": 209
+    }
+  },
+  "databaseWrites": 0,
+  "newSamples": 0,
+  "browserVerified": false,
+  "guaranteesAllNetworks": false
+}

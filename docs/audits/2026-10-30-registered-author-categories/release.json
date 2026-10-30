@@ -1,0 +1,125 @@
+{
+  "recordedAt": "2026-10-30T01:57:04.877307+00:00",
+  "change": "explicit-registration-categories-in-unified-author-publication",
+  "siteVersion": 126,
+  "siteCommit": "dcb208daf8d5959d8854f8caac025d402e19f4bb",
+  "siteDeploymentStatus": "succeeded",
+  "frontendTests": 310,
+  "backendRelatedTests": 118,
+  "typecheck": "passed",
+  "build": "passed",
+  "realDatabaseParity": {
+    "asOf": "2026-10-30T01:43:33.737Z",
+    "authorCount": 4389,
+    "registeredAuthors": 934,
+    "classificationCounts": {
+      "slice": {
+        "registeredAuthors": 593,
+        "withoutRecordedCategoryWorks": 200
+      },
+      "original": {
+        "registeredAuthors": 59,
+        "withoutRecordedCategoryWorks": 31
+      },
+      "ai-remix": {
+        "registeredAuthors": 467,
+        "withoutRecordedCategoryWorks": 209
+      }
+    },
+    "existingAuthorFieldsEqual": true,
+    "worksAndInsightsEqual": true,
+    "statsEqual": true,
+    "databaseWrites": 0,
+    "newSamples": 0
+  },
+  "siteReadback": {
+    "checkedAt": "2026-10-30T01:53:00.288Z",
+    "siteVersion": 126,
+    "scope": "single-configured-runtime-network",
+    "anonymous": true,
+    "checks": [
+      {
+        "name": "homepage",
+        "status": 200,
+        "bytes": 22547
+      },
+      {
+        "name": "current-page-code",
+        "status": 200,
+        "bytes": 404064,
+        "exactBuildBytesVerified": true
+      }
+    ],
+    "browserVerified": false,
+    "guaranteesAllNetworks": false
+  },
+  "producerPromoted": true,
+  "naturalDataGeneration": "2026-10-30T01:50:32.377Z",
+  "dataPublicationStatus": "success",
+  "databaseWrites": 0,
+  "newCollectionJobs": 0,
+  "serviceRestarts": 0,
+  "browserVerification": false,
+  "overallGoalComplete": false,
+  "dataReadback": {
+    "checkedAt": "2026-10-30T02:01:17.102Z",
+    "scope": "single-configured-runtime-network",
+    "generation": "2026-10-30T01:50:32.377Z",
+    "authorCount": 4389,
+    "registeredAuthors": 934,
+    "creatorAuthorBytes": 864750,
+    "creatorAuthorSHA256": "c6bdab8b8001d08fc985144519ceebb96b1ac74f72a85426c5bddf03e169be34",
+    "exactPartitionSHAAndHeaderVerified": true,
+    "newAndLegacyAuthorContractAccepted": true,
+    "classification": {
+      "slice": {
+        "sourceOnlyFilterBefore": 47,
+        "sourceOnlyFilterAfter": 208,
+        "restoredSourceOnlyAuthors": 161,
+        "registrationWithoutCategoryWorks": 200
+      },
+      "original": {
+        "sourceOnlyFilterBefore": 13,
+        "sourceOnlyFilterAfter": 32,
+        "restoredSourceOnlyAuthors": 19,
+        "registrationWithoutCategoryWorks": 31
+      },
+      "ai-remix": {
+        "sourceOnlyFilterBefore": 366,
+        "sourceOnlyFilterAfter": 518,
+        "restoredSourceOnlyAuthors": 152,
+        "registrationWithoutCategoryWorks": 209
+      }
+    },
+    "databaseWrites": 0,
+    "newSamples": 0,
+    "browserVerified": false,
+    "guaranteesAllNetworks": false
+  },
+  "publisherCompletedAt": "2026-10-30T01:58:22.624Z",
+  "publisherAnonymousAccess": {
+    "version": 1,
+    "asOf": "2026-10-30T01:50:32.377Z",
+    "checkedAt": "2026-10-30T01:58:22.625Z",
+    "scope": "single-configured-runtime-network",
+    "requestMode": "anonymous",
+    "guaranteesAllNetworks": false,
+    "browserVerified": false,
+    "dataPartitionsVerified": false,
+    "networkRequests": 2,
+    "checks": [
+      {
+        "route": "homepage",
+        "httpStatus": 200,
+        "applicationTitleVerified": true
+      },
+      {
+        "route": "current-manifest",
+        "httpStatus": 200,
+        "currentGenerationVerified": true
+      }
+    ],
+    "status": "verified",
+    "code": null
+  }
+}

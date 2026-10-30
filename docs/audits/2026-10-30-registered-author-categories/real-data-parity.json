@@ -1,0 +1,24 @@
+{
+  "asOf": "2026-10-30T01:43:33.737Z",
+  "authorCount": 4389,
+  "registeredAuthors": 934,
+  "classificationCounts": {
+    "slice": {
+      "registeredAuthors": 593,
+      "withoutRecordedCategoryWorks": 200
+    },
+    "original": {
+      "registeredAuthors": 59,
+      "withoutRecordedCategoryWorks": 31
+    },
+    "ai-remix": {
+      "registeredAuthors": 467,
+      "withoutRecordedCategoryWorks": 209
+    }
+  },
+  "existingAuthorFieldsEqual": true,
+  "worksAndInsightsEqual": true,
+  "statsEqual": true,
+  "databaseWrites": 0,
+  "newSamples": 0
+}

@@ -1,0 +1,21 @@
+{
+  "checkedAt": "2026-10-30T01:53:00.288Z",
+  "siteVersion": 126,
+  "scope": "single-configured-runtime-network",
+  "anonymous": true,
+  "checks": [
+    {
+      "name": "homepage",
+      "status": 200,
+      "bytes": 22547
+    },
+    {
+      "name": "current-page-code",
+      "status": 200,
+      "bytes": 404064,
+      "exactBuildBytesVerified": true
+    }
+  ],
+  "browserVerified": false,
+  "guaranteesAllNetworks": false
+}

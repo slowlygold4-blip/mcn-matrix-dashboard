@@ -17,6 +17,40 @@ function fixture(t){const database=new MonitorDatabase(':memory:');t.after(()=>d
  const read=(cutoff=asOf,options={})=>{const parts=creatorSourcePartitions(db,cutoff,options);const files=parts.map(({path,kind,count,...body})=>{const content=JSON.stringify({version:1,asOf:cutoff,timeZone:'Asia/Shanghai',...body})+'\n';return {path,kind,count,bytes:Buffer.byteLength(content),sha256:hash(content),content};});
  return {manifest:{asOf:cutoff,files:files.map(({content,...meta})=>meta)},files};};return {db,read};}
 const audit=publication=>auditCreatorPublication({manifest:publication.manifest,readPart:async path=>JSON.parse(publication.files.find(f=>f.path===path).content)});
+test('explicit registration categories publish even when no works have been recorded, without private evidence',async t=>{
+ const {db,read}=fixture(t);
+ const add=(sheet,row,values)=>db.prepare('INSERT INTO creator_source_rows VALUES(1,?,?,?)').run(sheet,row,JSON.stringify(values));
+ add('08',3,['登记作者','registered_id',null,null,null,null,0,0,0,0,0,null,null,null,null]);
+ add('11',2,['private-registration-record','slice_registry','登记作者','registered_id',null,null,'切片、手书、AI']);
+ add('11',3,['other-private-registration','ai_registry','登记作者','registered_id',null,null,null]);
+ const before=db.prepare('SELECT total_changes() n').get().n,first=read();
+ const authors=JSON.parse(first.files.find(f=>f.kind==='creatorAuthors').content).items;
+ const registered=authors.find(a=>a.douyinId==='registered_id');
+ assert.deepEqual(registered.registeredClassifications,['slice','original','ai-remix']);
+ assert.equal(registered.posts,0);assert.equal(registered.plays,null);assert.deepEqual(registered.targetIds,[]);
+ assert.equal(JSON.stringify(first).includes('private-registration-record'),false);
+ assert.equal((await audit(first)).authors,2);
+ assert.equal(before,db.prepare('SELECT total_changes() n').get().n,'publication reads never write');
+ const index=p=>JSON.parse(p.files.find(f=>f.kind==='creatorIndex').content);
+ db.prepare('INSERT INTO creator_source_imports SELECT 2,?,source_url,?,source_modified_at,imported_at,metadata_json,source_row_count FROM creator_source_imports WHERE id=1').run('b'.repeat(64),'1698');
+ db.exec('INSERT INTO creator_source_rows SELECT 2,sheet_id,row_number,values_json FROM creator_source_rows WHERE import_id=1');
+ db.prepare("UPDATE creator_source_rows SET values_json=? WHERE import_id=2 AND sheet_id='11' AND row_number=2").run(JSON.stringify(['private-registration-record','slice_registry','登记作者','registered_id',null,null,'切片']));
+ const afterImport=db.prepare('SELECT total_changes() n').get().n;
+ const second=read();assert.notEqual(index(first).editionFingerprint,index(second).editionFingerprint);
+ assert.deepEqual(JSON.parse(second.files.find(f=>f.kind==='creatorAuthors').content).items.find(a=>a.douyinId==='registered_id').registeredClassifications,['slice','ai-remix']);
+ assert.equal(index(first).stats.works,index(second).stats.works);
+ assert.equal(afterImport,db.prepare('SELECT total_changes() n').get().n,'reading a new immutable edition never writes');
+});
+
+test('unknown registration sources and duplicate source identities do not acquire guessed categories',t=>{
+ for(const duplicate of [false,true]){
+  const {db,read}=fixture(t),add=(sheet,row,values)=>db.prepare('INSERT INTO creator_source_rows VALUES(1,?,?,?)').run(sheet,row,JSON.stringify(values));
+  add('11',2,['rec',duplicate?'ai_registry':'unknown_registry','作者A','handle_a',null,null,'切片AI']);
+  if(duplicate)add('08',3,['同号另一作者','handle_a',null,null,null,null,0,0,0,0,0,null,null,null,null]);
+  const authors=JSON.parse(read().files.find(f=>f.kind==='creatorAuthors').content).items;
+  assert.ok(authors.every(a=>!a.registeredClassifications));
+ }
+});
 test('public source corpus is complete, sealed and contains no raw source, authorization, reward or uid fields',async t=>{
  const {db,read}=fixture(t),changes=db.prepare('SELECT total_changes() n').get().n,result=read(),proof=await audit(result);
  assert.deepEqual({authors:proof.authors,works:proof.works},{authors:1,works:2});

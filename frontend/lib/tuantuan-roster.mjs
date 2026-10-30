@@ -75,6 +75,11 @@ function rosterRowMode(row) {
   : row.accounts.length ? 'paused' : 'source-only';
 }
 
+const registrationLabels=Object.freeze({slice:'切片',original:'原创','ai-remix':'AI二创'});
+const registeredSourceKeys=source=>Array.isArray(source?.registeredClassifications)
+ ?[...new Set(source.registeredClassifications.filter(key=>Object.hasOwn(registrationLabels,key)))]:[];
+export const sourceRegistrationLabel=source=>registeredSourceKeys(source).map(key=>registrationLabels[key]).join(' / ');
+
 export function filterTuantuanRoster(rows, {query='', mode='all', classification='all'}={}) {
  const normalized = String(query).normalize('NFKC').toLocaleLowerCase().trim();
  const sourceField = {slice:'slicePosts',original:'creationPosts','ai-remix':'aiPosts'}[classification];
@@ -82,7 +87,7 @@ export function filterTuantuanRoster(rows, {query='', mode='all', classification
   const source = row.source, accounts = row.accounts;
   if (['monitored', 'paused', 'source-only'].includes(mode) && rosterRowMode(row) !== mode) return false;
   if (classification !== 'all') {
-   const sourceMatches = sourceField && Number(source?.[sourceField]) > 0;
+   const sourceMatches = sourceField && Number(source?.[sourceField]) > 0 || registeredSourceKeys(source).includes(classification);
    const accountMatches = accounts.some(account => account.classification?.labels?.some(label => label.key === classification));
    if (!sourceMatches && !accountMatches) return false;
   }
@@ -108,7 +113,7 @@ export function tuantuanRosterExport(rows, context={}) {
  if (!Array.isArray(rows)) throw Error('团团名册导出需要作者记录');
  return [
   ['作者','抖音号','监控状态','监控目标 ID','表格作品','表格累计播放','表格累计点赞','来源证据','数据口径',
-   '最新粉丝数','粉丝采样日期','最新主页获赞','获赞采样日期','对比区间','粉丝变化','主页获赞变化','作品存量变化','区间核对状态','主页与排序口径'],
+   '最新粉丝数','粉丝采样日期','最新主页获赞','获赞采样日期','对比区间','粉丝变化','主页获赞变化','作品存量变化','区间核对状态','主页与排序口径','登记类别'],
   ...rows.map(row => {
    const source=row.source,accounts=row.accounts ?? [];
    return [source?.name || accounts[0]?.label || '',source?.identifierStatus==='unusable'
@@ -119,7 +124,7 @@ export function tuantuanRosterExport(rows, context={}) {
     sourceRosterMetric(source,'plays'),sourceRosterMetric(source,'likes'),
     Array.isArray(source?.sourceTitles)?source.sourceTitles.join(' / '):source?'团团作者总表':'仅监控名册',
     source?'表格累计值，非日新增；主页指标另见监控账号':'表格未登记；仅有主页监控名册',
-    ...rosterProfileExport(row,context)];
+    ...rosterProfileExport(row,context),sourceRegistrationLabel(source)||null];
   }),
  ];
 }

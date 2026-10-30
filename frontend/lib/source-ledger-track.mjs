@@ -4,6 +4,9 @@ const authorTrackFields = Object.freeze({
   '即梦二创': 'aiPosts',
   '#小团团杯S1二创大赛': 'cupPosts',
 });
+const registeredTrackKeys=Object.freeze({'切片激励':'slice','创作激励':'original','即梦二创':'ai-remix'});
+const authorHasTrack=(row,track)=>Number(row[authorTrackFields[track]])>0
+ ||Array.isArray(row.registeredClassifications)&&row.registeredClassifications.includes(registeredTrackKeys[track]);
 
 export function sourceTrackMemberships(row) {
   const primary = String(row.track ?? '').trim();
@@ -17,10 +20,10 @@ export function belongsToSourceTrack(row, track, view) {
   if (track === 'all') return true;
   if (view === 'authors') {
     if (track === '__unclassified__') {
-      return row.sourceSupplement === true || Object.values(authorTrackFields).every(field => !Number(row[field]));
+      return Object.keys(authorTrackFields).every(track => !authorHasTrack(row,track));
     }
     const field = authorTrackFields[track];
-    return Boolean(field && Number(row[field]) > 0);
+    return Boolean(field && authorHasTrack(row,track));
   }
   if (track === '__unclassified__') return row.sourceSupplement === true || !row.track;
   return sourceTrackMemberships(row).includes(track);

@@ -1,5 +1,6 @@
 import {belongsToSourceLinkage, belongsToSourceTrack, sameSourceDouyinId} from './source-ledger-track.mjs';
 import {csv} from './replica-model.mjs';
+import {sourceRegistrationLabel} from './tuantuan-roster.mjs';
 
 const searchable = value => String(value ?? '').normalize('NFKC').toLocaleLowerCase();
 
@@ -52,9 +53,9 @@ export function sourceLedgerCsv(rows, view = 'works', {revision = '', importedAt
   const provenance = row => [row.sourceSupplement ? '补充登记表' : '总表', (row.sourceTitles ?? []).join(' / '), String(revision), importedAt];
   const context = ['记录来源', '来源表名称', '总表修订', '总表入库时间（非发布日期）'];
   const headers = view === 'authors'
-    ? ['作者', '抖音号', '表格作品数', '切片作品数', '创作作品数', '即梦作品数', '小团团杯作品数', '表格累计播放（非日增长）', '表格累计点赞（非日增长）', '已关联监控目标 ID', ...context]
+    ? ['作者', '抖音号', '表格作品数', '切片作品数', '创作作品数', '即梦作品数', '小团团杯作品数', '表格累计播放（非日增长）', '表格累计点赞（非日增长）', '已关联监控目标 ID', ...context, '登记类别']
     : ['作品 ID', '作品标题', '作者', '抖音号', '发布日期（原表）', '原表分类', '赛道', '全部赛道', '表格累计播放（非日增长）', '表格累计点赞（非日增长）', '作品链接', ...context];
   return csv([headers, ...rows.map(row => view === 'authors'
-    ? [row.name, String(row.douyinId ?? ''), row.posts, row.slicePosts, row.creationPosts, row.aiPosts, row.cupPosts, row.plays, row.likes, (row.targetIds ?? []).join(' / '), ...provenance(row)]
+    ? [row.name, String(row.douyinId ?? ''), row.posts, row.slicePosts, row.creationPosts, row.aiPosts, row.cupPosts, row.plays, row.likes, (row.targetIds ?? []).join(' / '), ...provenance(row), sourceRegistrationLabel(row)||null]
     : [String(row.contentId ?? ''), row.title, row.author, String(row.douyinId ?? ''), row.publishDate, row.type, row.track, row.tracks, row.plays, row.likes, row.url, ...provenance(row)])]);
 }
