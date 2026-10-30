@@ -23,6 +23,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlparse
 import urllib.parse
 import urllib.request
+import urllib.error
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
@@ -1046,6 +1047,24 @@ def extract_bilibili_mid(locator):
     return match.group(1)
 
 
+class BilibiliRequestError(CollectorError):
+    """Bounded diagnostics; never persist remote messages, URLs or headers."""
+    def __init__(self, code, *, http_status=None, business_code=None):
+        super().__init__("B站接口未取得有效数据（%s）" % code, code=code)
+        self.http_status = http_status
+        self.business_code = business_code
+
+
+def bili_failure(error):
+    code = getattr(error, "code", None)
+    if code not in {"login_required", "blocked", "rate_limited", "network_error", "business_error", "upstream_changed"}:
+        code = "collector_error"
+    http_status = getattr(error, "http_status", None)
+    business_code = getattr(error, "business_code", None)
+    return {"errorCode": code, "httpStatus": http_status if type(http_status) is int and 100 <= http_status <= 599 else None,
+            "businessCode": business_code if type(business_code) is int and abs(business_code) <= 2**31 else None}
+
+
 def bili_json(opener, url, *, headers=None, timeout=18):
     merged = {
         "User-Agent": BILIBILI_UA,
@@ -1055,14 +1074,31 @@ def bili_json(opener, url, *, headers=None, timeout=18):
     merged.update(headers or {})
     try:
         response = opener.open(urllib.request.Request(url, headers=merged), timeout=timeout)
-        payload = json.loads(response.read().decode("utf-8", "replace"))
-    except Exception as exc:
-        raise CollectorError("B站公开接口连接失败：%s" % exc) from exc
-    if payload.get("code") not in (None, 0):
-        raise CollectorError(
-            "B站公开接口拒绝请求（code=%s）：%s"
-            % (payload.get("code"), payload.get("message") or "未知状态")
-        )
+        try:
+            body = response.read(2 * 1024 * 1024 + 1)
+        finally:
+            response.close()
+    except urllib.error.HTTPError as exc:
+        code = {401: "login_required", 403: "blocked", 429: "rate_limited"}.get(exc.code, "network_error")
+        status = exc.code if type(exc.code) is int and 100 <= exc.code <= 599 else None
+        try:
+            exc.close()
+        except Exception:
+            pass
+        raise BilibiliRequestError(code, http_status=status) from None
+    except Exception:
+        raise BilibiliRequestError("network_error") from None
+    try:
+        if len(body) > 2 * 1024 * 1024:
+            raise ValueError("oversize")
+        payload = json.loads(body.decode("utf-8"))
+    except (ValueError, UnicodeError):
+        raise BilibiliRequestError("upstream_changed") from None
+    if not isinstance(payload, dict) or type(payload.get("code")) is not int or abs(payload["code"]) > 2**31:
+        raise BilibiliRequestError("upstream_changed")
+    if payload["code"] != 0:
+        code = "login_required" if payload["code"] == -101 else "business_error"
+        raise BilibiliRequestError(code, business_code=payload["code"])
     return payload
 
 
@@ -1096,20 +1132,16 @@ def bili_opener():
 
 
 def bili_wbi_key(opener):
-    try:
-        request_object = urllib.request.Request(
-            "https://api.bilibili.com/x/web-interface/nav",
-            headers={"User-Agent": BILIBILI_UA, "Referer": "https://www.bilibili.com/"},
-        )
-        payload = json.loads(opener.open(request_object, timeout=15).read().decode("utf-8", "replace"))
-    except Exception as exc:
-        raise CollectorError("B站公开 WBI 导航连接失败：%s" % exc) from exc
-    data = ((payload.get("data") or {}).get("wbi_img") or {})
+    payload = bili_json(opener, "https://api.bilibili.com/x/web-interface/nav", timeout=15)
+    body = payload.get("data")
+    data = body.get("wbi_img") if isinstance(body, dict) else None
+    if not isinstance(data, dict) or not all(isinstance(data.get(key), str) for key in ("img_url", "sub_url")):
+        raise BilibiliRequestError("upstream_changed")
     image = (data.get("img_url") or "").rsplit("/", 1)[-1].split(".")[0]
     sub = (data.get("sub_url") or "").rsplit("/", 1)[-1].split(".")[0]
     raw = image + sub
     if not raw or max(BILIBILI_MIXIN) >= len(raw):
-        raise CollectorError("B站公开 WBI 导航未返回签名图片")
+        raise BilibiliRequestError("upstream_changed")
     return reduce(lambda output, index: output + raw[index], BILIBILI_MIXIN, "")[:32]
 
 
@@ -1118,8 +1150,11 @@ def bili_latest_videos(opener, mid, limit, *, evidence=None):
         evidence = {}
     evidence.update({"status": "unavailable", "source": "wbi", "listObserved": False, "rawCount": None})
 
-    def refused(error_code):
-        evidence.update({"status": "refused", "errorCode": error_code})
+    def failed(error, phase):
+        diagnostic = bili_failure(error)
+        evidence.update({"status": "refused" if diagnostic["errorCode"] in
+                         {"login_required", "blocked", "rate_limited", "business_error"} else "unavailable",
+                         "phase": phase, **diagnostic})
         return []
 
     def accepted(rows, source, raw_count):
@@ -1138,38 +1173,33 @@ def bili_latest_videos(opener, mid, limit, *, evidence=None):
     try:
         query = "&".join("%s=%s" % (key, urllib.parse.quote(str(params[key]))) for key in sorted(params))
         params["w_rid"] = hashlib.md5((query + bili_wbi_key(opener)).encode("utf-8")).hexdigest()
+    except CollectorError as exc:
+        return failed(exc, "navigation")
+    try:
         signed_query = "&".join("%s=%s" % (key, urllib.parse.quote(str(params[key]))) for key in sorted(params))
         url = "https://api.bilibili.com/x/space/wbi/arc/search?%s" % signed_query
         payload = None
         for attempt in range(2):
             try:
-                request_object = urllib.request.Request(
-                    url,
+                payload = bili_json(opener, url, timeout=15,
                     headers={"Referer": "https://space.bilibili.com/%s/video" % mid, "Origin": "https://space.bilibili.com"},
                 )
-                payload = json.loads(opener.open(request_object, timeout=15).read().decode("utf-8", "ignore"))
-                # Rejection bodies may contain stale list-shaped data. Only an
-                # explicit successful response can supply works or permit fallback.
-                if not isinstance(payload, dict) or type(payload.get("code")) is not int:
-                    return []
-                if payload["code"] != 0:
-                    return refused("business_error")
                 break
-            except Exception as exc:
-                if getattr(exc, "code", None) in (401, 403, 429):
-                    return refused({401: "login_required", 403: "blocked", 429: "rate_limited"}[exc.code])
+            except BilibiliRequestError as exc:
+                if exc.code != "network_error" or exc.http_status is not None and exc.http_status < 500:
+                    return failed(exc, "list")
                 payload = None
                 if attempt == 0:
                     time.sleep(2)
+                else:
+                    return failed(exc, "list")
         data = payload.get("data") if isinstance(payload, dict) else None
         listing = data.get("list") if isinstance(data, dict) else None
         videos = listing.get("vlist") if isinstance(listing, dict) else None
         if not isinstance(videos, list) or any(not isinstance(value, dict) for value in videos):
-            return []
-    except CollectorError:
-        # Navigation-key errors can wrap an explicit refusal; do not follow
-        # an unclassified key failure with a different works endpoint.
-        return []
+            return failed(BilibiliRequestError("upstream_changed"), "list")
+    except CollectorError as exc:
+        return failed(exc, "list")
     if videos:
         return accepted([
             {
@@ -1182,37 +1212,35 @@ def bili_latest_videos(opener, mid, limit, *, evidence=None):
     payload = None
     for attempt in range(2):
         try:
-            request_object = urllib.request.Request(
+            payload = bili_json(opener,
                 "https://api.bilibili.com/x/polymer/web-dynamic/v1/feed/space?offset=&host_mid=%s&timezone_offset=-480" % mid,
+                timeout=15,
                 headers={"Referer": "https://space.bilibili.com/%s/dynamic" % mid, "Origin": "https://space.bilibili.com"},
             )
-            payload = json.loads(opener.open(request_object, timeout=15).read().decode("utf-8", "ignore"))
-            if not isinstance(payload, dict) or type(payload.get("code")) is not int:
-                return []
-            if payload["code"] != 0:
-                return refused("business_error")
             break
-        except Exception as exc:
-            if getattr(exc, "code", None) in (401, 403, 429):
-                return refused({401: "login_required", 403: "blocked", 429: "rate_limited"}[exc.code])
+        except BilibiliRequestError as exc:
+            if exc.code != "network_error" or exc.http_status is not None and exc.http_status < 500:
+                return failed(exc, "list")
             payload = None
             if attempt == 0:
                 time.sleep(1.5)
+            else:
+                return failed(exc, "list")
     data = payload.get("data") if isinstance(payload, dict) else None
     items = data.get("items") if isinstance(data, dict) else None
     if not isinstance(items, list):
-        return []
+        return failed(BilibiliRequestError("upstream_changed"), "list")
     output = []
     for item in items:
         if not isinstance(item, dict):
-            return []
+            return failed(BilibiliRequestError("upstream_changed"), "list")
         archive = item
         for key in ("modules", "module_dynamic", "major", "archive"):
             archive = archive.get(key, {})
             if archive is None:
                 archive = {}
             if not isinstance(archive, dict):
-                return []
+                return failed(BilibiliRequestError("upstream_changed"), "list")
         if archive.get("bvid"):
             output.append({"bvid": archive.get("bvid"), "title": archive.get("title"), "created": None})
         if len(output) >= count:
@@ -1266,31 +1294,51 @@ def collect_bilibili_account(locator, limit):
     works = []
     observations = []
     seen_bvids = set()
+    details = {"version": 1, "requestedCount": 0, "successfulCount": 0,
+               "failedCount": 0, "deferredCount": 0, "errors": []}
+    detail_refused = False
+
+    def retain_list_reference(video, bvid):
+        works.append({
+            "aweme_id": bvid,
+            "desc": video.get("title") or "",
+            "create_time": video.get("created"),
+            "author": {"uid": returned_mid, "nickname": card.get("name") or ""},
+            "statistics": {"comment_count": video.get("comment"), "play_count": video.get("play")},
+            "share_url": "https://www.bilibili.com/video/%s" % bvid,
+        })
+        observations.append({"contentId": bvid, "observedAt": list_observed_at, "source": "list"})
+
     for video in video_refs:
         bvid = str(video.get("bvid") or "").strip()
         if not re.fullmatch(r"BV[0-9A-Za-z]{10}", bvid) or bvid in seen_bvids:
             continue
         seen_bvids.add(bvid)
+        if detail_refused:
+            details["deferredCount"] += 1
+            retain_list_reference(video, bvid)
+            continue
         try:
+            details["requestedCount"] += 1
             detail = (bili_json(opener, "https://api.bilibili.com/x/web-interface/view?bvid=%s" % bvid).get("data") or {})
             detail_observed_at = observation_timestamp()
         except CollectorError as exc:
-            warnings.append("B站作品 %s 详情暂未读取；已保留投稿列表中的标题、时间和播放/评论字段：%s" % (bvid, exc))
-            works.append({
-                "aweme_id": bvid,
-                "desc": video.get("title") or "",
-                "create_time": video.get("created"),
-                "author": {"uid": returned_mid, "nickname": card.get("name") or ""},
-                "statistics": {"comment_count": video.get("comment"), "play_count": video.get("play")},
-                "share_url": "https://www.bilibili.com/video/%s" % bvid,
-            })
-            observations.append({"contentId": bvid, "observedAt": list_observed_at, "source": "list"})
+            failure = bili_failure(exc)
+            details["failedCount"] += 1
+            details["errors"].append({"contentId": bvid, **failure})
+            detail_refused = failure["errorCode"] in {"login_required", "blocked", "rate_limited", "business_error"}
+            warnings.append("B站作品 %s 详情暂未读取；已保留投稿列表中的标题、时间和播放/评论字段（%s）" %
+                            (bvid, failure["errorCode"]))
+            retain_list_reference(video, bvid)
             continue
-        owner = detail.get("owner") or {}
-        if detail.get("bvid") != bvid or str(owner.get("mid") or "") != mid:
+        owner = detail.get("owner") if isinstance(detail, dict) else None
+        if not isinstance(owner, dict) or detail.get("bvid") != bvid or str(owner.get("mid") or "") != mid:
             warnings.append("B站作品 %s 的作品 ID 或作者 UID 不一致，已剔除" % bvid)
+            details["failedCount"] += 1
+            details["errors"].append({"contentId": bvid, "errorCode": "identity_mismatch", "httpStatus": None, "businessCode": None})
             continue
-        stat = detail.get("stat") or {}
+        stat = detail.get("stat") if isinstance(detail.get("stat"), dict) else {}
+        details["successfulCount"] += 1
         works.append({
             "aweme_id": bvid,
             "desc": detail.get("title") or video.get("title") or "",
@@ -1305,6 +1353,20 @@ def collect_bilibili_account(locator, limit):
         })
         observations.append({"contentId": bvid, "observedAt": detail_observed_at, "source": "view"})
     completed_at = observation_timestamp()
+    failure = None
+    if details["errors"]:
+        failure = details["errors"][0]
+    elif works_list_evidence.get("status") != "success":
+        failure = works_list_evidence
+    if details["deferredCount"]:
+        warnings.append("本批因详情接口拒绝，后续 %s 条未请求详情；已保留列表资料，点赞仍为空" % details["deferredCount"])
+    works_error = None
+    if failure is not None:
+        stage = "作品详情" if details["errors"] else "作品列表（%s）" % {"navigation": "导航", "list": "列表"}.get(works_list_evidence.get("phase"), "响应")
+        works_error = "B站%s未完成：%s" % (stage, failure.get("errorCode", "upstream_changed"))
+        for key in ("httpStatus", "businessCode"):
+            if failure.get(key) is not None:
+                works_error += "；%s=%s" % (key, failure[key])
     return {
         "capturedAt": completed_at,
         "workObservationTimes": {"version": 1, "transport": "bilibili-official-http",
@@ -1318,6 +1380,9 @@ def collect_bilibili_account(locator, limit):
         }},
         "works": {"aweme_list": works},
         "worksListEvidence": works_list_evidence,
+        "workDetailEvidence": details,
+        "worksErrorCode": failure.get("errorCode", "upstream_changed") if failure is not None else None,
+        "worksError": works_error,
         "warnings": warnings,
         "sourceEvidence": {"bilibiliCard": {
             "endpoint": card_url,

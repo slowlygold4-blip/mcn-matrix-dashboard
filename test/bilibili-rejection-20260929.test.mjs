@@ -46,12 +46,15 @@ if case.get("keyError"):
 c.time.sleep = lambda seconds: sleeps.append(seconds)
 opener = Opener(); evidence = {}
 if case.get("account"):
-    def account_json(opener, url):
+    actual_json = c.bili_json
+    def account_json(opener, url, **kwargs):
         if "/card?" in url:
             return {"code": 0, "data": {"card": {"mid": "525138167", "fans": 42}, "like_num": 91}}
         if "/navnum?" in url:
             return {"code": 0, "data": {"video": case.get("inventory", 17)}}
-        raise AssertionError("Rejected list must never request video details")
+        if "/view?" in url:
+            raise AssertionError("Rejected list must never request video details")
+        return actual_json(opener, url, **kwargs)
     c.bili_json = account_json; c.bili_opener = lambda: opener
     result = c.collect_bilibili_account("525138167", 30)
 else:
