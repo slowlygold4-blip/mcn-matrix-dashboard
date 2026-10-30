@@ -26,6 +26,19 @@ test('unchanged source does not perform a backup, author submission, or fresh ob
   await assert.rejects(read({...source,monitorOnly:true}),/policy-invalid/);
 });
 
+test('reviewed image-bearing source gets a bounded export allowance without widening other sources',async()=>{
+  const limits=[];
+  const read=createWorkSourcePollReader({dataDirectory:'/fixture',sync:async options=>{
+    limits.push(options.maxFileBytes);return {...receipt,status:'unchanged'};
+  }});
+  await read({...source,maxExportBytes:32_000_000});
+  await read(source);
+  assert.deepEqual(limits,[32_000_000,8_000_000]);
+  for(const maxExportBytes of [null,0,-1,32_000_001,Infinity,'32000000',1.5])
+    await assert.rejects(read({...source,maxExportBytes}),/export-limit-invalid/);
+  assert.equal(limits.length,2,'bad limits fail before any network or database sync');
+});
+
 test('failed backup and incomplete source receipts remain failures',async()=>{
   let calls=0;
   const read=createWorkSourcePollReader({dataDirectory:'/fixture',verifyBackup:async()=>{calls++;throw Error('private-error');},

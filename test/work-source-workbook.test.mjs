@@ -43,6 +43,42 @@ test('public Douyin handle and stable UID remain different fields across source 
   assert.equal(comparison.summary.dailyGrowthCalculated, false);
 });
 
+test('publication register headers retain work counters and identities without inventing dates', () => {
+  const result = readWorkSourceWorkbook(book({ '开播后': [
+    ['抖音名字', '账号ID', '发布链接', '点赞', '播放量', '截图', '运营人'],
+    ['作者甲', 'handle-a', `https://www.douyin.com/video/${id}`, 72, 6368, '', '运营甲'],
+    ['作者乙', 'handle-b', 'https://v.douyin.com/register/', 0, 0, '', '运营乙'],
+    ['作者丙', 'handle-c', 'https://v.douyin.com/missing/', '', '', '', '运营丙'],
+  ] }));
+  assert.equal(result.facts.length, 3);
+  assert.equal(result.rejected.length, 0);
+  const [direct, short, missing] = result.facts;
+  assert.equal(direct.authorName, '作者甲');
+  assert.equal(direct.accountId, 'handle-a');
+  assert.equal(direct.contentId, id);
+  assert.equal(direct.likes, 72);
+  assert.equal(direct.plays, 6368);
+  assert.equal(short.contentId, null);
+  assert.equal(short.likes, 0);
+  assert.equal(short.plays, 0);
+  assert.equal(missing.likes, null);
+  assert.equal(missing.plays, null);
+  assert.ok(result.facts.every(fact => fact.publishedOn === null && fact.metricDate === null));
+  assert.equal(result.summary.unresolvedLinks, 2);
+  assert.equal(result.summary.datedMeasurements, 0);
+});
+
+test('register aliases still reject ambiguous headers and do not turn an author-only roster into works', () => {
+  assert.throws(() => readWorkSourceWorkbook(book({ '重复表头': [
+    ['账号ID', '抖音号', '发布链接', '点赞'], ['handle', 'handle', `https://www.douyin.com/video/${id}`, 1],
+  ] })), /ambiguous-source-header/);
+  const roster = readWorkSourceWorkbook(book({ '作者名册': [
+    ['抖音名字', '账号ID', '发布链接'], ['作者', 'handle', `https://www.douyin.com/video/${id}`],
+  ] }));
+  assert.equal(roster.facts.length, 0);
+  assert.equal(roster.sheets[0].status, 'unsupported-layout');
+});
+
 test('notes before headers retain physical rows; no date or author is inferred from content ID', () => {
   const result = readWorkSourceWorkbook(book({ '作品': [
     ['这是原始说明，不是数据'], ['抖音名', '抖音号', '视频链接', '点赞', '播放'],
