@@ -23,6 +23,7 @@ import {reconcileSupplementProfileIdentityLinks} from './lib/reconcile-supplemen
 import { createScheduledBackupThrottle } from "./lib/scheduled-backup-throttle.mjs";
 import { inspectLatestBackup } from "./lib/backup-audit.mjs";
 import { recordPostIngestionReview, inspectPostIngestionReviews, summarizePostIngestionReviewQueue } from "./lib/post-ingestion-review.mjs";
+import {normalizePostIngestionSelection} from './lib/post-ingestion-selection.mjs';
 import { nextPostIngestionRecoveryCursor, recoverPostIngestionReviewWindow } from "./lib/post-ingestion-recovery.mjs";
 import { normalizeManualCollection } from "./lib/providers/normalize.mjs";
 import { PublicWebProvider } from "./lib/providers/public-web.mjs";
@@ -1576,7 +1577,8 @@ async function handleApi(request, response, url) {
   }
   if (request.method === "GET" && pathname === "/api/ingestion-reviews") {
     access.requireRole(request, "admin");
-    return json(response, 200, { ...await inspectPostIngestionReviews({ ledgerDir: ingestionReviewDir, limit: 20 }), queue: summarizePostIngestionReviewQueue(ingestionReviewQueueStatus) });
+    const selection=normalizePostIngestionSelection(url.searchParams);
+    return json(response, 200, { ...await inspectPostIngestionReviews({ ledgerDir: ingestionReviewDir, limit: 20, selection }), queue: summarizePostIngestionReviewQueue(ingestionReviewQueueStatus) });
   }
   if (request.method === "GET" && pathname === "/api/monitoring-status") {
     access.requireRole(request, "viewer");

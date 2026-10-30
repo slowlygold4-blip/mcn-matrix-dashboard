@@ -117,11 +117,13 @@ test('product read APIs expose real dated metrics, validate dates, preserve data
   const monitoring = await request('/api/monitoring-status');
   assert.equal(monitoring.status, 200);
   const monitoringData = await monitoring.json();
-  assert.equal(monitoringData.scheduler.scheduleIntervalHours, 8);
+  assert.equal(monitoringData.scheduler.scheduleMode, 'continuous');
+  assert.equal(monitoringData.scheduler.scheduleIntervalHours, null);
   assert.deepEqual(monitoringData.browserLane, {
     busy: false, locked: false, reason: null, lockedAt: null, recoveryEligible: false, lastRecoveredAt: null,
   }, 'monitoring exposes lifecycle health without leaking process identifiers or claiming data coverage');
-  assert.deepEqual(monitoringData.scheduler.slotTimes, ['02:00', '10:00', '18:00']);
+  assert.deepEqual(monitoringData.scheduler.slotTimes, []);
+  assert.equal(monitoringData.scheduler.nextRunAt, null, 'continuous mode must not report an invented scheduled slot');
   assert.ok(Object.hasOwn(monitoringData.scheduler, 'scheduledTopicTargetCount'),
     'the async monitoring endpoint must preserve the enabled-topic denominator field');
   assert.ok(Object.hasOwn(monitoringData.scheduler, 'scheduledTopicMetricCompletedTargetCount'),
@@ -143,6 +145,8 @@ test('product read APIs expose real dated metrics, validate dates, preserve data
   const blocked = await fetch(`${origin}/api/boards`, { method: 'POST', headers: { Cookie: viewerCookie, Origin: origin, 'X-CSRF-Token': viewer.csrfToken, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: '不应创建' }) });
   assert.equal(blocked.status, 403);
   assert.equal((await fetch(`${origin}/api/ingestion-reviews`, { headers: { Cookie: viewerCookie } })).status, 403);
+  assert.equal((await fetch(`${origin}/api/ingestion-reviews?order=newest&limit=0`, { headers: { Cookie: viewerCookie } })).status, 403,
+    'paging never grants a viewer access or leaks admin query validation');
   assert.equal((await fetch(`${origin}/api/monitoring-status`, { headers: { Cookie: viewerCookie } })).status, 200);
   const ingested = await fetch(`${origin}/api/ingest`, { method: 'POST',
     headers: { Cookie: cookie, Origin: origin, 'X-CSRF-Token': owner.csrfToken, 'Content-Type': 'application/json' },
@@ -155,6 +159,15 @@ test('product read APIs expose real dated metrics, validate dates, preserve data
   assert.equal(receiptReview.productReviewStatus, 'pending', 'rule receipt is not a completed AI review');
   assert.equal(reviewReadback.queue.lastRecordedRunId, receipt.runId);
   assert.equal(reviewReadback.queue.lastRecordMode, 'single-committed-run', 'normal ingestion must not rescan all historical receipt files');
+  const recentReview=await request(`/api/ingestion-reviews?state=pending&order=newest&limit=1&beforeRunId=${receipt.runId+1}`);
+  assert.equal(recentReview.status,200);const recentBody=await recentReview.json();
+  assert.equal(recentBody.reviews[0].runId,receipt.runId);assert.equal(recentBody.pagination.returned,1);
+  assert.equal(recentBody.totalPending,reviewReadback.totalPending);
+  assert.equal(recentBody.reviews[0].productReviewStatus,'pending','listing a page never completes the product review');
+  for(const query of ['limit=0','limit=1&limit=2','beforeRunId=9007199254740992','state=unknown']){
+    const invalid=await request('/api/ingestion-reviews?'+query);assert.equal(invalid.status,400);
+    assert.equal((await invalid.json()).code,'INVALID_REVIEW_SELECTION');
+  }
   assert.deepEqual(Object.keys(reviewReadback.queue).filter(key => key.endsWith('RunIds')), [],
     'admin queue summary should expose counts without duplicating every run ID');
   assert.equal(db.db.prepare('SELECT COUNT(*) AS count FROM snapshots').get().count, 8,
