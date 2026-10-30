@@ -147,3 +147,50 @@ test('close rejects pending work, clears cache and is idempotent', async (t) => 
   await assert.rejects(reader.overview(), { code: 'CONSOLE_READER_CLOSED' });
   assert.equal(reader.pending.size, 0); assert.equal(reader.queue.length, 0);
 });
+
+test('unused lanes create no workers; cache expiry and idle retirement need no new reads',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','Date'],now:new Date('2026-10-31T00:00:00Z')});
+ const {reader,workers}=fixture(t,{cacheTtlMs:20,idleTimeoutMs:50});assert.equal(workers.length,0);
+ const p=reader.overview();workers[0].answer(0,{value:0});await p;
+ assert.equal(reader.cache.size,1);t.mock.timers.tick(20);assert.equal(reader.cache.size,0);assert.equal(workers[0].terminated,0);
+ t.mock.timers.tick(30);assert.equal(workers[0].terminated,1);assert.equal(reader.worker,null);
+ await Promise.resolve();assert.equal(workers.length,1,'retirement does not restart an unused lane');
+});
+test('idle time begins after completion and cannot interrupt active or queued reads',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','Date'],now:new Date('2026-10-31T00:00:00Z')});
+ const {reader,workers}=fixture(t,{idleTimeoutMs:20});
+ const a=reader.overview(),b=reader.account(1);t.mock.timers.tick(30);assert.equal(workers[0].terminated,0);
+ workers[0].answer(0,{first:true});await a;t.mock.timers.tick(30);assert.equal(workers[0].terminated,0);
+ workers[0].answer(1,{second:true});await b;t.mock.timers.tick(19);assert.equal(workers[0].terminated,0);
+ t.mock.timers.tick(1);assert.equal(workers[0].terminated,1);
+});
+test('a request arriving during retirement waits for the old worker to exit before creating another',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','Date'],now:new Date('2026-10-31T00:00:00Z')});
+ let finish;const workers=[];
+ const reader=new ConsoleReader({databasePath:'fixture',idleTimeoutMs:20,workerFactory:()=>{
+  const w=new FakeWorker();if(!workers.length)w.terminate=()=>{w.terminated++;return new Promise(resolve=>{finish=resolve;});};workers.push(w);return w;
+ }});t.after(()=>reader.close());
+ const first=reader.overview();workers[0].answer(0,{version:1});await first;t.mock.timers.tick(20);
+ const next=reader.account(1);assert.equal(workers.length,1);assert.equal(reader.activeId,null);assert.equal(reader.jobs.size,1);
+ finish(0);await Promise.resolve();await Promise.resolve();assert.equal(workers.length,2);
+ workers[0].emit('exit',0);workers[1].answer(0,{version:2});assert.deepEqual(await next,{version:2});
+});
+test('a valid cached result survives worker retirement without waking a thread, then expires normally',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','Date'],now:new Date('2026-10-31T00:00:00Z')});
+ const {reader,workers}=fixture(t,{idleTimeoutMs:20,cacheTtlMs:100});
+ const first=reader.overview({period:'day'});workers[0].answer(0,{value:7});await first;
+ t.mock.timers.tick(20);assert.deepEqual(await reader.overview({period:'day'}),{value:7});assert.equal(workers.length,1);
+ await Promise.resolve();t.mock.timers.tick(80);assert.equal(reader.cache.size,0);
+ const fresh=reader.overview({period:'day'});assert.equal(workers.length,2);workers[1].answer(0,{value:8});assert.deepEqual(await fresh,{value:8});
+});
+test('collection invalidation does not keep an unused UI lane alive; shutdown clears maintenance',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','Date'],now:new Date('2026-10-31T00:00:00Z')});
+ const {reader,workers}=fixture(t,{idleTimeoutMs:20});const p=reader.overview();workers[0].answer(0,{});await p;
+ t.mock.timers.tick(10);reader.invalidate();t.mock.timers.tick(10);assert.equal(workers[0].terminated,1);
+ await reader.close();assert.equal(reader.maintenanceTimer,null);t.mock.timers.tick(100000);assert.equal(workers.length,1);
+});
+test('maintenance does not keep Node alive, idle retirement can be disabled, and invalid timeouts fail explicitly',async t=>{
+ const {reader,workers}=fixture(t,{idleTimeoutMs:0});const p=reader.overview();workers[0].answer(0,{});await p;
+ assert.equal(reader.maintenanceTimer.hasRef(),false);assert.equal(reader.worker,workers[0]);
+ for(const idleTimeoutMs of [-1,NaN,Infinity,2147483648])assert.throws(()=>new ConsoleReader({databasePath:'fixture',idleTimeoutMs}),/idle timeout/);
+});

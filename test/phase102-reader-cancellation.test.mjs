@@ -73,10 +73,12 @@ test('phase102 actual worker: same-key subscriptions have a finite bound and rel
 });
 
 test('phase102 actual worker: slow termination bounds replacement workers and close waits for release',async t=>{
-  const {reader,workers}=fixture(t);const old=workers[0],original=old.terminate.bind(old);
+  const {reader,workers}=fixture(t);
+  const a=new AbortController();const cancelled=reader.overview(opts,{signal:a.signal});
+  const old=workers[0],original=old.terminate.bind(old);
   let release;const hold=new Promise(resolve=>{release=resolve;});
   old.terminate=async()=>{await original();await hold;return 0;};
-  const a=new AbortController();const cancelled=reader.overview(opts,{signal:a.signal});const rejection=assert.rejects(cancelled,{code:'CONSOLE_READER_ABORTED'});a.abort();await rejection;
+  const rejection=assert.rejects(cancelled,{code:'CONSOLE_READER_ABORTED'});a.abort();await rejection;
   for(let i=0;i<10;i++){const c=new AbortController(),p=reader.overview({...opts,board:String(i)},{signal:c.signal});const rejected=assert.rejects(p,{code:'CONSOLE_READER_ABORTED'});c.abort();await rejected;}
   assert.equal(workers.length,1);assert.equal(reader.terminations.size,1);
   let closed=false;const closing=reader.close().then(()=>{closed=true;});await new Promise(resolve=>setImmediate(resolve));assert.equal(closed,false);
