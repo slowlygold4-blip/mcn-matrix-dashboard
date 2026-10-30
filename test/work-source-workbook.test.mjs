@@ -119,7 +119,10 @@ test('an explicit metric date never substitutes for publication date', () => {
   ] }));
   assert.equal(result.facts[0].metricDate, '2026-10-29');
   assert.equal(result.facts[0].publishedOn, '2026-10-12');
-  assert.equal(result.rejected[0].reason, 'invalid-source-date');
+  assert.equal(result.facts[1].metricDate, null);
+  assert.equal(result.facts[1].publishedOn, '2026-10-12');
+  assert.deepEqual(result.facts[1].dateIssues, [{ field: 'metricDate', reason: 'invalid-source-date' }]);
+  assert.equal(result.rejected.length, 0);
 });
 
 test('unsafe numeric author IDs do not erase a separately precise work ID and its counters', () => {
