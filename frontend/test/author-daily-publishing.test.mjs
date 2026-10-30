@@ -15,7 +15,7 @@ const render=model=>renderToStaticMarkup(React.createElement(mod.exports.AuthorD
 const model={date:'2026-10-30',end:'2026-10-30',status:'published',knownWorks:2,undatedWorks:1,futureDatedWorks:0,currentDay:true};
 test('actual author daily section states a lower bound, calendar limits and a same-day drilldown',()=>{
  const html=render(model);
- for(const text of ['至少 2 条','当日尚未结束','无记录不能判断为未发布','另有 1 条','仅看这一天的作品','查看全部日期','min="2026-09-12"','max="2026-10-30"','aria-live="polite"'])assert.ok(html.includes(text),text);
+ for(const text of ['至少 2 条','当日尚未结束','无记录不能判断为未发布','另有 1 条','仅看这一天的作品','查看全部日期','min="2026-09-12"','max="2026-10-30"','aria-live="polite"','应用日期','name="publicationDate"','type="submit"'])assert.ok(html.includes(text),text);
 });
 test('unknown day cannot render zero published works or an actionable empty-day button',()=>{
  const html=render({...model,status:'unknown',knownWorks:0,currentDay:false});

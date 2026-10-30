@@ -552,3 +552,6 @@ button:not(:disabled):active {transform:translateY(1px);}
   background:#fff!important;color:#111!important;box-shadow:none!important;text-shadow:none!important;
  }
 }
+
+/* Keep the full native calendar readable; the apply button wraps on narrow screens. */
+.history-dialog .publication-date-field{display:grid;flex:0 0 11rem;min-width:11rem;gap:6px}
