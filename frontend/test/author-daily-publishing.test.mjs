@@ -6,6 +6,8 @@ import {fileURLToPath} from 'node:url';
 import {readFileSync} from 'node:fs';
 import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
+import {mergeAuthorWorks,orderAuthorWorks,authorWorkExportRows} from '../lib/author-unified-works.mjs';
+import {authorDailyPublication} from '../lib/author-daily-publication.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const bundle=await build({entryPoints:[root+'components/author-daily-publishing.tsx'],absWorkingDir:root,bundle:true,write:false,platform:'node',format:'cjs',packages:'external',tsconfig:root+'tsconfig.json'});
 const mod={exports:{}};Function('require','module','exports',bundle.outputFiles[0].text)(createRequire(import.meta.url),mod,mod.exports);
@@ -21,5 +23,8 @@ test('unknown day cannot render zero published works or an actionable empty-day 
 });
 test('the existing all-author dialog uses its unified works for day filtering, counts and export',()=>{
  const code=readFileSync(root+'components/author-unified-works.tsx','utf8');
- assert.match(code,/authorDailyPublication\(items,/);assert.match(code,/onlyDay\?daily.model\?\.rows/);assert.match(code,/rows\.map/);assert.match(code,/<AuthorDailyPublishing/);
+ assert.match(code,/authorDailyPublication\(items,/);assert.match(code,/onlyDay\?daily.model\?\.rows/);assert.match(code,/authorWorkExportRows\(rows\)/);assert.match(code,/<AuthorDailyPublishing/);
+ const asOf='2026-10-30T04:00:00.000Z',platformWorks=Array.from({length:24},(_,i)=>({id:i+1,targetId:1,externalId:String(7500000000000000000n+BigInt(i+1)),caption:i<21?'selected-day':'other-date',publishedAt:i<21?'2026-10-29T02:00:00.000Z':'2026-10-28T02:00:00.000Z',lastObservedAt:asOf,likes:i+1,plays:null}));
+ const items=mergeAuthorWorks({author:{targetIds:[1]},sourceWorks:[],platformWorks,asOf}),daily=authorDailyPublication(items,{asOf,date:'2026-10-29'}),rows=orderAuthorWorks(daily.rows,'adoptedLikes','desc'),exported=authorWorkExportRows(rows);
+ assert.equal(daily.knownWorks,21);assert.equal(exported.length,22,'all 21 matching works export even beyond the first page of 20');assert.equal(exported[1][3],21);assert.equal(exported.at(-1)[3],1);assert.equal(JSON.stringify(exported).includes('other-date'),false);
 });

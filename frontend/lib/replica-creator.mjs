@@ -1,6 +1,6 @@
 /** Public creator corpus contract shared by producer and hosted reader. */
 import {buildCreatorIntelligence} from './creator-intelligence.mjs';
-import {validateSourceWorkOwners} from './source-work-owner-contract.mjs';
+import {validateSourceWorkOwners,auditWorkOwnerNativeEvidence} from './source-work-owner-contract.mjs';
 const keys=(v,k)=>v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).length===k.length&&k.every(x=>Object.hasOwn(v,x));
 const n=v=>Number.isSafeInteger(v)&&v>=0;
 const nullable=v=>v===null||n(v);
@@ -61,18 +61,7 @@ export async function auditCreatorPublication({manifest,readPart}){
   if(authors.some(a=>a.targetIds.some(id=>!ids.has(id))))throw Error('creator-account-link-conflict');
   if(link&&(String(link.revision)!==index.revision||link.modifiedAt!==index.sourceModifiedAt||link.rowCount!==index.sourceRows))throw Error('creator-catalog-edition-conflict');
   const owners=validateSourceWorkOwners(link?.workOwners,{sourceRows:new Map(works.map(work=>[work.row,work])),accountIds:ids});
-  const ownedParts=new Map();
-  for(const owner of owners){
-   if(!ownedParts.has(owner.targetId)){
-    const path=`works/${owner.targetId}.json`,meta=manifest.files.find(file=>file.path===path&&file.kind==='works');
-    if(!meta)throw Error('creator-work-owner-part-missing');
-    const part=await readPart(path);if(part.asOf!==manifest.asOf||!Array.isArray(part.items))throw Error('creator-work-owner-part-invalid');
-    ownedParts.set(owner.targetId,part.items);
-   }
-   const matched=ownedParts.get(owner.targetId).filter(work=>work.targetId===owner.targetId&&work.externalId===owner.contentId
-    &&Number.isSafeInteger(work.id)&&work.id>0&&work.source!=='creator-source');
-   if(matched.length!==1)throw Error('creator-work-owner-native-evidence-missing');
-  }
+  await auditWorkOwnerNativeEvidence({manifest,owners,readPart});
  }
  const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(creatorEditionIdentityPayload(index,authors,works)));
  if([...new Uint8Array(bytes)].map(b=>b.toString(16).padStart(2,'0')).join('')!==index.editionFingerprint)throw Error('creator-edition-fingerprint-conflict');

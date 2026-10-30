@@ -8,9 +8,9 @@ import {AuthorDailyPublishing} from '@/components/author-daily-publishing';
 import {authorDailyPublication,publicationBusinessDay} from '@/lib/author-daily-publication.mjs';
 import {readSourcePart,sourcePartsIdentity} from '@/lib/source-part-reader.mjs';
 import {readReplicaPart} from '@/lib/replica-reader.mjs';
-import {mergeAuthorWorks,orderAuthorWorks} from '@/lib/author-unified-works.mjs';
+import {mergeAuthorWorks,orderAuthorWorks,authorWorkExportRows} from '@/lib/author-unified-works.mjs';
 import {summarizeAdoptedWorks} from '@/lib/work-metric-adoption.mjs';
-import {readLiveSourceWorkOwners} from '@/lib/source-work-owner-contract.mjs';
+import {readLiveSourceWorkOwners,readLiveFoundationWorkOwners} from '@/lib/source-work-owner-contract.mjs';
 import {csv} from '@/lib/replica-model.mjs';
 type Row=Record<string,any>;
 export function AuthorUnifiedWorks({author,manifest,source,foundation,preverified,workOwnerProjection,onOpenAccount,returnFocus,onClose}:{author:Row;manifest:Row;source:Row|null;foundation:Row|null;preverified:Row|null;workOwnerProjection?:Row|null;onOpenAccount?:(targetId:number)=>void;returnFocus?:HTMLButtonElement|null;onClose:()=>void}){
@@ -27,13 +27,14 @@ export function AuthorUnifiedWorks({author,manifest,source,foundation,preverifie
    else for(const file of files)base.push(...await readSourcePart(file,String(source.revision),c.signal,'/creator-source/'));
    if(base.length!==source.stats.works)throw Error('作品目录条数校验失败');
    const workOwners=readLiveSourceWorkOwners(workOwnerProjection,source,base);
+   const foundationWorkOwners=readLiveFoundationWorkOwners(workOwnerProjection,foundation,manifest.asOf);
    const platform:Row[]=[];
    for(const id of [...new Set(author.targetIds||[])]){
     const meta=manifest.files.find((f:Row)=>f.path===`works/${id}.json`);
     if(meta)platform.push(...(await readReplicaPart({generation:manifest.asOf,part:meta.path,meta,signal:c.signal})).items);
    }
    const rows=mergeAuthorWorks({author,sourceWorks:[...base,...(foundation.works||[])],platformWorks:platform,
-    sourceObservations:foundation.observations||[],workOwners,asOf:manifest.asOf});
+    sourceObservations:foundation.observations||[],workOwners,foundationWorkOwners,asOf:manifest.asOf});
    if(!c.signal.aborted){setItems(rows);setLoadedGeneration(manifest.asOf);}
   })().catch(e=>{if(!c.signal.aborted)setError(e.message);});return()=>c.abort();
  },[author,manifest,source,foundation,preverified,workOwnerProjection,retry]);
@@ -42,7 +43,7 @@ export function AuthorUnifiedWorks({author,manifest,source,foundation,preverifie
  const totals=useMemo(()=>summarizeAdoptedWorks(rows.filter(row=>!row.ownershipClaimOnly)),[rows]);
  const claims=items?.filter(row=>row.ownershipClaimOnly).length||0;
  function rank(field:string){setDirection(sort===field&&direction==='desc'?'asc':'desc');setSort(field);setPage(1);}
- function exportRows(){const table=[['作品ID','标题','发布日期','点赞','播放字段','点赞观察时间','播放观察时间','归属状态','已核验发布者账号编号','原登记冲突点赞','原登记冲突播放字段'],...rows.map((r:Row)=>[r.externalId,r.caption,r.publicationDay,r.adoptedLikes,r.adoptedPlays,r.likesObservedAt||'',r.playsObservedAt||'',r.ownershipClaimOnly?'原登记声明，未计入此作者统计':r.canonicalOwnerTargetId?'已核验作品发布者':'已有归属记录',r.canonicalOwnerTargetId??'',r.sourceClaimedCumulativeLikes??'',r.sourceClaimedCumulativePlays??''])];const url=URL.createObjectURL(new Blob([csv(table)],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='作者全部作品.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+ function exportRows(){const table=authorWorkExportRows(rows);const url=URL.createObjectURL(new Blob([csv(table)],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='作者全部作品.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
  return <Dialog open onOpenChange={open=>{if(!open)onClose();}}><DialogContent className="history-dialog" onCloseAutoFocus={event=>{if(returnFocus?.isConnected){event.preventDefault();returnFocus.focus({preventScroll:true});}}}><DialogTitle>{author.name} · 全部已保存作品</DialogTitle><DialogDescription>相同作品 ID 只显示一次；已有作品与后续更新集中查看。累计指标不等于当天增长。</DialogDescription>
  <div className="panel-head"><span>{items?`共 ${items.length.toLocaleString('zh-CN')} 条 · 当前匹配 ${rows.length} 条`:'正在合并并核验作品…'}</span><Button variant="outline" disabled={!items||!!error} onClick={exportRows}>导出全部筛选作品</Button></div>
  {!!claims&&<p className="notice" role="status">全部记录中有 {claims.toLocaleString('zh-CN')} 条为原登记的归属声明，已核验发布者属于其他账号。记录保留在列表和导出中，未计入此作者的指标合计与每日发布数。</p>}

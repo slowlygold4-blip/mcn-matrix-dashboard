@@ -1,5 +1,6 @@
 /** Public supplementary-source contract; no platform requests or credentials. */
 import {validateTableFoundationManifest} from './table-foundation-manifest.mjs';
+import {validateFoundationWorkOwners,auditWorkOwnerNativeEvidence} from './source-work-owner-contract.mjs';
 const groups={authors:'foundationAuthors',works:'foundationWorks',sources:'foundationSources',observations:'foundationObservations','other-authors':'foundationOtherAuthors','other-works':'foundationOtherWorks','pending-authors':'foundationPendingAuthors'};
 export const FOUNDATION_GROUPS=Object.freeze(Object.keys(groups));
 const fields={authors:'authors',works:'works',sources:'sources',observations:'observations','other-authors':'otherAuthors','other-works':'otherWorks','pending-authors':'pendingAuthors'};
@@ -69,6 +70,10 @@ export async function auditFoundationPublication({manifest,readPart}){
  if(manifest.files.some(f=>f.path==='catalog.json')){
   const catalog=await readPart('catalog.json'),ids=new Set((catalog.accounts??[]).map(a=>a.id));
   if([...parts.authors,...parts.otherAuthors].some(a=>a.targetIds.some(id=>!ids.has(id))))throw Error('foundation-account-link-conflict');
+  const owners=validateFoundationWorkOwners(catalog.creatorSourceLinks?.foundationWorkOwners,{sourceWorks:new Map(parts.works.map(work=>[work.contentId,work])),accountIds:ids});
+  const baseIds=new Set((catalog.creatorSourceLinks?.workOwners||[]).map(work=>work.contentId));
+  if(owners.some(work=>baseIds.has(work.contentId)))throw Error('foundation-work-owner-namespace-conflict');
+  await auditWorkOwnerNativeEvidence({manifest,owners,readPart});
  }
  if(manifest.files.some(f=>f.path==='creator/index.json')){
   const creator=await readPart('creator/index.json');

@@ -1,14 +1,18 @@
 import {presentUnifiedWorkMetric} from './unified-work-presentation.mjs';
 import {workPublicationDay} from './replica-work-publication.mjs';
 import {indexWorkObservations,observationsForWork,workOwnerKey} from './work-metric-adoption.mjs';
-import {validateSourceWorkOwners} from './source-work-owner-contract.mjs';
+import {validateSourceWorkOwners,validateFoundationWorkOwners} from './source-work-owner-contract.mjs';
 const known=v=>Number.isSafeInteger(v)&&v>=0?v:null;
 /** Same content ID is one work. Sources are evidence, never independent addends. */
-/** @param {{author:any,sourceWorks:any[],platformWorks:any[],sourceObservations?:any[],workOwners?:Array<{workRow:number,contentId:string,targetId:number}>,asOf?:string}} options */
-export function mergeAuthorWorks({author,sourceWorks,platformWorks,sourceObservations=[],workOwners=[],asOf}){
+/** @param {{author:any,sourceWorks:any[],platformWorks:any[],sourceObservations?:any[],workOwners?:Array<{workRow:number,contentId:string,targetId:number}>,foundationWorkOwners?:Array<{contentId:string,targetId:number}>,asOf?:string}} options */
+export function mergeAuthorWorks({author,sourceWorks,platformWorks,sourceObservations=[],workOwners=[],foundationWorkOwners=[],asOf}){
  const ids=new Set([author.douyinId,...(author.douyinIds||[])].map(workOwnerKey).filter(Boolean));
  const targets=new Set(author.targetIds||[]), works=new Map();
  const ownerById=new Map(validateSourceWorkOwners(workOwners,{sourceRows:new Map(sourceWorks.map(row=>[row.row,row]))}).map(owner=>[owner.contentId,owner]));
+ for(const owner of validateFoundationWorkOwners(foundationWorkOwners,{sourceWorks:new Map(sourceWorks.filter(row=>row.row==null).map(row=>[row.contentId,row]))})){
+  if(ownerById.has(owner.contentId))throw Error('作品归属来源命名空间冲突');
+  ownerById.set(owner.contentId,owner);
+ }
  for(const [index,row] of sourceWorks.entries()){
   const owner=ownerById.get(row.contentId),claimed=ids.has(workOwnerKey(row.douyinId)),owned=owner&&targets.has(owner.targetId);
   if(!claimed&&!owned)continue;
@@ -55,4 +59,15 @@ export function orderAuthorWorks(rows,field='publicationDay',direction='desc',qu
   const cmp=av==null?0:typeof av==='number'?av-bv:String(av).localeCompare(String(bv));
   return cmp*(direction==='asc'?1:-1)||String(a.externalId).localeCompare(String(b.externalId));
  });
+}
+
+/** Preserve the submitted counters even when they are withheld from adoption. */
+export function authorWorkExportRows(rows){
+ const header=['作品ID','标题','发布日期','点赞','播放字段','点赞观察时间','播放观察时间','归属状态','已核验发布者账号编号','原登记冲突点赞','原登记冲突播放字段','来源记录点赞','来源记录播放字段','来源记录时间依据','来源记录时间'];
+ return [header,...rows.map(row=>{
+  const likes=presentUnifiedWorkMetric(row,'likes'),plays=presentUnifiedWorkMetric(row,'plays');
+  return [row.externalId,row.caption,row.publicationDay,row.adoptedLikes,row.adoptedPlays,row.likesObservedAt||'',row.playsObservedAt||'',
+   row.ownershipClaimOnly?'原登记声明，未计入此作者统计':row.canonicalOwnerTargetId?'已核验作品发布者':'已有归属记录',row.canonicalOwnerTargetId??'',row.sourceClaimedCumulativeLikes??'',row.sourceClaimedCumulativePlays??'',
+   likes.sourceRecordValue,plays.sourceRecordValue,likes.sourceRecordCount||plays.sourceRecordCount?likes.sourceTimeBasis||plays.sourceTimeBasis:'',likes.sourceRecordedAt||plays.sourceRecordedAt||''];
+ })];
 }
