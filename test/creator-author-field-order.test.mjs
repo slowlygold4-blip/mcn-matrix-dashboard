@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {projectCreatorAuthorFieldOrder,readCreatorAuthorRows} from '../lib/creator-author-field-order.mjs';
+import {projectCreatorAuthorFieldOrder,readCreatorAuthorRows,withCreatorAuthorFieldSnapshot} from '../lib/creator-author-field-order.mjs';
 const row=(n,values)=>({row_number:n,values_json:JSON.stringify(values)});
 const sheet=(id,headers)=>({sheet_id:id,headers_json:JSON.stringify(headers)});
 function input(){return {imported:{id:1,source_sha256:'a'.repeat(64)},authors:[row(2,[123456789,'明确姓名','keep-alias',0,7])],sheets:[sheet('08',['作者名','主抖音号','账号别名']),sheet('14',['作者名','填报账号'])],evidenceRows:[{...row(4,['明确姓名','123456789']),sheet_id:'14'}]};}
@@ -56,4 +56,22 @@ test('the real database reader is read only, scoped to one imported workbook, an
  const writes=db.prepare('SELECT total_changes() n').get().n;const y=readCreatorAuthorRows(db,x.imported);
  assert.equal(y.repairs.length,1);assert.equal(db.prepare('SELECT total_changes() n').get().n,writes);assert.equal(writes,before+1);
  db.exec('DROP TABLE creator_source_sheets');assert.equal(readCreatorAuthorRows(db,x.imported).rows[0].values[0],123456789);
+});
+
+test('snapshot reuse is immutable, bounded to the transaction and invalidates writes and schema changes',t=>{
+ const db=new DatabaseSync(':memory:');t.after(()=>db.close());
+ db.exec('CREATE TABLE creator_source_rows(import_id INTEGER,sheet_id TEXT,row_number INTEGER,values_json TEXT);CREATE TABLE creator_source_sheets(import_id INTEGER,sheet_id TEXT,headers_json TEXT)');
+ const x=input();for(const r of [...x.authors.map(r=>({...r,sheet_id:'08'})),...x.evidenceRows])db.prepare('INSERT INTO creator_source_rows VALUES(?,?,?,?)').run(1,r.sheet_id,r.row_number,r.values_json);
+ for(const s of x.sheets)db.prepare('INSERT INTO creator_source_sheets VALUES(?,?,?)').run(1,s.sheet_id,s.headers_json);
+ const prepare=db.prepare.bind(db);let scans=0;
+ db.prepare=sql=>{if(sql.includes("sheet_id='08'"))scans++;return prepare(sql);};
+ db.exec('BEGIN');withCreatorAuthorFieldSnapshot(db,()=>{
+  const first=readCreatorAuthorRows(db,x.imported);for(let i=0;i<30;i++)assert.equal(readCreatorAuthorRows(db,x.imported),first);
+  assert.equal(scans,1);assert.equal(Object.isFrozen(first.rows[0].values),true);assert.throws(()=>{first.rows[0].values[1]='forged';},TypeError);
+  db.prepare("UPDATE creator_source_rows SET values_json=? WHERE sheet_id='14'").run(JSON.stringify(['另一人','123456789']));
+  const changed=readCreatorAuthorRows(db,x.imported);assert.equal(changed.repairs.length,0);assert.equal(scans,2);
+  db.exec('DROP TABLE creator_source_sheets');assert.notEqual(readCreatorAuthorRows(db,x.imported),changed);assert.equal(scans,3);
+ });db.exec('ROLLBACK');
+ db.exec('BEGIN');withCreatorAuthorFieldSnapshot(db,()=>{assert.equal(readCreatorAuthorRows(db,x.imported).repairs.length,1);assert.equal(scans,4);});db.exec('ROLLBACK');
+ readCreatorAuthorRows(db,x.imported);readCreatorAuthorRows(db,x.imported);assert.equal(scans,6,'no cache survives the caller snapshot scope');
 });

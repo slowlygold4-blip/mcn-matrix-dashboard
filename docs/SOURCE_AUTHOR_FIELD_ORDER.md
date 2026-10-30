@@ -10,4 +10,6 @@ All other original cells, aliases, classifications and stored observations remai
 
 The corpus, public authors, table foundation, master-roster extension, UID evidence, profile-proof plans, queue admission and resolution-candidate builder share the same interpretation. Public payloads expose only the existing allowed author/work fields; private source cell hashes and proof details do not leak into them. Source proof changes invalidate the derived corpus cache. Publication revision v15 forces a fresh validated dataset while preserving v14 and older sealed baselines.
 
+Within an existing synchronous read transaction, the shared source-link scope reuses a deeply frozen field-order projection. Keys include the import identity, SQLite write count and schema version. Writes or schema changes invalidate it; leaving the caller scope discards it. There is no cross-transaction identity cache, background timer or extra worker pool. This avoids re-parsing one workbook for every account during a full export.
+
 Run `node --test test/creator-author-field-order.test.mjs test/public-creator-source.test.mjs` for field-role, zero-only alias, source-change/cache and publication checks. Existing identity, queue, roster, foundation and publication suites remain required. Passing these checks does not prove restored daily video collection.
