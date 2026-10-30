@@ -1,0 +1,61 @@
+{
+  "observedAt": "2026-10-29T23:58:10.651Z",
+  "runtimeAI": false,
+  "accounts": 4081,
+  "topics": 4,
+  "rolling": {
+    "since": "2026-10-28T23:58:10.651Z",
+    "total": 4085,
+    "attempted": 4085,
+    "profileTotal": 4081,
+    "profiles": 4072,
+    "topics": 4,
+    "updated": 4076,
+    "notUpdated": 9,
+    "worksComplete": 0,
+    "worksLimited": 69,
+    "workIssues": 4058,
+    "reasons": [
+      {
+        "code": "transport-cooldown",
+        "count": 3977
+      },
+      {
+        "code": "blocked",
+        "count": 81
+      }
+    ]
+  },
+  "run": {
+    "id": 26583,
+    "status": "success",
+    "kind": "scheduled",
+    "startedAt": "2026-10-29T23:48:35.633Z",
+    "finishedAt": "2026-10-29T23:48:37.899Z",
+    "heartbeatAt": "2026-10-29T23:48:37.899Z",
+    "total": 1,
+    "processed": 1,
+    "success": 1,
+    "failed": 0,
+    "warnings": 1,
+    "skipped": 0
+  },
+  "queue": {
+    "pending": 4274,
+    "resolved": 7811,
+    "rejected": 7295
+  },
+  "coverage": {
+    "runId": 26579,
+    "finishedAt": "2026-10-29T23:36:37.802Z",
+    "total": 2,
+    "profiles": 2,
+    "worksComplete": 0,
+    "worksLimited": 0,
+    "topics": 0
+  },
+  "health": {
+    "status": "ready",
+    "runtimeAI": false
+  }
+}

@@ -24,3 +24,7 @@
 ## 排除清单
 
 排除 node_modules、浏览器登录态、密钥、运行缓存、旧编译产物、重复历史整库备份和重复发布缓存；这些不属于当前可恢复业务数据。源文件和生产数据库没有被修改或删除。完整归档另附文件清单、排除清单和数据库校验。
+
+
+## 2026-10-30 独立前端开发更新
+公开源码已提供不依赖托管生成文件的 Vinext 运行模式。先按 README 在 frontend 执行 npm ci，复制 .env.example 为 .env.local，再 npm run dev。npm test 为不启动浏览器、不读取业务资料的普通回归；npm run test:published 必须显式提供私有来源导出目录。完整协议、真实安装/构建/HTTP验收和限制见 [PORTABLE_DEVELOPER_HANDOFF_20261030.md](PORTABLE_DEVELOPER_HANDOFF_20261030.md)。保留原 Sites 配置，不将开发只读模式视为管理授权或新增采集能力。

@@ -1,0 +1,65 @@
+{
+  "checkedAt": "2026-10-29T23:59:48.684970+00:00",
+  "siteVersion": 125,
+  "siteCommit": "41ab87836c62ff67d80c9a96befd92d3dc5c3780",
+  "savedVersion": "appgprj_6abdb56f89fc81919cdcf47e8b7c578e~appgver_7234c8134a3081918cee54135622e3ea",
+  "deploymentId": "appgdep_6ae3dd0acae48191b1eefc03815fd3b8",
+  "deploymentStatus": "succeeded",
+  "publicTests": 305,
+  "publicFailed": 0,
+  "hostedSourceRepeatedSame305": true,
+  "cleanFrontendNpmCi": {
+    "packages": 684,
+    "elapsedSecondsReportedByNpm": 5,
+    "dependencyLinksUsed": false,
+    "dependencyVersionsChanged": 0
+  },
+  "typechecks": {
+    "public": "passed",
+    "hosted": "passed"
+  },
+  "builds": {
+    "standalone": "passed",
+    "hosted": "passed"
+  },
+  "runtimeHttpModes": [
+    "dev",
+    "production"
+  ],
+  "upstreamWrites": 0,
+  "forwardedCredentials": 0,
+  "missingDataTestsConvertedToSynthetic": 17,
+  "privateDataUploaded": false,
+  "explicitSourceAcceptanceFiles": 30,
+  "sourceAcceptanceIsPlatformCoverage": false,
+  "browserAcceptance": false,
+  "collectorChanged": false,
+  "newRecurringJobs": 0,
+  "productionDatabaseWritesByDevelopment": 0,
+  "codeSha256": {
+    ".gitignore": "c28af6c2adee234b1f75e1fb286501d23336cde51b7023520a53dab895163984",
+    ".env.example": "0d3d76efc6b2cfa4a43765a96670ebfd3d49b00ad57ffa1260f01c164d2f22c1",
+    "vite.config.ts": "80af66fbe4aec59cb8a63198923d5979751eac0dfabfb1a8ad6127313961f6e5",
+    "vite.hosted.config.mjs": "6f6d890794fbe23f3e35cceb327f49d5977432a5aaf715e040a6408932da395b",
+    "package.json": "3efcaa4d6230360607047f33742d408af01b5a0473fa03813cc8132115d9b852",
+    "scripts/frontend-runtime.mjs": "b01fcd7435cf5929e4bce0ee32ee14b022c4c09706d90bb304218510953b0ce2",
+    "scripts/start-frontend.mjs": "8ed29e662a8963c9fcf6346020e4f1a0e5019d72afa20e015708177a6272fc8e",
+    "scripts/run-framework.mjs": "c593baf46f03e78f0e417139ec75b4c5c9c501143569c2a11d6b2318228ad7bb",
+    "scripts/run-tests.mjs": "72f037459af35b8bb8ead58d2a9093d2e544b9b58f85e58c9d67cfc9f22a476a",
+    "scripts/verify-published-data.mjs": "3f50281b4822783c9013c603599dc50bcc61e451efdeb3ce6d12ea9039f34a3a",
+    "scripts/verify-standalone-runtime.mjs": "c8030dac50f3fb32eeedbb4aa53c56d532328facd88f912d9d9a12472fe73c25",
+    "lib/standalone-env.mjs": "07e29b3d0de8a6df08d742a52f808f4f57a33c8d39cf96ea4b49c292c6b9f34d",
+    "lib/standalone-readonly.mjs": "6698b793d99a79be16b53f0e61676eb6ffb8b449f7f45283c970a3bba27c92ca",
+    "app/api/replica/route.ts": "76c9b35fcc67ddb051587c382e571867cde1fc53a77c710801cbcaf6a919cc09",
+    "app/api/collection/route.ts": "ad05872b01b231572e1d01cd1d4e4e41f706cfa604cdf0961804106cdbc443a8",
+    "test/helpers/published-fixture.mjs": "019ec30a4b07078be053f3bc79baca6755c83566ca8f0fba48a1062d7c005242",
+    "test/standalone-runtime.test.mjs": "7e06253d5c3c56f0e1e6caa0ae8c042ec0c7c987b764bd341bf668e2edbcfabf",
+    "test/creator-insights-validation.test.mjs": "784ddbaa7e363122bb2181a85765726a3190e997d4546968184914940849c0b6",
+    "test/creator-intelligence.test.mjs": "caf927e33a08a569a5deb33d3de9b8d51736b12660522aefa565667b78e8bec9",
+    "test/creator-source-publication.test.mjs": "cc7f4f3d9e133bf07bc2209d56138535d6dde60afc8aa40cf95d1977b2624c38",
+    "test/source-ledger-track.test.mjs": "69eb1c8ccf7086f7dafd916232baa80693c3f09e9afc8bb4a4451e44d2240691",
+    "test/source-operations-count-plays.test.mjs": "a7889e96320fe573a7b2f02f547564b68bd561e1e544f3259d31758c1b962845",
+    "test/table-foundation-manifest.test.mjs": "91dd76a31566f9468833f87284db2da7f4f12e594dc6082057a25fd8aa0470b1",
+    "test/table-foundation.test.mjs": "ff4dfa5c40fccc53c920e264dbe9327a1cfa2151555ddcc7c4b5138448a79734"
+  }
+}

@@ -1,6 +1,6 @@
+import {publishedFixture} from './helpers/published-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {latestSources,tableFoundation} from '../lib/table-foundation.mjs';
 import {buildTuantuanRoster} from '../lib/tuantuan-roster.mjs';
@@ -24,13 +24,12 @@ test('latest completed revision wins; exact ID dedup retains source-only authors
 });
 
 test('public table foundation is sealed, deduplicated and contains no raw private fields',async()=>{
- const root=new URL('../public/table-foundation/',import.meta.url);
- const index=JSON.parse(await readFile(new URL('index.json',root),'utf8'));
- assert.equal(index.version,1);assert.equal(index.stats.sheets,20);
+ const sample=publishedFixture(),index=sample.foundation;
+ assert.equal(index.version,1);assert.equal(index.stats.sheets,3);
  assert.equal(index.files.length,7);
  const parts={};
  for(const file of index.files){
-  const bytes=await readFile(new URL(file.path,root));
+  const bytes=sample.bytes('table-foundation',file.path);
   assert.equal(bytes.length,file.bytes);
   assert.equal(createHash('sha256').update(bytes).digest('hex'),file.sha256);
   const body=JSON.parse(bytes);assert.equal(body.revision,index.revision);assert.equal(body.items.length,file.count);

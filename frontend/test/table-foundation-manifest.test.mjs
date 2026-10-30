@@ -1,9 +1,9 @@
+import {publishedFixture} from './helpers/published-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import {validateTableFoundationManifest} from '../lib/table-foundation-manifest.mjs';
 
-const current=()=>JSON.parse(readFileSync(new URL('../public/table-foundation/index.json',import.meta.url)));
+const current=()=>publishedFixture().foundation;
 
 test('published foundation validates without mutation or a fixed number of sheets',()=>{
  const index=current(),before=structuredClone(index);

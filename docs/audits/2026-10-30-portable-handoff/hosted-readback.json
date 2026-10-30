@@ -1,0 +1,30 @@
+{
+  "checkedAt": "2026-10-29T23:57:23.638Z",
+  "siteVersion": 125,
+  "anonymous": true,
+  "network": "existing-env-proxy",
+  "requests": [
+    {
+      "path": "/",
+      "status": 200,
+      "standaloneHeader": null
+    },
+    {
+      "path": "/api/replica",
+      "status": 200,
+      "standaloneHeader": null,
+      "asOf": "2026-10-29T23:17:09.449Z",
+      "runtimeAI": null
+    },
+    {
+      "path": "/api/collection",
+      "status": 200,
+      "standaloneHeader": null,
+      "asOf": null,
+      "runtimeAI": false
+    }
+  ],
+  "productionWrites": 0,
+  "modelCalls": 0,
+  "browserUsed": false
+}

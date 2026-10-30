@@ -1,3 +1,4 @@
+import {publishedFixture} from './helpers/published-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
@@ -13,18 +14,18 @@ const forbidden = /授权|奖金|候选|原始来源|来源键|收集记录|登�
 const authorFields = ['row','name','douyinId','posts','slicePosts','creationPosts','aiPosts','cupPosts','plays','likes','followers','targetIds'];
 const workFields = ['row','contentId','author','douyinId','publishDate','type','track','tracks','plays','likes','title','url'];
 test('public creator projection contains every imported author/work, exact sealed bytes, and no private columns', async () => {
-  const index = JSON.parse(await readFile(new URL('index.json',directory),'utf8'));
+  const sample=publishedFixture(),index=sample.source;
   assert.equal(index.version,1);
-  assert.equal(index.revision,'1697');
-  assert.equal(index.stats.authors,4389);
-  assert.equal(index.stats.rawAuthorRows,4481);
-  assert.equal(index.stats.reciprocalDuplicates,92);
+  assert.equal(index.revision,'synthetic-fixture');
+  assert.equal(index.stats.authors,5);
+  assert.equal(index.stats.rawAuthorRows,5);
+  assert.equal(index.stats.reciprocalDuplicates,0);
   assert.equal(index.stats.rawAuthorRows-index.stats.reciprocalDuplicates,index.stats.authors);
-  assert.equal(index.stats.works,18179);
+  assert.equal(index.stats.works,3);
   let authorCount=0,workCount=0,plays=0,likes=0,withPlays=0,withLikes=0;
   for (const file of index.files) {
     assert.match(file.path,/^(authors|insights|works-\d{3})\.json$/);
-    const bytes=await readFile(new URL(file.path,directory));
+    const bytes=sample.bytes('creator-source',file.path);
     assert.equal(bytes.length,file.bytes);
     assert.equal(createHash('sha256').update(bytes).digest('hex'),file.sha256);
     const body=JSON.parse(bytes);

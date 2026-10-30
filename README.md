@@ -32,10 +32,25 @@ npm start
 ```sh
 cd frontend
 npm ci
+cp .env.example .env.local
 npm run dev
 ```
 
-前端的持久化数据依赖 D1 / R2 配置或已有公开副本接口；只有源码不会自动拥有生产数据库、管理权限或生产部署密钥。`npm run build` 生成部署产物。
+打开 http://127.0.0.1:5173/。干净源码自动使用独立只读模式，通过 `.env.local` 中的 `MCN_READONLY_ORIGIN` 读取现有公开数据；未配置时明确报数据源未配置，不填示例数字。无需 Sites 登录态、D1/R2 凭据或本机业务数据。请求不转发 Cookie/Authorization，采集、上传和发布写入均拒绝。
+
+`npm run build && npm start` 可验证独立生产构建。已有完整 Sites 脚手架的工作副本仍使用保留的托管配置；配置不完整会明确报错。源码不会自动取得生产管理权限。 若当前网络已配置 `HTTPS_PROXY` 等环境变量，Node 24 可用 `NODE_OPTIONS=--use-env-proxy npm run dev` 显式采用该配置；不需要代理的网络直接运行即可。网络可达性仍取决于现有公开数据源。
+
+```sh
+# 默认不启动浏览器、不读取业务表格、不请求抖音
+npm test
+npm run typecheck
+# 先 build；用本机合成上游核验 dev/start、数据校验与拒绝写入
+npm run test:runtime
+# 必须由资料持有人明确指定私有来源导出目录；无目录会失败
+npm run test:published -- --directory /absolute/private-export/public
+```
+
+普通回归使用可重复的合成数据；来源导出验收单独检查全部文件的字节/SHA、修订、条数、去重与派生统计。它不等于平台数据完整采集或播放量真实性核验。[独立运行与验证记录](docs/PORTABLE_DEVELOPER_HANDOFF_20261030.md)。
 
 来源读取和发布性能优化及核验结果见[性能审查记录](docs/SOURCE_PROJECTION_COST_20261030.md)。
 
@@ -48,13 +63,14 @@ cd frontend
 node --test test/observatory-field.test.mjs test/matrix-scope.test.mjs test/replica-navigation.test.mjs
 ```
 
-全量后端测试为 `npm test`。前端交互测试在根目录与 `frontend` 都完成 `npm ci` 后，从仓库根目录执行：
+根目录的 `npm test` 是完整后端测试，部分用例需要额外环境。前端日常开发使用 `cd frontend && npm test`。确需浏览器交互验收时，在根目录和 frontend 安装依赖后显式执行：
 
 ```sh
-MCN_MAIN_ROOT="$PWD/" node --test --test-concurrency=2 frontend/test/*.test.mjs
+cd frontend
+npm run test:browser
 ```
 
-`MCN_MAIN_ROOT` 指向本仓库根目录并保留末尾 `/`，兼容现有测试的依赖路径拼接；若 Chrome 不在默认 macOS 路径，还需设置 `MCN_TEST_CHROME` 为实际可执行文件路径。电脑资源紧张时改为 `--test-concurrency=1`。这些浏览器用例使用模拟请求，不采集抖音、不调用模型；不要同时启动多套完整浏览器测试。
+浏览器验收需本机 Chrome，部分历史用例还需要指定验收资料；它不属于默认普通回归，本轮未运行。`MCN_TEST_CHROME` 可指定 Chrome 路径；`MCN_MAIN_ROOT` 默认自动定位仓库根目录，手工覆盖时保留末尾 `/`。不要同时启动多套浏览器验收。
 
 本次验证：[每日发片体验](docs/DAILY_PUBLICATION_UX_20261029.md)、[HTTP 采集方案审查](docs/HTTP_COLLECTION_REVIEW_20261029.md)。欢迎通过 Issue / Pull Request 提交改进。
 
@@ -74,4 +90,4 @@ MCN_MAIN_ROOT="$PWD/" node --test --test-concurrency=2 frontend/test/*.test.mjs
 
 覆盖口径、发布器空闲内存生命周期及长期查询上限审查见 [COVERAGE_QUALITY_AND_PUBLISHER_LIFETIME_20261030.md](docs/COVERAGE_QUALITY_AND_PUBLISHER_LIFETIME_20261030.md)。
 
-日期历史长期读取已改造并部署v124；[报告与验证边界](docs/STREAMED_DATE_HISTORY_20261030.md)记录299项工作副本测试、105项公开相关测试，以及公开源码17项缺数据测试和缺托管脚手架的编译限制。
+日期历史长期读取已改造并部署v124；[当轮记录](docs/STREAMED_DATE_HISTORY_20261030.md)保留当时的验证与缺口。公开源码的17项数据依赖失败与构建脚手架缺口已在后续[独立运行修复](docs/PORTABLE_DEVELOPER_HANDOFF_20261030.md)处理，不代表完整平台采集已解决。

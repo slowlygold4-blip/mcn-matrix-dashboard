@@ -1,13 +1,13 @@
+import {publishedFixture} from './helpers/published-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
 import {belongsToSourceTrack,belongsToSourceLinkage,sameSourceDouyinId} from '../lib/source-ledger-track.mjs';
 
 test('source-table overlapping work and author categories remain selectable in both tracks',async()=>{
-  const index=JSON.parse(await readFile(new URL('../public/creator-source/index.json',import.meta.url)));
+  const sample=publishedFixture(),index=sample.source;
   let overlappingWork;
   for(const file of index.files.filter(item=>item.path.startsWith('works-'))){
-    const part=JSON.parse(await readFile(new URL('../public/creator-source/'+file.path,import.meta.url)));
+    const part=sample.read('creator-source',file.path);
     overlappingWork=part.items.find(row=>row.tracks==='切片激励 / 创作激励');
     if(overlappingWork)break;
   }
@@ -15,7 +15,7 @@ test('source-table overlapping work and author categories remain selectable in b
   assert.equal(belongsToSourceTrack(overlappingWork,'切片激励','works'),true);
   assert.equal(belongsToSourceTrack(overlappingWork,'创作激励','works'),true);
   assert.equal(belongsToSourceTrack(overlappingWork,'即梦二创','works'),false);
-  const authors=JSON.parse(await readFile(new URL('../public/creator-source/authors.json',import.meta.url))).items;
+  const authors=publishedFixture().read('creator-source','authors.json').items;
   const overlappingAuthor=authors.find(row=>row.slicePosts>0&&row.creationPosts>0);
   assert.ok(overlappingAuthor);
   assert.equal(belongsToSourceTrack(overlappingAuthor,'切片激励','authors'),true);
@@ -35,11 +35,11 @@ test('source identity filtering uses complete Douyin IDs; unknown metrics do not
 });
 
 test('published source-only author filter separates identity evidence from target-ID links',async()=>{
-  const base=JSON.parse(await readFile(new URL('../public/creator-source/authors.json',import.meta.url))).items;
-  const supplement=JSON.parse(await readFile(new URL('../public/table-foundation/authors.json',import.meta.url))).items;
+  const base=publishedFixture().read('creator-source','authors.json').items;
+  const supplement=publishedFixture().read('table-foundation','authors.json').items;
   const all=[...base,...supplement];
-  assert.equal(all.length,4503);
-  assert.equal(all.filter(row=>belongsToSourceLinkage(row,'linked')).length,595);
-  assert.equal(all.filter(row=>belongsToSourceLinkage(row,'sourceOnly')).length,3908);
+  assert.equal(all.length,8);
+  assert.equal(all.filter(row=>belongsToSourceLinkage(row,'linked')).length,5);
+  assert.equal(all.filter(row=>belongsToSourceLinkage(row,'sourceOnly')).length,3);
   assert.equal(all.filter(row=>belongsToSourceLinkage(row,'linked')).length+all.filter(row=>belongsToSourceLinkage(row,'sourceOnly')).length,all.length);
 });

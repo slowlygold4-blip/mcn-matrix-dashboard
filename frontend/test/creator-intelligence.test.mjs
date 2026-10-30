@@ -1,6 +1,6 @@
+import {publishedFixture} from './helpers/published-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import {buildCreatorIntelligence,canonicalSourceAuthors,summarizeSourceObservations} from '../lib/creator-intelligence.mjs';
 
 test('source intelligence counts publication, not playback growth, and leaves missing metrics missing', () => {
@@ -50,10 +50,9 @@ test('all-missing source metrics stay unknown while a recorded zero remains zero
 });
 
 test('published analysis is derived from exactly the sealed source revision', () => {
-  const root=new URL('../public/creator-source/',import.meta.url);
-  const index=JSON.parse(readFileSync(new URL('index.json',root)));
+  const sample=publishedFixture(),index=sample.source;
   const file=index.files.find(item=>item.path==='insights.json');
-  const body=JSON.parse(readFileSync(new URL('insights.json',root)));
+  const body=sample.read('creator-source','insights.json');
   assert.equal(file.count,1);
   assert.equal(body.revision,index.revision);
   assert.equal(body.items[0].counts.tableAuthors,index.stats.authors);
@@ -135,10 +134,10 @@ test('later source observations choose a unique latest value and quarantine same
 });
 
 test('sealed supplemental source sample exposes conflicts without replacing the main works total', () => {
-  const body=JSON.parse(readFileSync(new URL('../public/table-foundation/observations.json',import.meta.url)));
+  const body=publishedFixture().read('table-foundation','observations.json');
   const result=summarizeSourceObservations(body.items);
-  assert.equal(result.rows,3884);
-  assert.equal(result.uniqueWorks,3628);
-  assert.equal(result.ambiguousWorks,105);
-  assert.equal(result.usableWorks,3523);assert.equal(result.latestAt,null,'提交时间或旧版未说明的时间不能作为指标采样时间');
+  assert.equal(result.rows,3);
+  assert.equal(result.uniqueWorks,2);
+  assert.equal(result.ambiguousWorks,1);
+  assert.equal(result.usableWorks,1);assert.equal(result.latestAt,null,'提交时间或旧版未说明的时间不能作为指标采样时间');
 });

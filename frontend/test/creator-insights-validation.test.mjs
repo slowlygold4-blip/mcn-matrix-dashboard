@@ -1,11 +1,11 @@
+import {publishedFixture} from './helpers/published-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import {validateCreatorInsights} from '../lib/creator-insights-validation.mjs';
 
 test('published legacy insight remains compatible without unknown-date counters',()=>{
- const index=JSON.parse(readFileSync(new URL('../public/creator-source/index.json',import.meta.url)));
- const {items}=JSON.parse(readFileSync(new URL('../public/creator-source/insights.json',import.meta.url)));
+ const sample=publishedFixture(),index={stats:{authors:sample.authors.length,works:2}},legacy=structuredClone(sample.insights);
+ legacy.counts.tableWorks=2;legacy.counts.datedWorks=2;delete legacy.counts.undatedWorks;const items=[legacy];
  assert.equal(validateCreatorInsights(items,index),items[0]);
 });
 test('partial dates validate against all source works, not only the dated subset',()=>{

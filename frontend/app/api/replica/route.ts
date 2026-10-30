@@ -5,6 +5,7 @@ import {auditPublishing} from '@/lib/replica-publishing.mjs';
 import {creatorFile,creatorKind,creatorPartValid,auditCreatorPublication} from '@/lib/replica-creator.mjs';
 import {foundationFile,foundationKind,foundationPartValid,auditFoundationPublication} from '@/lib/replica-foundation.mjs';
 import { env } from "cloudflare:workers";
+import {isReadOnlyFrontend,forwardReadOnlyFrontend} from '@/lib/standalone-readonly.mjs';
 import {summaryDescriptors,summaryPartValid} from '@/lib/replica-summary.mjs';
 import {auditDatePublication} from '@/lib/replica-date-audit.mjs';
 export const dynamic = "force-dynamic";
@@ -22,6 +23,7 @@ function privateKey(value: unknown): boolean {
   return Object.entries(value).some(([key, v]) => /^(raw_json|rawJson|locator|cookie|cookies|password|token|accessToken|refreshToken|authorization|settings|metadata_json|sourceRepositoryCredential|sourceUrl)$/i.test(key) || privateKey(v));
 }
 export async function GET(request: Request) {
+  if(isReadOnlyFrontend(env))return forwardReadOnlyFrontend(request);
   try {
     const {db,bucket}=runtime(); const url = new URL(request.url);
     const requested = url.searchParams.get("generation") || null;
@@ -56,6 +58,7 @@ export async function GET(request: Request) {
   } catch { return json({error:"云端数据暂不可用，请稍后重试"},503); }
 }
 export async function POST(request: Request) {
+  if(isReadOnlyFrontend(env))return forwardReadOnlyFrontend(request);
   // A producer-only endpoint. Anonymous readers can never upload or activate.
   const producer = (env as unknown as Record<string,unknown>).REPLICA_INGEST_SECRET;
   if (typeof producer !== "string" || producer.length < 48 || request.headers.get("Authorization") !== `Bearer ${producer}`) return json({error:"只读访问"},403);

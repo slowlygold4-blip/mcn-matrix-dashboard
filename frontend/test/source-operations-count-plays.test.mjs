@@ -1,6 +1,6 @@
+import {publishedFixture} from './helpers/published-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
 import {createRequire} from 'node:module';
 import {fileURLToPath} from 'node:url';
 import {build} from 'esbuild';
@@ -11,7 +11,7 @@ import {buildTuantuanRoster} from '../lib/tuantuan-roster.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const sourcePath=name=>root+'public/creator-source/'+name;
 const foundationPath=name=>root+'public/table-foundation/'+name;
-const json=async path=>JSON.parse(await readFile(path,'utf8'));
+const json=async path=>{const [section,...name]=path.split('/public/')[1].split('/');return publishedFixture().read(section,name.join('/'));};
 
 async function sourceOperations(){
  const result=await build({entryPoints:[root+'components/source-operations.tsx'],absWorkingDir:root,bundle:true,write:false,platform:'node',format:'cjs',packages:'external',tsconfig:root+'tsconfig.json'});
@@ -20,7 +20,7 @@ async function sourceOperations(){
  return bundledModule.exports.SourceOperations;
 }
 
-test('published 4503 searchable identities reconcile to 4501 authors and linked count is deduplicated',async()=>{
+test('synthetic eight searchable identities reconcile to six authors and linked count is deduplicated',async()=>{
  const [source,authorsPart,insightsPart,foundationIndex,supplementPart,worksPart]=await Promise.all([
   json(sourcePath('index.json')),json(sourcePath('authors.json')),json(sourcePath('insights.json')),
   json(foundationPath('index.json')),json(foundationPath('authors.json')),json(foundationPath('works.json')),
@@ -29,25 +29,25 @@ test('published 4503 searchable identities reconcile to 4501 authors and linked 
  const allTargetIds=[...new Set([...authors,...supplements].flatMap(author=>author.targetIds??[]))];
  const accounts=allTargetIds.map(id=>({id,platform:'douyin',enabled:true,classification:{theme:{key:'tuantuan'}}}));
  const roster=buildTuantuanRoster(authors,accounts,supplements);
- assert.equal(source.stats.authors,4389);
- assert.equal(supplements.length,114);
+ assert.equal(source.stats.authors,5);
+ assert.equal(supplements.length,3);
  assert.equal(roster.counts.reconciledAliases,2);
- assert.equal(roster.counts.source,4501);
- assert.equal(roster.counts.linkedSource,593);
- assert.equal(roster.counts.sourceWithoutThemeLink,3908);
+ assert.equal(roster.counts.source,6);
+ assert.equal(roster.counts.linkedSource,3);
+ assert.equal(roster.counts.sourceWithoutThemeLink,3);
 
  const SourceOperations=await sourceOperations();
  const props={insights:insightsPart.items[0],source,foundation:{index:foundationIndex,authors:supplements,works:worksPart.items,otherAuthors:[],otherWorks:[],observations:[]},error:'',onInspect:()=>{},onNavigateAccounts:()=>{}};
  const verified=renderToStaticMarkup(React.createElement(SourceOperations,{...props,sourceRosterCount:roster.counts.source}));
- assert.match(verified,/团团表格作者（跨表去重）<\/small><strong>4,501<\/strong>/);
- assert.match(verified,/原表登记 4,503 个账号身份，.*其中 2 组同目标同名别名已合并/);
- assert.match(verified,/<strong>593<\/strong><span>去重后来源作者关联了稳定采样目标 ID<\/span>/);
- assert.match(verified,/<strong>3,908<\/strong><span>仅来源表，未关联采样目标 ID<\/span>/);
+ assert.match(verified,/团团表格作者（跨表去重）<\/small><strong>6<\/strong>/);
+ assert.match(verified,/原表登记 8 个账号身份，.*其中 2 组同目标同名别名已合并/);
+ assert.match(verified,/<strong>3<\/strong><span>去重后来源作者关联了稳定采样目标 ID<\/span>/);
+ assert.match(verified,/<strong>3<\/strong><span>仅来源表，未关联采样目标 ID<\/span>/);
  assert.match(verified,/表格播放是原表填报的累计字段，并非平台逐条核验的实际播放/);
  assert.match(verified,/未经平台逐条独立核验/);
 
  const fallback=renderToStaticMarkup(React.createElement(SourceOperations,{...props,sourceRosterCount:null}));
- assert.match(fallback,/表格登记身份（去重待核）<\/small><strong>4,503<\/strong>/);
+ assert.match(fallback,/表格登记身份（去重待核）<\/small><strong>8<\/strong>/);
  assert.match(fallback,/<strong>—<\/strong><span>去重待核；已关联采样目标的原始身份数不能当作作者数<\/span>/);
 });
 
@@ -56,10 +56,10 @@ test('missing supplement keeps verified main table visible without inventing ful
   json(sourcePath('index.json')),json(sourcePath('insights.json')),
  ]);
  const SourceOperations=await sourceOperations();
- const base={insights:insightsPart.items[0],source,foundation:null,sourceRosterCount:4501,onInspect:()=>{},onNavigateAccounts:()=>{}};
+ const base={insights:insightsPart.items[0],source,foundation:null,sourceRosterCount:6,onInspect:()=>{},onNavigateAccounts:()=>{}};
  const pending=renderToStaticMarkup(React.createElement(SourceOperations,{...base,error:''}));
  assert.match(pending,/补充表正在读取/);
- assert.match(pending,/总表登记身份（补充表待核）<\/small><strong>4,389<\/strong>/);
+ assert.match(pending,/总表登记身份（补充表待核）<\/small><strong>5<\/strong>/);
  assert.match(pending,/条已去重的总表作品 · 补充表待核/);
  assert.doesNotMatch(pending,/每天发了多少作品/,'the daily chart must read the unified monitoring publication index, not this static table');
  assert.match(pending,/原表有播放值的作品/);
