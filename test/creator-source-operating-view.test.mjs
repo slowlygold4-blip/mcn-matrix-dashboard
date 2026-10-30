@@ -7,11 +7,134 @@ import { buildAuthorEvidenceRequests, verifyQueuedAuthorEvidence } from '../lib/
 import * as XLSX from '@e965/xlsx';
 import { commitWorkSourceEdition } from '../lib/work-source-store.mjs';
 import { publishingPartitions } from '../lib/replica-publishing.mjs';
+import {withCreatorSourceLinkSnapshot,readCreatorSourceWorkProjectionSnapshot} from '../lib/creator-source-current-links.mjs';
 
 const sec = 'MS4wLjABAAAA' + 'a'.repeat(40);
 const locator = `https://www.douyin.com/user/${sec}`;
 const targetMetadata = douyinId => JSON.stringify({ platform: 'douyin', douyinId,
   identityVerification: { accountId: locator } });
+
+function unlinkedPublisherFixture(db, { handle = 'publisher_b' } = {}) {
+  const id = '7300000000000000077', publisherSec = 'MS4wLjABAAAA' + 'b'.repeat(40);
+  const publisherUrl = `https://www.douyin.com/user/${publisherSec}`;
+  platformFixture(db); db.exec('DELETE FROM posts;DELETE FROM post_metrics');
+  db.prepare('INSERT INTO creator_source_rows VALUES(1,?,?,?)').run('09',7,
+    JSON.stringify([id,'申报作者','handle_a','2026-09-30','video','切片激励','切片激励',500,50,'','保留原文']));
+  db.prepare('INSERT INTO targets VALUES(20,?,?,?,?)').run('account','public-web',publisherUrl,
+    JSON.stringify({platform:'douyin',douyinId:handle,identityVerification:{accountId:publisherUrl}}));
+  addPlatformWork(db,{id,postId:777,targetId:20,authorId:publisherSec,likes:7,plays:70});
+  // Outside the source corpus: never import this account's entire inventory.
+  addPlatformWork(db,{id:'7300000000000000078',postId:778,targetId:20,authorId:publisherSec,likes:1000,plays:10000});
+  return { id, publisherSec, publisherUrl, asOf:'2026-10-28T08:00:00.000Z' };
+}
+
+test('账号详情在一次只读导出中共用作品归属索引，写入/新事务后不会沿用旧归属',()=>{
+ const db=fixture(),{id,asOf}=unlinkedPublisherFixture(db);
+ const prepare=db.prepare.bind(db);let nativeScans=0;
+ db.prepare=sql=>{if(sql.includes("json_extract(p.raw_json,'$.author.sec_uid')"))nativeScans++;return prepare(sql);};
+ try{
+  db.exec('BEGIN');
+  withCreatorSourceLinkSnapshot(db,()=>{
+   const first=readCreatorSourceWorksForTarget(db,20,{asOf});assert.equal(first.items[0].contentId,id);
+   const scans=nativeScans;assert.ok(scans>0);
+   first.source.period.start='polluted';first.items[0].title='polluted';
+   const second=readCreatorSourceWorksForTarget(db,20,{asOf});
+   assert.equal(second.items[0].title,'保留原文');assert.notEqual(second.source.period.start,'polluted');
+   readCreatorSourceWorksForTarget(db,10,{asOf});readCreatorSourceWorksForTarget(db,999,{asOf});
+   assert.equal(nativeScans,scans,'查不同账号也不能重复全库作品扫描');
+   db.exec("UPDATE posts SET raw_json='{}' WHERE id=777");
+   assert.equal(readCreatorSourceWorksForTarget(db,20,{asOf}).items.length,0);assert.ok(nativeScans>scans);
+  });
+  db.exec('ROLLBACK');const scans=nativeScans;
+  db.exec('BEGIN');withCreatorSourceLinkSnapshot(db,()=>{
+   assert.equal(readCreatorSourceWorksForTarget(db,20,{asOf}).items[0].contentId,id);
+   assert.ok(nativeScans>scans,'新快照重新建立真实索引，不跨事务保留结果');
+  });db.exec('ROLLBACK');
+ }finally{db.close();}
+});
+
+test('作品索引缓存只限同步快照作用域，按来源对象、截止时间和写入计数隔离',()=>{
+ const db=fixture(),source={},other={};let reads=0;const read=()=>++reads;
+ try{
+  db.exec('BEGIN');readCreatorSourceWorkProjectionSnapshot(db,source,'a',read);readCreatorSourceWorkProjectionSnapshot(db,source,'a',read);
+  assert.equal(reads,2,'无包装作用域时不缓存');
+  withCreatorSourceLinkSnapshot(db,()=>{
+   assert.equal(readCreatorSourceWorkProjectionSnapshot(db,source,'a',read),3);
+   assert.equal(readCreatorSourceWorkProjectionSnapshot(db,source,'a',read),3);
+   readCreatorSourceWorkProjectionSnapshot(db,other,'a',read);readCreatorSourceWorkProjectionSnapshot(db,source,'b',read);
+   assert.equal(reads,5);db.exec("UPDATE targets SET metadata_json='{}' WHERE id=10");
+   assert.equal(readCreatorSourceWorkProjectionSnapshot(db,source,'a',read),6);
+  });db.exec('ROLLBACK');
+  db.exec('BEGIN');withCreatorSourceLinkSnapshot(db,()=>{assert.equal(readCreatorSourceWorkProjectionSnapshot(db,source,'a',read),7);});db.exec('ROLLBACK');
+ }finally{db.close();}
+});
+
+test('已知账号的原生作品无需先绑定表内作者；原表、作者查询、详情和发布台账归属一致',()=>{
+ const db=fixture(),{id,asOf}=unlinkedPublisherFixture(db);
+ db.exec("ALTER TABLE targets ADD COLUMN label TEXT;ALTER TABLE targets ADD COLUMN enabled INTEGER DEFAULT 1;UPDATE targets SET label='实际发布账号',enabled=0 WHERE id=20");
+ const original=db.prepare("SELECT values_json FROM creator_source_rows WHERE sheet_id='09' AND row_number=7").get().values_json;
+ const beforeLinks=db.prepare('SELECT * FROM creator_source_account_links').all();
+ try {
+  const works=readUnifiedPublicationWorks(db,asOf,{includeMetrics:true,includeOwnerClassification:true});
+  assert.equal(works.length,5,'仅改既有作品归属，不能导入无来源交集的库存');
+  const work=works.find(work=>work.contentId===id);
+  assert.equal(work.targetId,20);assert.equal(work.authorKey,'monitor-account:20');
+  assert.equal(work.authorName,'实际发布账号');assert.equal(work.sourceAccountId,'handle_a');
+  assert.equal(work.sourceOwnershipConflict,true);assert.equal(work.sourceClaimedCumulativeLikes,50);
+  assert.equal(work.latestLikes,7);assert.equal(work.latestPlays,70);assert.equal(work.publishedOn,'2026-10-22');
+  assert.deepEqual(work.registeredAuthorClassifications,[],'作品类别不伪造账号登记类别');
+  const query={asOf,classification:'slice',start:'2026-10-22',end:'2026-10-22',targetId:20};
+  const view=readCreatorOperatingView(db,{...query,view:'works'});
+  assert.equal(view.total,1);assert.equal(view.summary.cumulativeLikes,7);assert.equal(view.daily[0].works,1);
+  const authors=readCreatorOperatingView(db,{...query,view:'authors'});
+  assert.equal(authors.total,1);assert.equal(authors.items[0].key,'monitor-account:20');
+  assert.equal(authors.items[0].sourceRow,null);assert.equal(authors.items[0].platformPublisher,true);
+  assert.equal(authors.items[0].cumulativeLikes,7);assert.deepEqual(authors.items[0].workClassifications,['slice']);
+  assert.deepEqual(authors.items[0].registrationEvidence,[]);
+  assert.deepEqual(readCreatorSourceWorksForTarget(db,20,{asOf}).items.map(work=>work.contentId),[id]);
+  assert.equal(readCreatorSourceWorksForTarget(db,10,{asOf}).items.some(work=>work.contentId===id),false);
+  assert.equal(db.prepare('SELECT enabled FROM targets WHERE id=20').get().enabled,0,'历史归属不改变停用状态');
+  assert.deepEqual(db.prepare('SELECT * FROM creator_source_account_links').all(),beforeLinks);
+  assert.equal(db.prepare("SELECT values_json FROM creator_source_rows WHERE sheet_id='09' AND row_number=7").get().values_json,original);
+  const repeated=readCreatorOperatingView(db,{...query,view:'authors'});assert.equal(repeated.total,1);
+ } finally {db.close();}
+});
+
+test('所有表内作者未关联时仍能核对原生发布者；空抖音号不能将跨作者声明误判为同一作者',()=>{
+ const db=fixture(),{id,asOf}=unlinkedPublisherFixture(db,{handle:''});
+ db.exec('DELETE FROM creator_source_account_links');
+ const values=JSON.parse(db.prepare("SELECT values_json FROM creator_source_rows WHERE sheet_id='09' AND row_number=7").get().values_json);
+ values[2]='';db.prepare("UPDATE creator_source_rows SET values_json=? WHERE sheet_id='09' AND row_number=7").run(JSON.stringify(values));
+ try {
+  const work=readUnifiedPublicationWorks(db,asOf,{includeMetrics:true}).find(work=>work.contentId===id);
+  assert.equal(work.targetId,20);assert.equal(work.sourceOwnershipConflict,true);
+  assert.equal(work.cumulativeLikes,null);assert.equal(work.sourceClaimedCumulativeLikes,50);assert.equal(work.latestLikes,7);
+  assert.equal(readCreatorOperatingView(db,{asOf,view:'authors',targetId:20}).total,1);
+ }finally{db.close();}
+});
+
+test('独立作品发布者索引拒绝身份/原文/平台/时间矛盾，且不添加虚假的作者节点',()=>{
+ for(const fault of ['anchor','missing-anchor','raw-author','raw-id','post-author','platform','invalid-metadata','future-seen','future-published','future-observed','duplicate']){
+  const db=fixture(),{id,asOf,publisherSec,publisherUrl}=unlinkedPublisherFixture(db);
+  if(fault==='anchor')db.prepare('UPDATE targets SET metadata_json=? WHERE id=20').run(JSON.stringify({platform:'douyin',identityVerification:{accountId:locator}}));
+  if(fault==='missing-anchor')db.exec("UPDATE targets SET metadata_json='{}' WHERE id=20");
+  if(fault==='raw-author')db.prepare('UPDATE posts SET raw_json=? WHERE id=777').run(JSON.stringify({aweme_id:id,author:{sec_uid:sec}}));
+  if(fault==='raw-id')db.prepare('UPDATE posts SET raw_json=? WHERE id=777').run(JSON.stringify({aweme_id:'7300000000000000000',author:{sec_uid:publisherSec}}));
+  if(fault==='post-author')db.prepare('UPDATE posts SET author_id=? WHERE id=777').run(sec);
+  if(fault==='platform')db.prepare('UPDATE targets SET metadata_json=? WHERE id=20').run(JSON.stringify({platform:'bilibili',identityVerification:{accountId:publisherUrl}}));
+  if(fault==='invalid-metadata')db.exec("UPDATE targets SET metadata_json='not-json' WHERE id=20");
+  if(fault==='future-seen')db.exec("UPDATE posts SET first_seen_at='2026-10-29T08:00:00Z' WHERE id=777");
+  if(fault==='future-published')db.exec("UPDATE posts SET published_at='2026-10-29T08:00:00Z' WHERE id=777");
+  if(fault==='future-observed')db.exec("UPDATE posts SET last_seen_at='2026-10-29T08:00:00Z' WHERE id=777");
+  if(fault==='duplicate')addPlatformWork(db,{id,postId:779});
+  try {
+   const work=readUnifiedPublicationWorks(db,asOf,{includeMetrics:true}).find(work=>work.contentId===id);
+   assert.equal(work.targetId,10,fault);assert.equal(work.latestLikes,50,fault);
+   assert.equal(work.sourceOwnershipConflict,undefined,fault);
+   assert.equal(readCreatorOperatingView(db,{asOf,view:'authors',targetId:20}).total,0,fault);
+  }finally{db.close();}
+ }
+});
 
 test('原始总表与补充表统一按已核验作品发布者归属，保留原声明而不合并账号',()=>{
  const db=fixture(),video='7300000000000000063',other='MS4wLjABAAAA'+'b'.repeat(40);

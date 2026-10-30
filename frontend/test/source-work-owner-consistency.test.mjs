@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {validateSourceWorkOwners,readLiveSourceWorkOwners} from '../lib/source-work-owner-contract.mjs';
+import {validateSourceWorkOwners,validateFoundationWorkOwners,readLiveSourceWorkOwners} from '../lib/source-work-owner-contract.mjs';
 import {mergeAuthorWorks} from '../lib/author-unified-works.mjs';
 import {authorDailyPublication} from '../lib/author-daily-publication.mjs';
 import {presentUnifiedWorkMetric} from '../lib/unified-work-presentation.mjs';
@@ -30,6 +30,32 @@ test('old author retains the claim and its original numbers but contributes neit
  const metric=presentUnifiedWorkMetric(rows[0],'plays');assert.equal(metric.value,null);assert.equal(metric.sourceClaimValue,500);assert.match(metric.note,/另一账号/);
  const daily=authorDailyPublication(rows,{asOf});assert.equal(daily.knownWorks,0);assert.equal(daily.status,'unknown');assert.equal(daily.ownershipClaimWorks,1);
  assert.deepEqual([source,a],originals);
+});
+test('independent publisher maps retain matching source counters without binding or double-counting the source author',()=>{
+ for(const supplemental of [false,true]){
+  const row={...source,douyinId:'same_public_handle',...(supplemental?{row:undefined}:{})};
+  const map={...owner,sourceClaimMatches:true};if(supplemental)delete map.workRow;
+  const mappings=supplemental?{foundationWorkOwners:[map]}:{workOwners:[map]};
+  const publisher={douyinId:'',targetIds:[10]},declared={douyinId:'same_public_handle',targetIds:[]};
+  const actual=mergeAuthorWorks({author:publisher,sourceWorks:[row],platformWorks:[{...native,likes:null}],...mappings,asOf});
+  assert.equal(actual.length,1);assert.equal(actual[0].sourceOwnershipConflict,false);
+  assert.equal(actual[0].canonicalOwnerTargetId,10);assert.equal(actual[0].ownershipClaimOnly,false);
+  assert.equal(actual[0].adoptedLikes,50,'matching source record survives a missing platform field');
+  assert.equal(actual[0].adoptedPlays,500,'placeholder platform play count does not erase the source');
+  const claim=mergeAuthorWorks({author:declared,sourceWorks:[row],platformWorks:[],...mappings,asOf});
+  assert.equal(claim[0].ownershipClaimOnly,true);assert.equal(claim[0].adoptedLikes,null);
+  assert.equal(authorDailyPublication(claim,{asOf}).knownWorks,0);assert.equal(authorDailyPublication(actual,{asOf}).knownWorks,1);
+  assert.deepEqual(declared.targetIds,[]);
+ }
+});
+test('source-claim match evidence accepts only explicit true in either source namespace',()=>{
+ assert.deepEqual(validateSourceWorkOwners([{...owner,sourceClaimMatches:true}]),[{...owner,sourceClaimMatches:true}]);
+ assert.deepEqual(validateFoundationWorkOwners([{contentId:id,targetId:10,sourceClaimMatches:true}]),[{contentId:id,targetId:10,sourceClaimMatches:true}]);
+ for(const value of [false,1,'true',null,undefined]){
+  assert.throws(()=>validateSourceWorkOwners([{...owner,sourceClaimMatches:value}]));
+  assert.throws(()=>validateFoundationWorkOwners([{contentId:id,targetId:10,sourceClaimMatches:value}]));
+ }
+ assert.throws(()=>validateSourceWorkOwners([{...owner,sourceClaimMatches:true,extra:1}]));
 });
 test('verified publisher gets one work with actual observations and original unadopted claim evidence',()=>{
  const rows=mergeAuthorWorks({author:b,sourceWorks:[source],platformWorks:[native],workOwners:[owner],asOf});

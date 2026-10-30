@@ -103,6 +103,27 @@ test('supplementary publisher overrides have their own source namespace and pass
  await preparePublicReplicaPublication(serializePublicReplica(replica));
 });
 
+test('native publishers are exported without a source-author binding even when the public handle matches',async t=>{
+ const {database,target,sample,read}=fixture(t),db=database.db;
+ db.prepare('UPDATE targets SET metadata_json=? WHERE id=?').run(JSON.stringify({platform:'douyin',douyinId:'handle_b',identityVerification:{accountId:SEC}}),target.id);
+ sample(19,{works:[{index:900,likes:7,publishedAt:at(18)},{index:901,likes:8,publishedAt:at(18)}]});
+ db.exec(`CREATE TABLE creator_source_imports(id INTEGER PRIMARY KEY,source_sha256 TEXT,source_url TEXT,source_revision TEXT,source_modified_at TEXT,imported_at TEXT,metadata_json TEXT,source_row_count INTEGER);
+ CREATE TABLE creator_source_rows(import_id INTEGER,sheet_id TEXT,row_number INTEGER,values_json TEXT);
+ CREATE TABLE creator_source_account_links(import_id INTEGER,author_row INTEGER,target_id INTEGER,matched_id TEXT,matched_at TEXT);
+ CREATE TABLE creator_source_work_links(import_id INTEGER,work_row INTEGER,target_id INTEGER);`);
+ db.prepare('INSERT INTO creator_source_imports VALUES(1,?,?,?,?,?,?,100)').run('a'.repeat(64),'https://private.feishu.cn/sheets/fixture','1','2026-09-18T01:00:00.000Z','2026-09-19T01:00:00.000Z','{}');
+ const add=db.prepare('INSERT INTO creator_source_rows VALUES(1,?,?,?)');
+ add.run('08',2,JSON.stringify(['未关联的来源作者','handle_b']));
+ add.run('09',7,JSON.stringify([external(900),'未关联的来源作者','handle_b','2026-09-18','video','切片激励','切片激励',500,50,'','原文']));
+ const observed=Array(14).fill(null);observed[2]='未关联的来源作者';observed[3]='handle_b';observed[5]=external(901);observed[8]=60;observed[9]=600;add.run('10',2,JSON.stringify(observed));
+ const replica=read(),links=replica.catalog.creatorSourceLinks;
+ assert.deepEqual(links.links,[],'原生作品证明不能伪造作者身份链接');
+ assert.deepEqual(links.workOwners,[{workRow:7,contentId:external(900),targetId:target.id,sourceClaimMatches:true}]);
+ assert.deepEqual(links.foundationWorkOwners,[{contentId:external(901),targetId:target.id,sourceClaimMatches:true}]);
+ assert.equal(replica.partitions.find(p=>p.kind==='creatorAuthors').items[0].targetIds.length,0);
+ await preparePublicReplicaPublication(serializePublicReplica(replica));
+});
+
 test('public replica: private source/config/locator fields are absent while legitimate names and confirmed classes remain', t => {
   const { sample, read } = fixture(t); sample(2, { works: [{ index: 1 }] });
   const replica = read(), { manifest, files } = serializePublicReplica(replica);

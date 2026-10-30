@@ -15,6 +15,7 @@ test('publisher startup lowers only its own priority and keeps an already quiete
 test('a pending generation keeps its own date-index feature across exporter revisions',()=>{
   assert.equal(shouldPreparePublicDateIndex({exportRevision:'catalog-date-range-v1'}),true);
   assert.equal(shouldPreparePublicDateIndex({exportRevision:'catalog-date-range-v2-roster-classification'}),true);
+  assert.equal(shouldPreparePublicDateIndex({exportRevision:'catalog-date-range-v13-publication-scope'}),true);
   assert.equal(shouldPreparePublicDateIndex({exportRevision:PUBLIC_REPLICA_EXPORT_REVISION}),true);
   assert.equal(shouldPreparePublicDateIndex({exportRevision:'future-revision',dateIndex:true}),true);
   assert.equal(shouldPreparePublicDateIndex({exportRevision:'catalog-date-range-v1',dateIndex:false}),false);
