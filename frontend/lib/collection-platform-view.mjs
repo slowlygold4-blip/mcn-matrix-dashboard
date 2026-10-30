@@ -35,5 +35,28 @@ export function projectCollectionPlatforms(status){
    }
   }
  }
- return {rolling,daily};
+ const profile=status?.dailyProfiles;
+ let dailyProfiles=null;
+ if(rolling&&profile?.version===1&&profile.basis==='accepted-profile-day-ends'
+  &&instant(profile.asOf)&&profile.asOf===status?.observedAt
+  &&profile.date===new Date(Date.parse(profile.asOf)+8*3600000).toISOString().slice(0,10)
+  &&profile.since===new Date(Date.parse(profile.date+'T00:00:00.000Z')-8*3600000).toISOString()
+  &&profile.previousDate===new Date(Date.parse(profile.date+'T00:00:00.000Z')-86400000).toISOString().slice(0,10)){
+  const metricNames=['observed','comparable','missingBaseline','conflicting'];
+  const rows=projectRows(profile.platforms,['accounts'],row=>{
+   const original=rolling.find(item=>item.platform===row.platform);
+   return original?.accounts===row.accounts&&['followers','totalLikes'].every(name=>{
+    const metric=row[name];return keys(metric,metricNames)&&metric.comparable+metric.missingBaseline===metric.observed
+     &&metric.observed+metric.conflicting<=row.accounts;
+   });
+  });
+  if(rows&&rows.length===rolling.length){
+   const clean=rows.map(row=>{
+    const original=profile.platforms.find(item=>item.platform===row.platform);
+    return {...row,...Object.fromEntries(['followers','totalLikes'].map(name=>[name,Object.fromEntries(metricNames.map(key=>[key,original[name][key]]))]))};
+   });
+   dailyProfiles={version:1,basis:profile.basis,date:profile.date,since:profile.since,previousDate:profile.previousDate,asOf:profile.asOf,platforms:clean};
+  }
+ }
+ return {rolling,daily,dailyProfiles};
 }

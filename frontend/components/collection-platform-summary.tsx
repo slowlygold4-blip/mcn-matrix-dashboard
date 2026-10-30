@@ -2,6 +2,14 @@ import {projectCollectionPlatforms} from '@/lib/collection-platform-view.mjs';
 type Row=Record<string,any>;
 const names:Record<string,string>={douyin:'抖音',bilibili:'B站',xiaohongshu:'小红书',kuaishou:'快手',unknown:'未标注平台'};
 const n=(value:number)=>value.toLocaleString('zh-CN');
+/** Daily account counters and adjacent-day readiness are independent of rolling coverage. */
+export function CollectionProfileDailyNotice({status}:{status:Row|null|undefined}){
+ const {dailyProfiles}=projectCollectionPlatforms(status);
+ if(!dailyProfiles)return <p className="collection-sampling-notice" data-state="unknown" role="status"><strong>当天粉丝与总获赞覆盖尚未上报</strong><span>近24小时更新不代表当天已采到。</span></p>;
+ return <div className="collection-sampling-notice" data-state="profiles" aria-label="当天粉丝和总获赞采样覆盖"><strong>{dailyProfiles.date} · 当天账号观测</strong>
+ {dailyProfiles.platforms.map((row:Row)=><span key={row.platform}>{names[row.platform]}：粉丝 {n(row.followers.observed)}/{n(row.accounts)}（{n(row.followers.comparable)} 可比） · 总获赞 {n(row.totalLikes.observed)}/{n(row.accounts)}（{n(row.totalLikes.comparable)} 可比）</span>)}
+ <span>可比指本日与前一北京日均有有效末次观测。</span></div>;
+}
 /** Keep missing work observations visible even while diagnostics are closed. */
 export function CollectionDailyNotice({status}:{status:Row|null|undefined}){
  const {daily}=projectCollectionPlatforms(status);
@@ -21,9 +29,11 @@ export function CollectionPlatformSummary({status}:{status:Row|null|undefined}){
  <div className="collection-more__grid">{parsed.rolling.map((row:Row)=>{
   const daily:Row|undefined=parsed.daily?.platforms.find((item:Row)=>item.platform===row.platform);
   const change:Row|undefined=parsed.daily?.comparability?.platforms.find((item:Row)=>item.platform===row.platform);
+  const profile:Row|undefined=parsed.dailyProfiles?.platforms.find((item:Row)=>item.platform===row.platform);
   const missing=daily&&daily.storedWorks>0&&daily.observedWorks===0;
   return <div key={row.platform} data-platform={row.platform}><strong>{names[row.platform]}</strong>
    <p>主页更新 {n(row.profiles)}/{n(row.accounts)} · 作品列表完整 {n(row.worksComplete)}/{n(row.accounts)} · 有限 {n(row.worksLimited)}/{n(row.accounts)}</p>
+   {profile?<><p>{parsed.dailyProfiles!.date} 粉丝观测 {n(profile.followers.observed)}/{n(profile.accounts)} · 日变化可比 {n(profile.followers.comparable)} · 缺前日基线 {n(profile.followers.missingBaseline)} · 当日末次冲突 {n(profile.followers.conflicting)}</p><p>当天总获赞观测 {n(profile.totalLikes.observed)}/{n(profile.accounts)} · 日变化可比 {n(profile.totalLikes.comparable)} · 缺前日基线 {n(profile.totalLikes.missingBaseline)} · 当日末次冲突 {n(profile.totalLikes.conflicting)}</p></>:<p>当天粉丝与总获赞覆盖尚未上报</p>}
    {daily?<p className={missing?'negative':''}>{parsed.daily!.date} 作品点赞观测 <b>{n(daily.observedWorks)}</b> / {n(daily.storedWorks)} 条已保存作品 · 涉及 {n(daily.observedAccounts)} 个账号档案{missing&&<strong> · 今日尚无作品点赞观测</strong>}</p>:<p>今日作品点赞观测尚未上报</p>}
    {change?<p>点赞日变化可计算 <b>{n(change.comparableWorks)}</b> 条 · 缺有效前日基线 {n(change.missingBaselineWorks)} 条 · 当日末次观测冲突 {n(change.conflictingWorks)} 条</p>:<p>点赞日变化的可比覆盖尚未上报</p>}
   </div>;

@@ -1,5 +1,5 @@
-import{readFileSync}from'node:fs';import test from'node:test';import assert from'node:assert/strict';import{createRequire}from'node:module';import{fileURLToPath}from'node:url';import{build}from'esbuild';
-const site=fileURLToPath(new URL('../',import.meta.url)),main=process.env.MCN_MAIN_ROOT||fileURLToPath(new URL('../../douyin-monitor-workbench/',import.meta.url));const{chromium}=createRequire(main+'package.json')('playwright-core');
+import{readFileSync}from'node:fs';import test from'node:test';import assert from'node:assert/strict';import{createRequire}from'node:module';import{fileURLToPath}from'node:url';import{resolve}from'node:path';import{build}from'esbuild';
+const site=fileURLToPath(new URL('../',import.meta.url)),main=process.env.MCN_MAIN_ROOT||fileURLToPath(new URL('../../douyin-monitor-workbench/',import.meta.url));const{chromium}=createRequire(resolve(main,'package.json'))('playwright-core');
 test('actual collection console distinguishes homepage coverage, refused works and cooldown without issuing collection',async()=>{
  const bundle=await build({stdin:{contents:`import React from'react';import{createRoot}from'react-dom/client';import{CollectionConsole}from'./components/collection-console';createRoot(document.getElementById('root')).render(<CollectionConsole/>);`,resolveDir:site,sourcefile:'collection-console-fixture.tsx',loader:'tsx'},absWorkingDir:site,bundle:true,write:false,format:'iife',platform:'browser',jsx:'automatic',tsconfig:site+'tsconfig.json',define:{'process.env.NODE_ENV':'"test"'}});
  const browser=await chromium.launch({headless:true,executablePath:process.env.MCN_TEST_CHROME||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',args:['--disable-background-networking']});
@@ -14,4 +14,31 @@ test('actual collection console distinguishes homepage coverage, refused works a
  for(const width of [390,320]){await page.setViewportSize({width,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);}
  assert.deepEqual(errors,[]);
  }finally{await context.close();}}finally{await browser.close();}
+});
+
+test('daily profile coverage stays visible, updates from script receipts, rejects stale days and fits phones',{timeout:30000},async()=>{
+ const bundle=await build({stdin:{contents:`import React from'react';import{createRoot}from'react-dom/client';import{CollectionConsole}from'./components/collection-console';createRoot(document.getElementById('root')).render(<CollectionConsole/>);`,resolveDir:site,sourcefile:'daily-console-fixture.tsx',loader:'tsx'},absWorkingDir:site,bundle:true,write:false,format:'iife',platform:'browser',jsx:'automatic',tsconfig:site+'tsconfig.json',define:{'process.env.NODE_ENV':'"test"'}});
+ const browser=await chromium.launch({headless:true,executablePath:process.env.MCN_TEST_CHROME||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',args:['--disable-background-networking']});
+ try{
+  const page=await browser.newPage({viewport:{width:1100,height:850},reducedMotion:'reduce'}),errors=[],writes=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  const metric=(observed,comparable)=>({observed,comparable,missingBaseline:observed-comparable,conflicting:0});
+  const status={online:true,canControl:false,status:{runtimeAI:false,observedAt:'2026-10-30T20:00:00.000Z',rolling:{total:10,updated:10,profiles:10,notUpdated:0,worksComplete:0,worksLimited:0,workIssues:10,platforms:[{platform:'douyin',accounts:10,profiles:10,worksComplete:0,worksLimited:0,workIssues:10}]},dailyProfiles:{version:1,basis:'accepted-profile-day-ends',date:'2026-10-31',since:'2026-10-30T16:00:00.000Z',previousDate:'2026-10-30',asOf:'2026-10-30T20:00:00.000Z',platforms:[{platform:'douyin',accounts:10,followers:metric(2,1),totalLikes:metric(1,0)}]}}};
+  await page.route('**/*',route=>{
+   const req=route.request(),u=new URL(req.url());if(u.origin!=='https://daily-console.test')return route.abort();
+   if(req.method()!=='GET')writes.push(req.method());
+   return route.fulfill(u.pathname==='/api/collection'?{contentType:'application/json',body:JSON.stringify(status)}:{contentType:'text/html',body:'<!doctype html><meta charset="utf-8"><div class="workspace"><main class="content"><div id="root"></div></main></div>'});
+  });
+  await page.goto('https://daily-console.test/');await page.addStyleTag({content:['replica.css','source-operations.css','visual-theme.css','observatory.css','collection-console.css'].map(n=>readFileSync(site+'app/'+n,'utf8')).join('\n')});
+  await page.addScriptTag({content:bundle.outputFiles[0].text});
+  const daily=page.getByLabel('当天粉丝和总获赞采样覆盖');await daily.waitFor();
+  assert.equal(await daily.isVisible(),true);assert.match(await daily.innerText(),/粉丝 2\/10（1 可比）.*总获赞 1\/10（0 可比）/);
+  assert.match(await page.locator('.collection-sampling-notice').last().innerText(),/作品点赞采样状态尚未上报/);
+  for(const width of [390,320]){await page.setViewportSize({width,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth),true);assert.equal(await daily.isVisible(),true);}
+  status.status.dailyProfiles.platforms[0].followers=metric(3,2);
+  await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await page.getByText(/粉丝 3\/10（2 可比）/).waitFor();
+  status.status.dailyProfiles.date='2026-10-30';
+  await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await page.locator('.collection-sampling-notice').getByText('当天粉丝与总获赞覆盖尚未上报',{exact:true}).waitFor();assert.equal(await daily.count(),0);
+  assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);
+ }finally{await browser.close();}
 });

@@ -16,7 +16,7 @@ test('platform evidence survives relay whitelisting and cannot pool another plat
  assert.deepEqual(p,projectCollectionPlatforms(x));
 });
 test('legacy or invalid platform totals remain unavailable rather than zeros',()=>{
- assert.deepEqual(projectCollectionPlatforms({}),{rolling:null,daily:null});
+ assert.deepEqual(projectCollectionPlatforms({}),{rolling:null,daily:null,dailyProfiles:null});
  for(const patch of [{platform:'PRIVATE_SENTINEL'},{profiles:11},{worksLimited:11},{accounts:-1},{profiles:'10'},{profiles:null}]){
   const x=make();Object.assign(x.rolling.platforms[0],patch);assert.equal(projectCollectionPlatforms(x).rolling,null);
  }
@@ -45,4 +45,30 @@ test('bad baselines, counterfeit completion and conflicting work denominators ar
   {platform:'bilibili',knownTodayWorks:3,comparableWorks:1,missingBaselineWorks:2,conflictingWorks:0}]};return x;};
  for(const patch of [{version:2},{previousDate:'2026-10-28'},{platforms:[]}]){const x=makeChange();Object.assign(x.dailyWorkLikes.comparability,patch);assert.equal(projectCollectionPlatforms(x).daily.comparability,undefined);}
  for(const patch of [{knownTodayWorks:4},{comparableWorks:4},{missingBaselineWorks:-1},{comparableWorks:'1'},{conflictingWorks:18}]){const x=makeChange();Object.assign(x.dailyWorkLikes.comparability.platforms[1],patch);assert.equal(projectCollectionPlatforms(x).daily.comparability,undefined);}
+});
+
+function profiles(){
+ const x=make(),metric=(observed,comparable)=>({observed,comparable,missingBaseline:observed-comparable,conflicting:0,token:'PRIVATE_SENTINEL'});
+ x.dailyProfiles={version:1,basis:'accepted-profile-day-ends',date:'2026-10-30',since:'2026-10-29T16:00:00.000Z',previousDate:'2026-10-29',asOf:at,secret:'PRIVATE_SENTINEL',platforms:[
+  {platform:'douyin',accounts:10,followers:metric(2,1),totalLikes:metric(1,0),private:'PRIVATE_SENTINEL'},
+  {platform:'bilibili',accounts:1,followers:metric(0,0),totalLikes:metric(0,0)}]};return x;
+}
+test('current daily profile counters survive safe relay independently of 24h success and strip nested private fields',()=>{
+ const x=profiles(),safe=safeProgress(x),p=projectCollectionPlatforms(safe);
+ assert.equal(p.rolling[0].profiles,10);assert.equal(p.dailyProfiles.platforms[0].followers.observed,2);
+ assert.equal(p.dailyProfiles.platforms[1].followers.observed,0);assert.equal(p.dailyProfiles.platforms[0].totalLikes.comparable,0);
+ assert.deepEqual(p,projectCollectionPlatforms(x));assert.equal(JSON.stringify(safe).includes('PRIVATE_SENTINEL'),false);
+});
+test('stale dates, false denominators, missing counters and inconsistent comparability cannot become daily progress',()=>{
+ for(const patch of [{version:2},{asOf:'2026-10-29T04:00:00.000Z'},{date:'2026-10-29'},
+  {since:'2026-10-30T00:00:00.000Z'},{previousDate:'2026-10-28'},{basis:'complete'},{platforms:[]}]){
+  const x=profiles();Object.assign(x.dailyProfiles,patch);assert.equal(projectCollectionPlatforms(x).dailyProfiles,null);
+ }
+ for(const patch of [{accounts:9},{platform:'private'},{followers:null},
+  {followers:{observed:2,comparable:2,missingBaseline:1,conflicting:0}},
+  {followers:{observed:10,comparable:9,missingBaseline:1,conflicting:1}},
+  {followers:{observed:'2',comparable:1,missingBaseline:1,conflicting:0}}]){
+  const x=profiles();Object.assign(x.dailyProfiles.platforms[0],patch);assert.equal(projectCollectionPlatforms(x).dailyProfiles,null);
+ }
+ const duplicate=profiles();duplicate.dailyProfiles.platforms.push(duplicate.dailyProfiles.platforms[0]);assert.equal(projectCollectionPlatforms(duplicate).dailyProfiles,null);
 });

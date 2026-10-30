@@ -4,7 +4,7 @@ import {build} from 'esbuild';import React from 'react';import {renderToStaticMa
 const root=fileURLToPath(new URL('../',import.meta.url));
 const result=await build({entryPoints:[root+'components/collection-platform-summary.tsx'],absWorkingDir:root,bundle:true,write:false,platform:'node',format:'cjs',packages:'external',tsconfig:root+'tsconfig.json'});
 const mod={exports:{}};Function('require','module','exports',result.outputFiles[0].text)(createRequire(import.meta.url),mod,mod.exports);
-const {CollectionPlatformSummary,CollectionDailyNotice}=mod.exports;
+const {CollectionPlatformSummary,CollectionDailyNotice,CollectionProfileDailyNotice}=mod.exports;
 test('actual summary shows Douyin no observations and Bilibili success as separate platform rows',()=>{
  const observedAt='2026-10-30T04:00:00.000Z',status={observedAt,rolling:{platforms:[
  {platform:'douyin',accounts:10,profiles:10,worksComplete:0,worksLimited:0,workIssues:10},
@@ -52,4 +52,19 @@ test('compact notice retains the real observation date and never fabricates miss
   {platform:'douyin',knownTodayWorks:5,comparableWorks:4,missingBaselineWorks:1,conflictingWorks:0},
   {platform:'bilibili',knownTodayWorks:3,comparableWorks:2,missingBaselineWorks:1,conflictingWorks:0}]};
  html=notice(status);assert.match(html,/6 条可计算日变化/);assert.match(html,/尚不代表完整采集/);
+});
+
+test('visible daily profile notice and details use current daily counts rather than rolling profile success',()=>{
+ const status=dailyStatus(),metric=(observed,comparable)=>({observed,comparable,missingBaseline:observed-comparable,conflicting:0});
+ status.dailyProfiles={version:1,basis:'accepted-profile-day-ends',date:'2026-10-30',since:'2026-10-29T16:00:00.000Z',previousDate:'2026-10-29',asOf:status.observedAt,platforms:[
+  {platform:'douyin',accounts:10,followers:metric(2,1),totalLikes:metric(1,0)},
+  {platform:'bilibili',accounts:1,followers:metric(0,0),totalLikes:metric(0,0)}]};
+ const html=renderToStaticMarkup(React.createElement(CollectionProfileDailyNotice,{status}));
+ assert.match(html,/2026-10-30 · 当天账号观测/);assert.match(html,/粉丝 2\/10（1 可比）/);assert.match(html,/总获赞 1\/10（0 可比）/);
+ assert.match(html,/B站：粉丝 0\/1/);assert.doesNotMatch(html,/粉丝 10\/10|全部成功/);
+ const details=renderToStaticMarkup(React.createElement(CollectionPlatformSummary,{status}));
+ assert.match(details,/日变化可比 1 · 缺前日基线 1/);assert.match(details,/当天总获赞观测 1\/10/);
+ delete status.dailyProfiles;
+ const legacy=renderToStaticMarkup(React.createElement(CollectionProfileDailyNotice,{status}));
+ assert.match(legacy,/当天粉丝与总获赞覆盖尚未上报/);assert.doesNotMatch(legacy,/0\/|10\/10/);
 });

@@ -14,6 +14,7 @@ export function safeProgress(x){
  return {version:1,observedAt:x.observedAt,runtimeAI:false,scope:'all',accounts:n(x.accounts),topics:n(x.topics),
  rolling:x.rolling?{since:time(x.rolling.since),total:n(x.rolling.total),attempted:n(x.rolling.attempted),profileTotal:n(x.rolling.profileTotal),profiles:n(x.rolling.profiles),topics:n(x.rolling.topics),updated:n(x.rolling.updated),notUpdated:n(x.rolling.notUpdated),worksComplete:n(x.rolling.worksComplete),worksLimited:n(x.rolling.worksLimited),workIssues:n(x.rolling.workIssues),reasons:Array.isArray(x.rolling.reasons)?x.rolling.reasons.slice(0,5).map(r=>({code:text(r.code),count:n(r.count)})):[],platforms:platforms.rolling}:null,
  dailyWorkLikes:platforms.daily,
+ dailyProfiles:platforms.dailyProfiles,
  queue:{pending:n(x.queue?.pending),resolved:n(x.queue?.resolved),rejected:n(x.queue?.rejected)},
  run:x.run?{id:n(x.run.id),status:['running','success','partial','failed','interrupted'].includes(x.run.status)?x.run.status:'unknown',
  kind:text(x.run.kind),startedAt:time(x.run.startedAt),finishedAt:time(x.run.finishedAt),heartbeatAt:time(x.run.heartbeatAt),

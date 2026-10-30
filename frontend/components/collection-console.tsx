@@ -1,7 +1,7 @@
 "use client";
 import {useEffect,useState,useRef} from 'react';
 import {Button} from '@/components/ui/button';
-import {CollectionPlatformSummary,CollectionDailyNotice} from '@/components/collection-platform-summary';
+import {CollectionPlatformSummary,CollectionDailyNotice,CollectionProfileDailyNotice} from '@/components/collection-platform-summary';
 type Row=Record<string,any>;
 const num=(v:number|null|undefined)=>v==null?'—':v.toLocaleString('zh-CN');
 const worksReason:Row={
@@ -45,7 +45,7 @@ export function CollectionConsole(){
   <div className="collection-console__top"><div className="collection-console__state"><span className="collection-signal" aria-hidden="true"/><strong>{stateLabel}</strong><span className="collection-runtime">脚本运行 · 无模型调用</span></div><Button className="collection-trigger" onClick={trigger} disabled={busy||!!pending|| (!!data?.canControl&&!online)}>{busy?'正在下达…':pending?'全量采集已下达':'全量采集 ↗'}</Button></div>
   <div className="collection-console__body"><div><span className="collection-caption">{rolling?coverageLabel:run?`批次 #${run.id} · ${run.kind==='works-only'?'作品补采':run.kind==='manual-refresh'?'主动全量采集':'自动采集'}`:'等待真实任务状态'}</span><div className="collection-counter"><strong>{num(primaryDone)}</strong><span> / {num(primaryTotal)} 个已关联目标已有更新</span>{percent!=null&&<b>{percent.toFixed(1)}%</b>}</div></div><div className="collection-details"><span className="positive">主页更新 <b>{num(rolling?.profiles)}</b></span><span className="negative">尚未更新 <b>{num(rolling?.notUpdated)}</b></span><span>作品完整 <b>{num(rolling?.worksComplete)}</b></span><span>作品部分取得 <b>{num(rolling?.worksLimited)}</b></span></div></div>
   <div className="collection-progress" role="progressbar" aria-label="近24小时主页及话题更新覆盖，不代表作品采集完整" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent??undefined} aria-valuetext={percent==null?'等待真实进度':`${num(primaryDone)} / ${num(primaryTotal)} 个目标已更新`}><span style={{width:percent==null?'0%':percent+'%'}}/></div>
-  <CollectionDailyNotice status={data?.status}/>
+  <CollectionProfileDailyNotice status={data?.status}/><CollectionDailyNotice status={data?.status}/>
   <div className="collection-console__foot"><span>{running?(run.current?'当前：'+run.current:'正在准备下一账号'):online?'持续采集已开启':'离线期间不显示假进度'} · 全局范围，不随页面筛选变化</span><span>脚本上报 {clock(data?.status?.observedAt)}</span></div>
   <details className="collection-more"><summary><span>采集详情与问题</span><span className="collection-issue-count">{rolling?.workIssues?`${num(rolling.workIssues)} 个作品采样提示`:'查看范围与回执'}</span></summary><CollectionPlatformSummary status={data?.status}/><p className="collection-feedback">{run&&`当前执行：${run.kind==='works-only'?'作品补采':run.kind==='manual-refresh'?'主动全量采集':'自动采集'} #${run.id} · ${num(run.processed)}/${num(run.total)} · 返回成功 ${num(run.success)} · 失败 ${num(run.failed)} · 需关注 ${num(run.warnings)}`}。全量作者的身份关联仍在继续，未关联作者尚不在上方采集分母中。</p>
   {rolling?.reasons?.length>0&&<p className="collection-feedback">作品采样情况：{rolling.reasons.map((r:Row)=>`${worksReason[r.code]||worksReason.unknown} ${num(r.count)} 个`).join('；')}。已有主页数值会保留，作品未采全不会标成完成。</p>}
