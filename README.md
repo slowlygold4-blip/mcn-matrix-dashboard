@@ -93,3 +93,5 @@ npm run test:browser
 日期历史长期读取已改造并部署v124；[当轮记录](docs/STREAMED_DATE_HISTORY_20261030.md)保留当时的验证与缺口。公开源码的17项数据依赖失败与构建脚手架缺口已在后续[独立运行修复](docs/PORTABLE_DEVELOPER_HANDOFF_20261030.md)处理，不代表完整平台采集已解决。
 
 官方单作品按日播放隔离验证：`node scripts/probe-douyin-official-daily.mjs --video-plays` 默认仅检查配置、0平台请求。需对应作者授权、`data.external.item` 权限和可靠官方作品ID映射；仅支持近30天创建作品，不能用作无限历史回补。真实授权验收前未接生产调度。
+
+发布器将数据发布和匿名访问检查分开记录：`state.publicAccess`含代际、检查时间与单网络结果；访问失败不触发重复上传。检查跟随原发布周期，不调用模型。详见[公开访问审查](docs/PUBLIC_DELIVERY_HEALTH_REVIEW_20261030.md)。

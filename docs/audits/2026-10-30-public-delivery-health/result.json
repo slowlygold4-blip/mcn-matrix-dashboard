@@ -1,0 +1,84 @@
+{
+  "checkedAt": "2026-10-30T01:17:35.231503+00:00",
+  "tests": {
+    "files": 26,
+    "cases": 430,
+    "privatePassed": 430,
+    "publicPassed": 430,
+    "sameSuiteRepeated": true,
+    "newCasesSince406": 24
+  },
+  "sourceHashes": {
+    "lib/public-delivery-health.mjs": "e657cbad0e9120fa298240fcffa4f8ffb5cbefb54d5473b6a2a7319144eda391",
+    "scripts/public-replica-publisher.mjs": "d516ff860ae4aa35b3ba8ee21c8d6041e81bf6322ec4b1e9ef611378a9c2efe5",
+    "test/public-delivery-health.test.mjs": "8e91f89756ed3743989b8d6d154428ec319225f75a69e824d5eeaebac93e8518",
+    "test/phase98-committed-topic-publisher.test.mjs": "723e95245e626ea9551c24c2013f0739172d754559a5a96ef3fd4f16fe0c4e41",
+    "test/phase65-publisher-catchup-peer.test.mjs": "184ef13ab6be60a37eed46464a9b64e51af7f9d2d0c6ca36691d487bac861466"
+  },
+  "existingDaemonPids": [
+    82680,
+    50348,
+    82899
+  ],
+  "serviceRestarted": false,
+  "newTimersOrCollectors": false,
+  "samplerModelCalls": 0,
+  "developmentDatabaseWrites": 0,
+  "siteVersion": 125,
+  "siteAudienceChanged": false,
+  "liveReadback": {
+    "version": 1,
+    "asOf": "2026-10-30T00:50:09.640Z",
+    "checkedAt": "2026-10-30T01:10:42.160Z",
+    "scope": "single-configured-runtime-network",
+    "requestMode": "anonymous",
+    "guaranteesAllNetworks": false,
+    "browserVerified": false,
+    "dataPartitionsVerified": false,
+    "networkRequests": 2,
+    "checks": [
+      {
+        "route": "homepage",
+        "httpStatus": 200,
+        "applicationTitleVerified": true
+      },
+      {
+        "route": "current-manifest",
+        "httpStatus": 200,
+        "currentGenerationVerified": true
+      }
+    ],
+    "status": "verified",
+    "code": null,
+    "expectedGenerationSource": "confirmed-publish-receipt",
+    "publisherDataReadbackComplete": true,
+    "usesExistingPublisherNetworkConfiguration": true,
+    "configurationChanged": false,
+    "credentialsObtained": false,
+    "modelCalls": 0,
+    "databaseWrites": 0
+  },
+  "defaultClient": {
+    "observedAt": "2026-10-30T01:12:49.790Z",
+    "client": "Node default; no custom headers or proxy flags",
+    "httpStatus": 403,
+    "contentType": "text/html; charset=UTF-8",
+    "cloudflareRayId": "a5268dd52a98db67-LAX",
+    "credentialsObtained": false
+  },
+  "naturalPublisherStateAtCheck": {
+    "status": "success",
+    "publishedAsOf": "2026-10-30T00:50:09.640Z",
+    "lastConfirmedPublishedAt": "2026-10-30T01:02:14.872Z",
+    "active": false,
+    "publicAccess": null
+  },
+  "coverage": {
+    "accounts": 4081,
+    "profiles": 4072,
+    "worksComplete": 0,
+    "topics": 4
+  },
+  "automaticNewHealthCycleObserved": false,
+  "overallGoalComplete": false
+}

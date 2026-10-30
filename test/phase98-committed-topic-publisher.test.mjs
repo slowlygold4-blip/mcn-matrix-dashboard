@@ -11,6 +11,7 @@ import { createPublisherProcessProbe, publisherProbePreload } from './helpers/pu
 const main = fileURLToPath(new URL('../', import.meta.url));
 const root = pathToFileURL(realpathSync(resolve(process.env.PHASE98_CANDIDATE || main)) + sep);
 const { MonitorDatabase } = await import(new URL('lib/database.mjs', root));
+const {canPreparePublicReplica}=await import(new URL('scripts/public-replica-publisher.mjs',root));
 const {readPublicSourceMarker}=await import(new URL('lib/public-source-marker.mjs',root));
 const { normalizeCollection } = await import(new URL('lib/providers/normalize.mjs', root));
 const { PUBLIC_REPLICA_EXPORT_REVISION, exportPublicReplica, writePublicReplica, serializePublicReplica } = await import(new URL('lib/public-replica-export.mjs', root));
@@ -93,7 +94,7 @@ for (const variant of ['wrong-identity', 'no-source-audit', 'no-parent']) {
   });
 }
 
-test('actual topic-only CLI publishes via explicit proof while default readers, cadence, active generation and profile counts remain strict', {timeout:7000}, async t => {
+for(const publicHomepageStatus of [200,403]) test(`actual topic-only CLI publishes via explicit proof; visitor homepage ${publicHomepageStatus}; cadence, generation and profile counts remain strict`, {timeout:7000}, async t => {
   const realNow=Date.now(), base=realNow-3600_000;
   t.mock.timers.enable({apis:['Date'],now:base});
   const directory=mkdtempSync(join(tmpdir(),'phase98-cloud-topic-only-')),home=join(directory,'public-replica-publisher');mkdirSync(home,{mode:0o700});
@@ -147,7 +148,7 @@ test('actual topic-only CLI publishes via explicit proof while default readers, 
   const state={version:1,active:null,coveredMarker:marker,coveredSource:null,exportRevision:PUBLIC_REPLICA_EXPORT_REVISION,status:'success',publishedAsOf:baselineAsOf,lastConfirmedPublishedAt:baselineAsOf,
     sync:{status:'success',asOf:baselineAsOf,manifestSha256:hash(JSON.stringify(previousAccepted.manifest))}};
   writeFileSync(join(home,'state.json'),JSON.stringify(state),{mode:0o600});writeFileSync(join(home,'credential'),'e'.repeat(64),{mode:0o600});
-  const transport=`const files=new Map();let manifest=null;globalThis.fetch=async(url,init={})=>{const u=new URL(url);if(u.origin!=='https://mcn-matrix-observatory.slowlygold4.chatgpt.site'||u.pathname!=='/api/replica'){publisherTestNotify({kind:'forbidden-origin'});throw Error('FORBIDDEN_ORIGIN');}if(init.method==='POST'){const b=publisherTestBody(init);if(b.action==='upload'){for(const f of b.files)files.set(f.path,f);return Response.json({accepted:b.files.length,asOf:b.asOf});}manifest=b.manifest;publisherTestNotify({kind:'activated',topics:JSON.parse(files.get('topics.json').data)});return Response.json({published:true,asOf:b.asOf,parts:files.size});}if(!manifest)return Response.json({}, {status:404});const part=u.searchParams.get('part');return part?new Response(files.get(part).data):Response.json({manifest,publishedAt:new Date().toISOString(),readOnly:true,collectionRequiresLocalComputer:true});};const log=console.log;console.log=(line)=>{log(line);try{if(JSON.parse(line).status==='success')publisherTestNotify({kind:'success'});}catch{}};process.channel?.unref();`;
+  const transport=`const files=new Map();let manifest=null;globalThis.fetch=async(url,init={})=>{const u=new URL(url);if(u.origin!=='https://mcn-matrix-observatory.slowlygold4.chatgpt.site'){publisherTestNotify({kind:'forbidden-origin'});throw Error('FORBIDDEN_ORIGIN');}if(u.pathname==='/'){if(new Headers(init.headers).has('authorization')||new Headers(init.headers).has('cookie')){publisherTestNotify({kind:'unexpected-visitor-credential'});throw Error('NO_VISITOR_CREDENTIAL');}publisherTestNotify({kind:'homepage-check'});return new Response(${publicHomepageStatus}===200?'<html><title>MCN 矩阵数据台</title></html>':'error code: 1010',{status:${publicHomepageStatus},headers:{'content-type':${publicHomepageStatus}===200?'text/html':'text/plain'}});}if(u.pathname!=='/api/replica'){publisherTestNotify({kind:'forbidden-origin'});throw Error('FORBIDDEN_ORIGIN');}if(init.method==='POST'){const b=publisherTestBody(init);if(b.action==='upload'){for(const f of b.files)files.set(f.path,f);return Response.json({accepted:b.files.length,asOf:b.asOf});}manifest=b.manifest;publisherTestNotify({kind:'activated',topics:JSON.parse(files.get('topics.json').data)});return Response.json({published:true,asOf:b.asOf,parts:files.size});}if(!manifest)return Response.json({}, {status:404});const part=u.searchParams.get('part');return part?new Response(files.get(part).data):Response.json({manifest,publishedAt:new Date().toISOString(),readOnly:true,collectionRequiresLocalComputer:true});};const log=console.log;console.log=(line)=>{log(line);try{if(JSON.parse(line).status==='success')publisherTestNotify({kind:'success'});}catch{}};process.channel?.unref();`;
   const probe=createPublisherProcessProbe(directory);
   const child=spawn(process.execPath,['--import','data:text/javascript,'+encodeURIComponent(publisherProbePreload+transport),fileURLToPath(new URL('scripts/public-replica-publisher.mjs',root))],{env:{...process.env,...probe.env,DATA_DIR:directory},stdio:['ignore','pipe','pipe','ipc']});
   const messages=[];let output='',timeout,stopProbe;child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);
@@ -162,6 +163,14 @@ test('actual topic-only CLI publishes via explicit proof while default readers, 
     assert.deepEqual(messages.find(m=>m.kind==='activated').topics.items.filter(row=>row.capturedAt===capturedAt).map(row=>[row.participants,row.views]),[[12,34]]);
     const saved=JSON.parse(readFileSync(join(home,'state.json'),'utf8'));
     assert.equal(saved.active,null);assert.equal(saved.status,'success');assert.notEqual(saved.coveredMarker,marker);
+    assert.equal(saved.sync.status,'success');
+    assert.equal(saved.publicAccess.status,publicHomepageStatus===200?'verified':'blocked');
+    assert.equal(saved.publicAccess.requestMode,'anonymous');
+    assert.equal(saved.publicAccess.guaranteesAllNetworks,false);
+    assert.equal(saved.publicAccess.networkRequests,publicHomepageStatus===200?2:1);
+    assert.equal(messages.filter(m=>m.kind==='homepage-check').length,1);
+    assert.equal(messages.some(m=>m.kind==='unexpected-visitor-credential'),false);
+    assert.equal(canPreparePublicReplica(saved,Date.parse(saved.lastConfirmedPublishedAt)+1000),false,'visitor access failure must not force duplicate uploads or shorten cadence');
     assert.equal(saved.coveredMarker,hash(JSON.stringify({events:[],source:null,dataMarker:readPublicSourceMarker(db,asOf),contract:'committed-target-atomic-audit-v1',committedTargets:proofMarker})));
     assert.equal(db.prepare('SELECT status FROM runs WHERE id=?').get(runId).status,'running');
     assert.equal(output.includes('e'.repeat(64)),false);

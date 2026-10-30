@@ -13,6 +13,7 @@ import { createPublicReplicaSync, preparePublicReplicaPublication, sealPublicRep
 import { readCommittedTargetPublication, isCommittedTargetPublication, COMMITTED_TARGET_PUBLICATION,
   preparePublishedSnapshotBaseline, attachPublishedSnapshotBaseline, releaseCommittedTargetPublication } from '../lib/committed-target-publication.mjs';
 import {readPublicSourceMarker} from '../lib/public-source-marker.mjs';
+import {inspectPublicDelivery,publicDeliveryFromSyncFailure} from '../lib/public-delivery-health.mjs';
 
 const root=fileURLToPath(new URL('..',import.meta.url));
 const data=resolve(process.env.DATA_DIR||join(root,'data'));
@@ -297,13 +298,18 @@ async function runPublisherCycle(ownerInstance){
       await recordPublisherSyncStart(statePath,state,new Date().toISOString());
       const result=await sync.sync(immutableStage.source,{signal:signal.signal,dateIndex:shouldPreparePublicDateIndex(state.active)});
       state.status=result.status;state.code=result.code??null;state.checkedAt=new Date().toISOString();state.sync=result;
+      const accessFailure=publicDeliveryFromSyncFailure(result,state.checkedAt);
+      if(accessFailure)state.publicAccess=accessFailure;
       if(result.status==='success'){
+        // Publication is already verified. Visitor failures are independent
+        // and must not force duplicate exports/uploads of this generation.
+        state.publicAccess=await inspectPublicDelivery({asOf:result.asOf,manifestSha256:result.manifestSha256},{signal:signal.signal});
         state.lastConfirmedPublishedAt=state.checkedAt;state.publishedAsOf=state.active.asOf;
         // The seed has no event watermark: finished data newer than it still triggers the next publication.
         state.coveredMarker=state.active.marker;state.coveredSource=state.active.source;state.exportRevision=state.active.exportRevision??null;
         state.publicationContract=state.active.publicationContract??null;state.active=null;immutableStage=null;
       }
-      await privateWrite(statePath,state);console.log(JSON.stringify({status:state.status,code:state.code,asOf:state.active?.asOf??state.publishedAsOf,runtimeAI:false}));
+      await privateWrite(statePath,state);console.log(JSON.stringify({status:state.status,code:state.code,asOf:state.active?.asOf??state.publishedAsOf,publicAccessStatus:state.publicAccess&&state.publicAccess.asOf===(state.active?.asOf??state.publishedAsOf)?state.publicAccess.status:'not-checked',publicAccessAsOf:state.publicAccess?.asOf??null,runtimeAI:false}));
       if(result.status==='success')try{const retention=await prunePublicReplicaStaging({dataDir:data,dryRun:false});console.log(JSON.stringify({cacheRetention:retention.status,removed:retention.removed.length,runtimeAI:false}));}catch(error){console.error('cache-retention-deferred',error.code||error.name);}
     }catch(e){state.status='failed';state.code=['invalid-source','invalid-summary','unsafe-private-file','invalid-staging-directory'].includes(e.code)?e.code:'publisher-check-failed';state.checkedAt=new Date().toISOString();await privateWrite(statePath,state).catch(()=>{});console.log(JSON.stringify({status:'failed',code:state.code,runtimeAI:false}));}
     finally{busy=false;}

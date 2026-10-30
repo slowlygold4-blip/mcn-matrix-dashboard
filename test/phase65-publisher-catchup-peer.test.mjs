@@ -12,6 +12,7 @@ import {join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import vm from 'node:vm';
 import {shouldStagePublicReplica,shouldPreparePublicDateIndex,completedSourceMarker,validatedReceipt,canPreparePublicReplica} from '../scripts/public-replica-publisher.mjs';
+import {inspectPublicDelivery as inspectDelivery,publicDeliveryFromSyncFailure} from '../lib/public-delivery-health.mjs';
 import {PUBLIC_REPLICA_EXPORT_REVISION as REVISION} from '../lib/public-replica-export.mjs';
 
 const source=await readFile(new URL('../scripts/public-replica-publisher.mjs',import.meta.url),'utf8');
@@ -135,7 +136,7 @@ test('phase65 eligibility still requires completed source clocks and exact finis
 });
 
 function harness(initial=state(),{initialObserved=observed(),now=T+121*MINUTE,publications=new Map()}={}){
- const control={now,observed:clone(initialObserved),result:{status:'success'},error:null,saveError:false,hold:null};
+ const control={now,observed:clone(initialObserved),result:{status:'success'},publicHomepageStatus:200,error:null,saveError:false,hold:null};
  // The real sync result has always carried the confirmed generation/hash.
  // Supply that I/O receipt and its immutable prior publication to the VM;
  // source-proof validation is tested separately, not invented by this fake DB.
@@ -163,6 +164,15 @@ function harness(initial=state(),{initialObserved=observed(),now=T+121*MINUTE,pu
   exportPublicReplica(_db,{asOf}){return{manifest:{version:1,asOf,originalObservedAt:'2026-09-12T03:00:00.000Z'},files:[{capturedAt:'2026-09-12T03:00:00.000Z',value:0}]};},
   async writePublicReplica(directory,publication){stages.push({directory,publication:clone(publication)});publications.set(directory,clone(publication));return clone(publication.manifest);},
   async readPublication(directory){reads.push(directory);assert.ok(publications.has(directory),'an active generation must reuse its exact staged directory');return clone(publications.get(directory));},
+  publicDeliveryFromSyncFailure,
+  async inspectPublicDelivery(input,{signal}){
+   return inspectDelivery(input,{signal,clock:()=>iso(control.now),fetchImpl:async url=>{
+    if(url.pathname==='/')return new Response(control.publicHomepageStatus===200?'<html><title>MCN 矩阵数据台</title></html>':'error code: 1010',{status:control.publicHomepageStatus,headers:{'content-type':control.publicHomepageStatus===200?'text/html':'text/plain'}});
+    const publication=[...publications.values()].find(value=>value.manifest.asOf===input.asOf);
+    assert.ok(publication,'visitor pointer must reference a published synthetic generation');
+    return Response.json({manifest:publication.manifest,publishedAt:iso(control.now),readOnly:true,collectionRequiresLocalComputer:true});
+   }});
+  },
   sync:{async sync(publication,options){syncs.push({publication:clone(publication),dateIndex:options.dateIndex});if(control.hold)await control.hold;if(control.error)throw control.error;if(control.result.status==='success')rememberPublished(publication.manifest.asOf,publication);return{...clone(control.result),asOf:publication.manifest.asOf,manifestSha256:hash(publication.manifest)};}},
   async privateWrite(path,value){assert.equal(path,'in-memory-state');if(control.saveError)throw Error('synthetic-storage-failed');persisted=clone(value);writes.push(clone(value));},
   console:{log:line=>logs.push(JSON.parse(line))},
@@ -235,4 +245,27 @@ test('phase65 actual busy/stopping guards and original active manifest identity 
 test('phase65 actual run acquires its ownership lock before any state read, watcher, timer or export',async()=>{
  const calls=[],context=vm.createContext({home:'/in-memory-fixture-only',join,privateDirectory:async()=>calls.push('directory'),acquirePublisherLock:async()=>{calls.push('lock');throw Object.assign(Error('publisher-already-running'),{code:'publisher-already-running'});},privateRead:async()=>assert.fail('state must not be read without lock'),setInterval:()=>assert.fail('no timer without lock'),watch:()=>assert.fail('no watcher without lock')});
  const run=vm.runInContext('('+runDeclaration+')',context);await assert.rejects(run(),{code:'publisher-already-running'});assert.deepEqual(calls,['directory','lock']);
+});
+
+
+test('visitor denial never rewinds confirmed publication or bypasses the ordinary catch-up cadence',async()=>{
+ const h=harness(state({lastConfirmedPublishedAt:iso(T),publishedAsOf:iso(T)}));
+ h.control.publicHomepageStatus=403;await h.tick();
+ assert.equal(h.state().status,'success');assert.equal(h.state().sync.status,'success');
+ assert.equal(h.state().publicAccess.status,'blocked');assert.equal(h.state().publicAccess.networkRequests,1);
+ assert.equal(h.state().publicAccess.asOf,h.state().publishedAsOf);
+ const publishedLog=h.logs.findLast(log=>log.status==='success');
+ assert.equal(publishedLog?.publicAccessStatus,'blocked');assert.equal(publishedLog?.publicAccessAsOf,h.state().publishedAsOf);
+ assert.equal(h.state().active,null);assert.equal(h.stages.length,1);assert.equal(h.syncs.length,1);
+ await h.tick();assert.equal(h.stages.length,1);assert.equal(h.syncs.length,1,'access refusal cannot manufacture another generation');
+});
+
+
+test('an older verified visitor check cannot label a different active generation as accessible',async()=>{
+ const seed=seededActive(),prior=iso(T-MINUTE);
+ const h=harness(state({active:seed.active,publishedAsOf:prior,publicAccess:{asOf:prior,status:'verified'}}),{publications:seed.publications});
+ h.control.result={status:'failed',code:'network-failed'};await h.tick();
+ assert.equal(h.logs.at(-1).publicAccessStatus,'not-checked');
+ assert.equal(h.logs.at(-1).publicAccessAsOf,prior);assert.equal(h.logs.at(-1).asOf,seed.active.asOf);
+ assert.equal(h.state().publicAccess.status,'verified','retain accurately dated prior evidence without relabelling it');
 });
