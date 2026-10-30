@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { MonitorDatabase } from '../lib/database.mjs';
 import { buildMasterRosterSnapshot, installMasterRoster } from '../lib/master-roster.mjs';
 
@@ -107,7 +107,11 @@ test('roster supplement HTTP: preview, durable job, safe binding, replay, permis
   const changed = await call('/api/master-roster/supplement/preview', { method: 'POST', body: { ...request, evidence: 'https://www.douyin.com/user/MS4wLjABAAAAanotherIdentity1234567890' } });
   assert.equal(changed.status, 409, 'completed binding cannot silently swap to another person');
   const persisted = db.getAuthorResolutionJob(job.id);
-  const generic = await call('/api/author-spreadsheet/auto-monitor', { method: 'POST', body: { ...persisted.request, uploadSha256: 'd'.repeat(64) }, headers: { 'Idempotency-Key': randomUUID() } });
+  const upload = Buffer.from(`作者名称,secuid\n普通导入作者,${paused.locator}\n`);
+  const generic = await call('/api/author-spreadsheet/auto-monitor', { method: 'POST', body: {
+    ...persisted.request, sourceType: 'author-spreadsheet', fileName: 'generic.csv', sheetName: undefined,
+    contentBase64: upload.toString('base64'), uploadSha256: createHash('sha256').update(upload).digest('hex'),
+  }, headers: { 'Idempotency-Key': randomUUID() } });
   assert.equal(generic.status, 202, JSON.stringify(generic.body));
   assert.equal(db.getAuthorResolutionJob(generic.body.id).request.masterRosterSupplement, undefined, 'general importer cannot forge roster context');
   const pausedRequest = { ...request, entryKey: original.items[1].key, evidence: `https://www.douyin.com/user/${paused.locator}` };
