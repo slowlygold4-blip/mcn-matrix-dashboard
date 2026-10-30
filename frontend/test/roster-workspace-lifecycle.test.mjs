@@ -216,7 +216,26 @@ test('author-directory and account-change tasks are mutually exclusive and prese
  try{const {context,page,errors,requests}=await openFixture(browser,'?theme=tuantuan&rosterPanel=authors#accounts');try{
   await secondPage(page);const expected=rosterParams(page);
   assert.equal(await page.getByRole('heading',{name:'账号变化',exact:true}).count(),0);
-  assert.equal(await page.getByLabel(/^选择周期/).count(),0,'date controls belong to account changes, not imported author identities');
+  assert.equal(await page.getByLabel(/^选择周期/).count(),1,'profile changes in the full directory need an accessible period control');
+  const dateControls=page.getByRole('region',{name:'作者变化观察区间'});
+  await dateControls.getByLabel('选择周期',{exact:true}).selectOption('week');
+  await dateControls.getByRole('button',{name:'应用周期',exact:true}).click();
+  await page.waitForFunction(()=>new URL(location.href).searchParams.get('start')==='2026-09-23');
+  assert.equal(new URL(page.url()).searchParams.get('end'),'2026-09-30');
+  assert.match(await dateControls.innerText(),/2026-09-23 → 2026-09-30/);
+  assert.equal(await roster(page).locator('tbody tr').count(),30,'observation dates cannot remove registered authors');
+  assert.deepEqual(rosterParams(page),expected,'period changes retain search, ranking, mode and page');
+  await dateControls.getByLabel('基准观察日',{exact:true}).fill('2026-09-29');
+  await page.waitForFunction(()=>new URL(location.href).searchParams.get('period')==='custom');
+  assert.match(await dateControls.innerText(),/2026-09-29 → 2026-09-30/);
+  const monitoredRow=roster(page).locator('tbody tr').filter({has:page.getByRole('button',{name:'监控账号甲 · 查看账号变化',exact:true})});
+  try{await monitoredRow.locator('td').nth(7).getByText('+1',{exact:true}).waitFor();}
+  catch(error){
+   const directory=site+'output/playwright/roster-workspace-lifecycle';await mkdir(directory,{recursive:true});
+   await writeFile(directory+'/period-metric.json',JSON.stringify({url:page.url(),rows:await monitoredRow.allTextContents(),period:await dateControls.innerText(),errors,requests},null,2));
+   throw error;
+  }
+  assert.deepEqual(rosterParams(page),expected);
   await page.getByRole('button',{name:'只看已采集账号变化',exact:true}).click();
   try{await page.getByRole('heading',{name:'账号变化',exact:true}).waitFor();}
   catch(error){
@@ -230,7 +249,8 @@ test('author-directory and account-change tasks are mutually exclusive and prese
   await page.getByRole('button',{name:/^全部矩阵作者/}).click();
   await assertSecondPage(page,expected);
   assert.equal(await page.getByRole('heading',{name:'账号变化',exact:true}).count(),0);
-  assert.equal(await page.getByLabel(/^选择周期/).count(),0);
+  assert.equal(await page.getByLabel(/^选择周期/).count(),1);
+  assert.match(await page.getByRole('region',{name:'作者变化观察区间'}).innerText(),/2026-09-29 → 2026-09-30/);
   assert.deepEqual(errors,[]);noMutations(requests);
  }finally{await context.close();}}finally{await browser.close();}
 });
