@@ -323,6 +323,44 @@ function addPlatformWork(db, { id, postId, targetId = 10, authorId = sec,
     .run(postId, metricAt, likes, plays);
 }
 
+test('same-instant conflicting likes stay unknown in works, author totals and publication metrics while equal duplicates remain valid',()=>{
+ const db=fixture();platformFixture(db);
+ const at='2020-01-02T00:00:00Z';
+ try{
+  db.prepare('INSERT INTO post_metrics(post_id,captured_at,likes,plays) VALUES(101,?,?,?)').run('2020-01-02T08:00:00+08:00',13,70);
+  const query={view:'works',q:'111',asOf:'2026-10-22T00:00:00.000Z'};
+  let result=readCreatorOperatingView(db,query),item=result.items[0];
+  assert.equal(item.latestLikes,null);assert.equal(item.metricOrigin.likes,'conflict');
+  assert.equal(item.metricAdoption.likes.conflict,true);assert.equal(item.platformLatest.likes,null);
+  assert.equal(item.comparison.likes,null);assert.equal(item.sourceComparison.likes,null);
+  assert.equal(result.summary.likesKnown,0);assert.equal(result.summary.likesConflicts,1);
+  const author=readCreatorOperatingView(db,{...query,view:'authors'}).items[0];
+  assert.equal(author.cumulativeLikes,null);assert.equal(author.likesConflicts,1);
+  const publication=readUnifiedPublicationWorks(db,query.asOf,{includeMetrics:true}).find(work=>work.contentId==='111');
+  assert.equal(publication.latestLikes,null);assert.equal(publication.metricOrigin.likes,'conflict');
+  db.prepare('INSERT INTO post_metrics(post_id,captured_at,likes,plays) VALUES(101,?,?,?)').run(at,9,70);
+  assert.equal(readCreatorOperatingView(db,query).items[0].latestLikes,null,'third matching row cannot erase an existing conflict');
+  db.prepare('INSERT INTO post_metrics(post_id,captured_at,likes,plays) VALUES(101,?,?,?)').run('2020-01-04T00:00:00Z',0,null);
+  item=readCreatorOperatingView(db,query).items[0];assert.equal(item.latestLikes,0);
+  assert.equal(item.comparison.likes,null,'a conflicting previous point cannot form a numerical delta');
+  db.exec("DELETE FROM post_metrics WHERE captured_at='2020-01-04T00:00:00Z'");
+  db.exec('UPDATE post_metrics SET likes=9 WHERE post_id=101 AND likes=13');
+  item=readCreatorOperatingView(db,query).items[0];
+  assert.equal(item.latestLikes,9);assert.equal(item.metricOrigin.likes,'platform');
+  assert.equal(item.comparison.likes.delta,2);assert.equal(item.latestPlays,70);
+  db.prepare('INSERT INTO post_metrics(post_id,captured_at,likes,plays) VALUES(101,?,?,?)').run('2020-01-04T00:00:00Z',0,null);
+  item=readCreatorOperatingView(db,query).items[0];assert.equal(item.latestLikes,0);
+  assert.equal(item.comparison.likes.delta,-9);assert.equal(item.latestPlays,70);
+  db.prepare('INSERT INTO post_metrics(post_id,captured_at,likes,plays) VALUES(101,?,?,?)').run('2020-01-02T00:00:00.000Z',9,71);
+  item=readCreatorOperatingView(db,query).items[0];
+  assert.equal(item.latestLikes,0);assert.equal(item.latestPlays,null);
+  assert.equal(item.metricOrigin.plays,'conflict');assert.equal(item.sourceComparison.plays,null);
+  db.prepare('INSERT INTO post_metrics(post_id,captured_at,likes,plays) VALUES(101,?,?,?)').run('2020-01-05T00:00:00Z',null,72);
+  item=readCreatorOperatingView(db,query).items[0];
+  assert.equal(item.latestLikes,0);assert.equal(item.latestPlays,72);assert.equal(item.comparison.plays,null);
+ }finally{db.close();}
+});
+
 test('exact work hashtags reach the same filtered operating query and publication ledger without inheriting author categories', () => {
   const db = fixture();
   try {

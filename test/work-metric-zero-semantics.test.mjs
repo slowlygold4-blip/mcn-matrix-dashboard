@@ -21,8 +21,9 @@ function detail(plays, platform = "douyin") {
     locator: platform === "douyin" ? SEC_UID : "123456", enabled: 1,
     metadata_json: JSON.stringify({ platform }), created_at: "2026-09-01T00:00:00.000Z" };
   const db = { exec(sql) {
-    assert.match(sql, /^(?:SAVEPOINT|RELEASE) works_observation_read$/);
+    assert.match(sql, /^(?:SAVEPOINT|RELEASE|ROLLBACK TO) works_observation_read$/);
   }, prepare(sql) { return { get() {
+    if (sql === 'SELECT total_changes() AS changes') return { changes: 0 };
     if (/sqlite_master.*master_roster_imports/.test(sql)) return undefined;
     assert.match(sql, /sqlite_master.*works_observations/);
     return undefined; // Legacy read-only fixture has no separate works ledger.
@@ -34,7 +35,7 @@ function detail(plays, platform = "douyin") {
       published_at: "2026-09-27T01:00:00.000Z", captured_at: "2026-09-28T02:00:00.000Z",
       likes: 25, comments: null, shares: 0, collects: null, plays }];
     return [];
-  } }; } };
+  }, iterate() { return this.all()[Symbol.iterator](); } }; } };
   return getAccountInsight({ db }, 1, { period: "day", reference, timeZone: "Asia/Shanghai" });
 }
 
