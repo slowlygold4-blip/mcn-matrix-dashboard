@@ -9,6 +9,7 @@ import {reconcileSupplementProfileIdentityLinks} from '../lib/reconcile-suppleme
 import {reconcileCreatorProfileIdentityLinks} from '../lib/reconcile-creator-profile-links.mjs';
 import {readCurrentCreatorSourceLinks} from '../lib/creator-source-current-links.mjs';
 import {ensureSupplementProfileLinkSchema,readSupplementProfileIdentityLinks,planSupplementProfileIdentityLinks,SUPPLEMENT_PROFILE_LINK_TABLE} from '../lib/supplement-profile-identity-links.mjs';
+import {linkRosterSourceProfiles} from '../lib/roster-profile-links.mjs';
 const AT='2026-10-09T12:00:00.000Z',NOW='2026-10-09T15:00:00.000Z',LATER='2026-10-19T15:00:00.000Z';
 const SEC='MS4wLjABAAAAStoredSupplementOwner123456';
 function fixture(t){
@@ -47,6 +48,46 @@ function fixture(t){
  const foundation=(at=NOW)=>readPublicTableFoundation(db,at,{rosterAccounts:[],sourceCorpus:{works:[],currentLinks:{accountLinks:[],fingerprint:'fixture'}}});
  return{db,target,sample,row,job,sources,read,reconcile,foundation};
 }
+
+function rosterItems(){
+ const base={platform:'douyin',theme:{key:'tuantuan',label:'团团'},originalNames:[],sourceLinks:[],sourceTitles:[],evidenceLinks:[],reviewReasons:[],classifications:[],boards:[],sources:[],profileLinks:[]};
+ return [{...structuredClone(base),key:'target:1',targetId:1,name:'保留的账号名',monitorStatus:'paused',accountIds:['old-handle']},
+  {...structuredClone(base),key:'source:one',targetId:null,name:'来源作者',monitorStatus:'pending',accountIds:['Example_A'],
+   creatorSourceRows:[7],creatorSourceAccountIds:['Example_A'],
+   sources:[{liveJobId:'source-one',rows:['1']}],classifications:[{key:'slice',label:'切片'}]}];
+}
+test('canonical roster and public source foundation use the same current profile proof without changing jobs or targets',t=>{
+ const f=fixture(t);f.job({id:'current-needs-locator',revision:2,rows:[{...f.row(),status:'needs_locator'}]});
+ const items=rosterItems(),before=JSON.stringify(items),jobs=f.db.prepare('SELECT * FROM author_resolution_jobs').all(),targets=f.db.prepare('SELECT * FROM targets').all();
+ assert.deepEqual(f.foundation().authors[0].targetIds,[1]);
+ const merged=linkRosterSourceProfiles(f.db,items,{reference:NOW});
+ assert.equal(merged.linkedEntryCount,1);assert.equal(merged.items.length,1);
+ assert.equal(merged.items[0].targetId,1);assert.equal(merged.items[0].monitorStatus,'paused');
+ assert.deepEqual(merged.items[0].sources[0].rows,['1']);assert.equal(merged.items[0].classifications[0].key,'slice');
+ assert.deepEqual(merged.items[0].creatorSourceRows,[7]);assert.deepEqual(merged.items[0].creatorSourceAccountIds,['Example_A']);
+ assert.equal(merged.items[0].linkedSourceEntries[0].proofs[0].submittedWorksVerified,false);
+ assert.match(merged.items[0].identityStatus,/来源身份已核验/);
+ assert.equal(JSON.stringify(items),before);assert.deepEqual(f.db.prepare('SELECT * FROM author_resolution_jobs').all(),jobs);
+ assert.deepEqual(f.db.prepare('SELECT * FROM targets').all(),targets);
+});
+test('durable source links remain consistent in both projections after expiry, and corrupted source cannot use fresh fallback',t=>{
+ const f=fixture(t);f.reconcile();
+ assert.deepEqual(f.foundation(LATER).authors[0].targetIds,[1]);
+ assert.equal(linkRosterSourceProfiles(f.db,rosterItems(),{reference:LATER}).linkedEntryCount,1);
+ const request=JSON.parse(f.db.prepare('SELECT request_json FROM author_resolution_jobs').get().request_json);request.rows[0].name='edited';
+ f.db.prepare('UPDATE author_resolution_jobs SET request_json=?').run(JSON.stringify(request));
+ assert.equal(linkRosterSourceProfiles(f.db,rosterItems(),{reference:NOW}).linkedEntryCount,0);
+ assert.deepEqual(f.foundation().authors[0].targetIds,[]);
+});
+test('source projection does not override corrected IDs, theme ownership, foreign profile links or ambiguous current profiles',t=>{
+ const f=fixture(t);
+ for(const change of [{identityCorrection:{status:'pending'}},{theme:{key:'another'}},{profileLinks:['https://www.douyin.com/user/AnotherOwner']}]){
+  const items=rosterItems();Object.assign(items[1],change);
+  assert.equal(linkRosterSourceProfiles(f.db,items,{reference:NOW}).linkedEntryCount,0);
+ }
+ f.target(2,'Example_A',SEC+'Other');f.sample({id:20,targetId:2,handle:'Example_A',sec:SEC+'Other'});
+ assert.equal(linkRosterSourceProfiles(f.db,rosterItems(),{reference:NOW}).linkedEntryCount,0);
+});
 
 test('completed supplementary sources gain durable links without changing raw jobs, targets or work receipts',t=>{
  const f=fixture(t),raw=f.db.prepare('SELECT * FROM author_resolution_jobs').all(),targets=f.db.prepare('SELECT * FROM targets').all();

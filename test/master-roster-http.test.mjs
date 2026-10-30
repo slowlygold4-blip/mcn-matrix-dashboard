@@ -30,7 +30,13 @@ test('authenticated roster GET returns full roster without promoting candidates 
   assert.equal(roster.items[0].name, '当前昵称'); assert.equal(roster.items[0].monitorStatus, 'paused');
   assert.equal(roster.items[1].targetId, null); assert.ok(!Object.hasOwn(roster.items[1], 'metrics'));
   const after = await (await get('/api/rebuild/insights?period=week')).json();
-  assert.deepEqual(before.summary, after.summary); assert.equal(after.accounts.length, 1);
+  assert.deepEqual(before.summary, after.summary);
+  // The current product intentionally includes preserved source-only authors
+  // beside monitored accounts. Their presence must not promote them to targets
+  // or change operating totals; counting only the monitor would hide the row.
+  assert.equal(after.accounts.filter(row => !row.sourceOnly).length, 1);
+  assert.equal(after.accounts.find(row => !row.sourceOnly).id, account.id);
+  assert.equal(after.accounts.filter(row => row.sourceOnly).length, 1);
   assert.equal(db.db.prepare('SELECT count(*) n FROM snapshots').get().n, 0);
   const anonymous = await fetch(`${origin}/api/master-roster`, { headers: { 'X-Forwarded-For': '203.0.113.5' } });
   assert.equal(anonymous.status, 401);
