@@ -20,3 +20,9 @@ test('legacy summary never substitutes an old global work count for platform-spe
  const html=renderToStaticMarkup(React.createElement(CollectionPlatformSummary,{status:{rolling:{worksLimited:999}}}));
  assert.match(html,/尚未上报/);assert.doesNotMatch(html,/999/);assert.doesNotMatch(html,/data-platform/);
 });
+test('rendered progress distinguishes successful like storage from computable daily changes',()=>{
+ const observedAt='2026-10-30T04:00:00.000Z',status={observedAt,rolling:{platforms:[{platform:'douyin',accounts:1,profiles:1,worksComplete:0,worksLimited:1,workIssues:0}]},
+ dailyWorkLikes:{date:'2026-10-30',since:'2026-10-29T16:00:00.000Z',asOf:observedAt,basis:'stored-work-like-observations',platforms:[{platform:'douyin',storedWorks:10,observedWorks:7,observedAccounts:1}],comparability:{version:1,previousDate:'2026-10-29',platforms:[{platform:'douyin',knownTodayWorks:6,comparableWorks:2,missingBaselineWorks:4,conflictingWorks:1}]}}};
+ const html=renderToStaticMarkup(React.createElement(CollectionPlatformSummary,{status}));assert.match(html,/点赞日变化可计算 <b>2<\/b> 条/);assert.match(html,/缺有效前日基线 4 条/);assert.match(html,/当日末次观测冲突 1 条/);assert.match(html,/缺基线或冲突不计为0/);
+ delete status.dailyWorkLikes.comparability;const old=renderToStaticMarkup(React.createElement(CollectionPlatformSummary,{status}));assert.match(old,/可比覆盖尚未上报/);assert.doesNotMatch(old,/可计算 <b>0/);
+});

@@ -14,13 +14,26 @@ function projectRows(value,fields,valid){
 export function projectCollectionPlatforms(status){
  const rolling=projectRows(status?.rolling?.platforms,['accounts','profiles','worksComplete','worksLimited','workIssues'],
   row=>row.profiles<=row.accounts&&row.worksComplete+row.worksLimited<=row.accounts&&row.workIssues<=row.accounts);
- const raw=status?.dailyWorkLikes;let daily=null;
+ const raw=status?.dailyWorkLikes;
+ /** @type {null|{date:string,since:string,asOf:string,basis:string,platforms:any[],comparability?:{version:number,previousDate:string,platforms:any[]}}} */
+ let daily=null;
  if(raw?.basis==='stored-work-like-observations'&&instant(raw.asOf)&&raw.asOf===status?.observedAt
   &&raw.date===new Date(Date.parse(raw.asOf)+8*3600000).toISOString().slice(0,10)
   &&raw.since===new Date(Date.parse(raw.date+'T00:00:00.000Z')-8*3600000).toISOString()){
   const rows=projectRows(raw.platforms,['storedWorks','observedWorks','observedAccounts'],row=>row.observedWorks<=row.storedWorks
    &&(row.observedWorks>0||row.observedAccounts===0)&&(!rolling||rolling.some(item=>item.platform===row.platform&&row.observedAccounts<=item.accounts)));
-  if(rows&&(!rolling||rows.length===rolling.length))daily={date:raw.date,since:raw.since,asOf:raw.asOf,basis:raw.basis,platforms:rows};
+  if(rows&&(!rolling||rows.length===rolling.length)){
+   daily={date:raw.date,since:raw.since,asOf:raw.asOf,basis:raw.basis,platforms:rows};
+   const change=raw.comparability,previousDate=new Date(Date.parse(raw.date+'T00:00:00.000Z')-86400000).toISOString().slice(0,10);
+   if(change?.version===1&&change.previousDate===previousDate){
+    const changes=projectRows(change.platforms,['knownTodayWorks','comparableWorks','missingBaselineWorks','conflictingWorks'],row=>{
+     const source=rows.find(item=>item.platform===row.platform);
+     return !!source&&row.comparableWorks+row.missingBaselineWorks===row.knownTodayWorks
+      &&row.knownTodayWorks<=source.observedWorks&&row.knownTodayWorks+row.conflictingWorks<=source.storedWorks;
+    });
+    if(changes&&changes.length===rows.length)daily.comparability={version:1,previousDate,platforms:changes};
+   }
+  }
  }
  return {rolling,daily};
 }

@@ -32,3 +32,17 @@ test('daily data is bound to exact telemetry generation, Beijing day and its pla
  }
  const dup=make();dup.dailyWorkLikes.platforms.push(dup.dailyWorkLikes.platforms[0]);assert.equal(projectCollectionPlatforms(dup).daily,null);
 });
+test('daily change readiness survives the actual safe relay with no private details',()=>{
+ const x=make();x.dailyWorkLikes.comparability={version:1,previousDate:'2026-10-29',secret:'PRIVATE_SENTINEL',platforms:[
+  {platform:'douyin',knownTodayWorks:0,comparableWorks:0,missingBaselineWorks:0,conflictingWorks:0},
+  {platform:'bilibili',knownTodayWorks:3,comparableWorks:1,missingBaselineWorks:2,conflictingWorks:0,token:'PRIVATE_SENTINEL'}]};
+ const projected=projectCollectionPlatforms(x);assert.equal(projected.daily.comparability.platforms[1].comparableWorks,1);
+ const safe=safeProgress(x);assert.deepEqual(projectCollectionPlatforms(safe),projected);assert.equal(JSON.stringify(safe).includes('PRIVATE_SENTINEL'),false);
+});
+test('bad baselines, counterfeit completion and conflicting work denominators are unavailable rather than zero',()=>{
+ const makeChange=()=>{const x=make();x.dailyWorkLikes.comparability={version:1,previousDate:'2026-10-29',platforms:[
+  {platform:'douyin',knownTodayWorks:0,comparableWorks:0,missingBaselineWorks:0,conflictingWorks:0},
+  {platform:'bilibili',knownTodayWorks:3,comparableWorks:1,missingBaselineWorks:2,conflictingWorks:0}]};return x;};
+ for(const patch of [{version:2},{previousDate:'2026-10-28'},{platforms:[]}]){const x=makeChange();Object.assign(x.dailyWorkLikes.comparability,patch);assert.equal(projectCollectionPlatforms(x).daily.comparability,undefined);}
+ for(const patch of [{knownTodayWorks:4},{comparableWorks:4},{missingBaselineWorks:-1},{comparableWorks:'1'},{conflictingWorks:18}]){const x=makeChange();Object.assign(x.dailyWorkLikes.comparability.platforms[1],patch);assert.equal(projectCollectionPlatforms(x).daily.comparability,undefined);}
+});
