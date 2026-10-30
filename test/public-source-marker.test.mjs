@@ -19,3 +19,16 @@ test('future import completion is excluded until the actual cutoff reaches it',(
   assert.equal(readPublicSourceMarker(db,'2026-10-29T05:00:00Z'),before);assert.notEqual(readPublicSourceMarker(db,'2026-10-30T05:00:00Z'),before);
  }finally{db.close();}
 });
+test('an identity-only admission triggers publication without a new sampling run or source edition',()=>{
+ const db=new DatabaseSync(':memory:');try{
+  const at='2026-10-30T05:00:00.000Z';let previous=readPublicSourceMarker(db,at);
+  for(const table of ['creator_source_profile_identity_receipts','supplement_profile_identity_receipts']){
+   db.exec(`CREATE TABLE ${table}(id INTEGER,receipt_sha256 TEXT,committed_at TEXT,receipt_json TEXT)`);
+   assert.equal(readPublicSourceMarker(db,at),previous);
+   db.prepare(`INSERT INTO ${table} VALUES(1,?,?,?)`).run('a'.repeat(64),'2026-10-30T06:00:00.000Z','PRIVATE_SECRET');
+   assert.equal(readPublicSourceMarker(db,at),previous,'future admission is not published early');
+   db.prepare(`UPDATE ${table} SET committed_at='2026-10-30T04:00:00.000Z'`).run();
+   const next=readPublicSourceMarker(db,at);assert.notEqual(next,previous);assert.match(next,/^[a-f0-9]{64}$/);previous=next;
+  }
+ }finally{db.close()}
+});
