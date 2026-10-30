@@ -86,6 +86,10 @@ test('binding never invents authors, metric dates, publication dates or adds dup
  const conflict={...r,contentId:other,redirectUrl:`https://www.iesdouyin.com/share/video/${other}/`};
  assert.equal(bindWorkFactsToRedirects([base],[r,conflict]).summary.conflicts,1);
  assert.equal(bindWorkFactsToRedirects([{...base,contentId:other}],[r]).summary.conflicts,1);
+ const register={...source,versions:[{sourceUrl:'source',report:{source:{title:'一条小团团ovo切片发布登记表'}}}]};
+ const slice=mergeWorkSourceFacts([],[],register,{linkReceipts:[r]}).works[0];
+ assert.deepEqual(slice.classifications,['slice']);assert.deepEqual(slice.tracks,[]);
+ assert.equal(slice.primaryTrack,'','register classification is not proof of incentive participation');
 });
 
 test('only admitted successful receipts refresh source cache/public marker, respecting historical cutoffs',async()=>{
