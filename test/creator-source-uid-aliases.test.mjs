@@ -57,6 +57,7 @@ test('explicit source UID becomes a durable alias of one existing account; all w
  assert.equal(data.works.length,2);assert.ok(data.works.every(w=>w.authorKey===data.authors[0].key&&w.targetId===1));
  const parts=creatorSourcePartitions(f.db,NOW),authors=parts.find(p=>p.kind==='creatorAuthors');
  assert.equal(authors.items.length,1);assert.ok(creatorPartValid({version:1,asOf:NOW,timeZone:'Asia/Shanghai',revision:authors.revision,items:authors.items},authors,NOW));
+ assert.deepEqual(authors.items[0].douyinIds,['Example_A',UID],'a confirmed UID alias remains searchable after its duplicate author row is collapsed');
  assert.deepEqual(projectCanonicalCreatorLinks(links.accountLinks),[{authorRow:authors.items[0].row,targetId:1}],'cloud catalog references only the retained author and keeps its existing one-to-one contract');
  const files=parts.map(({path,kind,count,...body})=>{const content=JSON.stringify({version:1,asOf:NOW,timeZone:'Asia/Shanghai',...body})+'\n';
   const file={path,kind,count,sha256:hash(content),bytes:Buffer.byteLength(content),content};

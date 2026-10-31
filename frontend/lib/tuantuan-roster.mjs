@@ -33,7 +33,8 @@ export function buildTuantuanRoster(authors, accounts, supplements=[], pending=[
  }
  const canonical=allAuthors.filter(author => !merged.has(author)).map(author => {
   const alias=aliases.get(author);
-  return alias?{...author,douyinIds:[author.douyinId,alias.douyinId],
+  const identifiers=alias?[author.douyinId,...(author.douyinIds??[]),alias.douyinId,...(alias.douyinIds??[])]:null,seen=new Set();
+  return alias?{...author,douyinIds:identifiers.filter(id=>{const key=identity(id);if(seen.has(key))return false;seen.add(key);return true;}),
    sourceTitles:[...new Set([...(author.sourceTitles ?? []),...(alias.sourceTitles ?? [])])]}:author;
  });
  const seenAuthors = new Set(), seenRows = new Set(), linkedIds = new Set();
