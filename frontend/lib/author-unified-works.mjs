@@ -19,7 +19,7 @@ export function mergeAuthorWorks({author,sourceWorks,platformWorks,sourceObserva
   const key=String(row.contentId||'');
   if(!/^\d{15,25}$/.test(key))throw Error('作者作品 ID 无效，停止合并');
   if(works.has(key))throw Error('原始作品索引存在重复 ID，需核对');
-  works.set(key,{id:`creator-source:1:${index+1}`,externalId:key,source:'creator-source',caption:row.title||'',url:row.url||`https://www.douyin.com/video/${key}`,publishedOn:row.publishDate||null,publicationDateBasis:['source-explicit-date','source-inferred-date','source-date-conflict','unverified-date'].includes(row.dateBasis)?row.dateBasis:'creator-source-date-only',sourceInferredPublishedOn:row.inferredPublishDate||null,likes:known(row.likes),plays:known(row.plays),sourceCumulativeLikes:known(row.likes),sourceCumulativePlays:known(row.plays),sourcePublishedOn:row.publishDate||null,
+  works.set(key,{id:`creator-source:1:${index+1}`,externalId:key,source:'creator-source',caption:row.title||'',url:row.url||`https://www.douyin.com/video/${key}`,publishedOn:row.publishDate||null,publicationDateBasis:['source-explicit-date','source-inferred-date','source-date-conflict','unverified-date','missing'].includes(row.dateBasis)?row.dateBasis:'creator-source-date-only',sourceInferredPublishedOn:row.inferredPublishDate||null,likes:known(row.likes),plays:known(row.plays),sourceCumulativeLikes:known(row.likes),sourceCumulativePlays:known(row.plays),sourcePublishedOn:row.publishDate||null,
    ...(owner?{canonicalOwnerTargetId:owner.targetId,sourceOwnershipConflict:owner.sourceClaimMatches!==true,ownershipClaimOnly:!owned,
     sourceClaimedCumulativeLikes:known(row.likes),sourceClaimedCumulativePlays:known(row.plays)}:{})});
  }

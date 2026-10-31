@@ -33,10 +33,13 @@ test('a confidence swap with unchanged totals, missing row basis and unknown bas
 });
 test('author daily publication counts precise and explicitly submitted dates, retains all pending records and their CSV provenance',()=>{
  const sourceWorks=[{row:2,contentId:row(2,'source-explicit-date').contentId,douyinId:'author_a',publishDate:date,dateBasis:'source-explicit-date',inferredPublishDate:'2026-10-29',likes:0,plays:null},
- {row:3,contentId:row(3,'source-inferred-date').contentId,douyinId:'author_a',publishDate:date,dateBasis:'source-inferred-date',likes:5,plays:null}];
+ {row:3,contentId:row(3,'source-inferred-date').contentId,douyinId:'author_a',publishDate:date,dateBasis:'source-inferred-date',likes:5,plays:null},
+ {row:4,contentId:row(4,'missing').contentId,douyinId:'author_a',publishDate:'',dateBasis:'missing',likes:null,plays:null}];
  const sourceBefore=structuredClone(sourceWorks),merged=mergeAuthorWorks({author:{douyinId:'author_a',targetIds:[]},sourceWorks,platformWorks:[],asOf:at});
  const model=authorDailyPublication(merged,{asOf:at});assert.equal(model.knownWorks,1);assert.equal(model.recordedWorks,2);assert.equal(model.unverifiedDateWorks,1);assert.equal(model.status,'published');assert.equal(model.complete,false);
  assert.equal(merged[0].sourceInferredPublishedOn,'2026-10-29');assert.deepEqual(sourceWorks,sourceBefore);
+ assert.equal(merged[2].publicationDateBasis,'missing');assert.equal(merged[2].publishedOn,null);assert.equal(model.undatedWorks,1);
+ assert.equal(savedPublicationDateValid(merged[2],at),true);
  const table=authorWorkExportRows(merged);assert.ok(table[0].includes('发布日期依据'));assert.ok(table[1].includes('明确填报日期'));assert.equal(table[1].at(-1),'2026-10-29');assert.ok(table[2].includes('推算日期，待核验'));
  const pending=authorDailyPublication([merged[1]],{asOf:at});assert.equal(pending.status,'date-unverified');assert.equal(pending.knownWorks,0);assert.equal(pending.rows.length,1);
 });
