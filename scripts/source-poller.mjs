@@ -21,6 +21,7 @@ import { mapBitableAuthorRows } from "../lib/source-bitable-mapping.mjs";
 import { createWorkSourcePollReader } from '../lib/work-source-poll.mjs';
 import { SOURCE_POLLER_CAPABILITY_HEADER, normalizeLoopbackHttpOrigin, readSourcePollerCapability } from "../lib/internal-source-capability.mjs";
 import { withPublisherRecoveryLock } from "./public-replica-publisher.mjs";
+import {ensureBackgroundPriority} from '../lib/background-priority.mjs';
 export { completedSourceJobSummary } from "../lib/source-poller-status.mjs";
 
 const projectDir = fileURLToPath(new URL("..", import.meta.url));
@@ -767,4 +768,7 @@ async function main() {
   } while (!process.exitCode);
 }
 
-if (isMainModule()) main().catch((error) => { console.error(error); process.exitCode = 1; });
+if (isMainModule()) {
+  if(ensureBackgroundPriority().status==='deferred')console.error(JSON.stringify({code:'source-background-priority-deferred',runtimeAI:false}));
+  main().catch((error) => { console.error(error); process.exitCode = 1; });
+}

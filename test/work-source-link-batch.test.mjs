@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';
+import test,{before,after} from 'node:test';import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,writeFile,readFile,rm,readdir} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';
 import {DatabaseSync} from 'node:sqlite';import * as XLSX from '@e965/xlsx';
 import {commitWorkSourceEdition} from '../lib/work-source-store.mjs';
@@ -6,6 +6,9 @@ import {resolveWorkSourceLink,readWorkLinkReceipts} from '../lib/work-source-lin
 import {runWorkSourceLinkBatch,workSourceLinkPlan} from '../lib/work-source-link-batch.mjs';
 const now=()=>Date.parse('2026-10-30T23:00:00.000Z');
 const id='7684947825248082873';
+const originalFetch=globalThis.fetch;
+before(()=>{globalThis.fetch=async()=>{throw Error('unmocked-network-is-forbidden');};});
+after(()=>{globalThis.fetch=originalFetch;});
 async function fixture(t){
  const dir=await mkdtemp(join(tmpdir(),'mcn-source-batch-'));t.after(()=>rm(dir,{recursive:true,force:true}));
  const path=join(dir,'monitor.sqlite'),db=new DatabaseSync(path);db.exec('PRAGMA foreign_keys=ON');
@@ -23,7 +26,7 @@ test('shared batch deduplicates, continues the next bounded pass, then does no H
  const options={...f.options,resolveLink:async o=>{calls++;return resolved(o);},beforeCommit:async()=>{backups++;return {validated:true};}};
  const first=await runWorkSourceLinkBatch({...options,reportDirectory:join(f.dir,'first')});
  assert.equal(first.status,'completed');assert.equal(first.processed,1);assert.equal(first.remaining,1);assert.equal(first.unresolved,1);
- assert.equal(first.retryAt,'2026-10-30T23:05:00.000Z');
+ assert.equal(first.retryAt,'2026-10-30T23:00:15.000Z');
  const second=await runWorkSourceLinkBatch({...options,reportDirectory:join(f.dir,'second')});assert.equal(second.remaining,0);assert.equal(second.unresolved,0);
  const third=await runWorkSourceLinkBatch({...options,reportDirectory:join(f.dir,'third')});assert.equal(third.planned,0);assert.equal(third.retryAt,null);
  assert.equal(calls,2);assert.equal(backups,2);assert.deepEqual(await readdir(join(f.dir,'.work-link-leases')),[]);
@@ -41,6 +44,13 @@ test('upstream denial stops the batch and prevents another URL from bypassing it
  assert.equal(second.processed,0);assert.equal(second.unresolved,2);assert.equal(second.phase,'upstream-cooldown');assert.equal(calls,1);
 });
 
+test('transport failures retain the five-minute cooldown rather than using the successful-page continuation interval',async t=>{
+ const f=await fixture(t);let calls=0;
+ const options={...f.options,resolveLink:async o=>resolveWorkSourceLink({...o,fetchImpl:async()=>{calls++;throw Error('synthetic network failure');}})};
+ const first=await runWorkSourceLinkBatch({...options,reportDirectory:join(f.dir,'first')});
+ assert.equal(first.status,'stopped-upstream');assert.equal(first.code,'network-error');assert.equal(first.retryAt,'2026-10-30T23:05:00.000Z');assert.equal(calls,1);
+ const second=await runWorkSourceLinkBatch({...options,reportDirectory:join(f.dir,'second')});assert.equal(second.processed,0);assert.equal(calls,1);
+});
 test('an active batch excludes another caller, and a crashed lease does not block future work',async t=>{
  const f=await fixture(t);let entered,finish;const started=new Promise(r=>{entered=r;}),gate=new Promise(r=>{finish=r;});
  const first=runWorkSourceLinkBatch({...f.options,reportDirectory:join(f.dir,'first'),resolveLink:async o=>{entered();await gate;return resolved(o);}});

@@ -1,5 +1,6 @@
 import { constants, watch } from 'node:fs';
-import {getPriority,setPriority} from 'node:os';
+import {ensureBackgroundPriority as ensurePublisherBackgroundPriority} from '../lib/background-priority.mjs';
+export {ensurePublisherBackgroundPriority};
 import { prunePublicReplicaStaging } from '../lib/public-replica-retention.mjs';
 import { open, mkdir, readFile, rename, lstat, link, unlink } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
@@ -21,15 +22,9 @@ const home=join(data,'public-replica-publisher');
 const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const iso=value=>typeof value==='string'&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString()===value;
 const fail=code=>{throw Object.assign(new Error(code),{code});};
-/** launchd may retain an older loaded plist. Lower this worker's own priority
- * on every start; never raise an already lower-priority process or touch others. */
-export function ensurePublisherBackgroundPriority({read=getPriority,write=setPriority}={}){
-  try{const current=read();if(current<10)write(10);return {status:'applied',priority:read()};}
-  catch{return {status:'deferred',priority:null};}
-}
 // A staged generation is immutable. Its preparation features must not change
 // merely because a newer executable uses a different export revision.
-const legacyDateIndexRevisions=new Set(['catalog-date-range-v1','catalog-date-range-v2-roster-classification','catalog-date-range-v13-publication-scope','catalog-date-range-v14-independent-work-publishers','catalog-date-range-v15-source-field-order','catalog-date-range-v16-source-work-classification',PUBLIC_REPLICA_EXPORT_REVISION]);
+const legacyDateIndexRevisions=new Set(['catalog-date-range-v1','catalog-date-range-v2-roster-classification','catalog-date-range-v13-publication-scope','catalog-date-range-v14-independent-work-publishers','catalog-date-range-v15-source-field-order','catalog-date-range-v16-source-work-classification','catalog-date-range-v17-publication-date-basis',PUBLIC_REPLICA_EXPORT_REVISION]);
 export function shouldPreparePublicDateIndex(active){
   return typeof active?.dateIndex==='boolean' ? active.dateIndex
     : legacyDateIndexRevisions.has(active?.exportRevision);

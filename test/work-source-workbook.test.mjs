@@ -68,6 +68,65 @@ test('publication register headers retain work counters and identities without i
   assert.equal(result.summary.datedMeasurements, 0);
 });
 
+test('actual creator registration headers retain nickname, work publication date and likes independently of the source refresh',()=>{
+ const result=readWorkSourceWorkbook(book({'登记':[
+  ['AI作者视频申报数据登记表(激励计划)'],['建议发布作品后先填基本信息，后续再填数据（9.12-10.12内需填写完整）'],
+  ['抖音昵称','抖音号','作品链接','作品发布时间','点赞量','播放量','作品数据截图','审核结果'],
+  ['作者甲','handle-a',`https://www.douyin.com/video/${id}`,'2026-09-12',0,'1.2万','',''],
+  ['作者乙','handle-b','https://v.douyin.com/register/','2026-09-13','15','','',''],
+ ]}));
+ assert.equal(result.facts.length,2);const [first,second]=result.facts;
+ assert.equal(first.authorName,'作者甲');assert.equal(first.accountId,'handle-a');assert.equal(first.contentId,id);
+ assert.equal(first.publishedOn,'2026-09-12');assert.equal(first.likes,0);assert.equal(first.plays,12000);
+ assert.equal(second.authorName,'作者乙');assert.equal(second.publishedOn,'2026-09-13');assert.equal(second.likes,15);assert.equal(second.plays,null);
+ assert.ok(result.facts.every(f=>f.metricDate===null));assert.equal(result.summary.datedMeasurements,0);
+ assert.equal(result.facts[0].row,4);assert.equal(result.facts[1].row,5);
+});
+test('like-only registration headers are data while colliding like aliases remain ambiguous',()=>{
+ const result=readWorkSourceWorkbook(book({'登记':[['抖音昵称','抖音号','作品链接','作品发布时间','点赞量'],['作者','handle',`https://www.douyin.com/video/${id}`,'2026-09-12',7]]}));
+ assert.equal(result.facts.length,1);assert.equal(result.facts[0].likes,7);assert.equal(result.facts[0].plays,null);
+ assert.throws(()=>readWorkSourceWorkbook(book({'重复':[['作品链接','点赞量','点赞'],[`https://www.douyin.com/video/${id}`,1,2]]})),/ambiguous-source-header/);
+});
+test('registration month/day uses its declared period and the same-sheet calendar year, with one shared proof rather than a made-up sampling day',()=>{
+ const result=readWorkSourceWorkbook(book({'登记':[
+  ['登记表2027不是发布日期年份'],['9.12-10.12内需填写完整'],
+  ['作品链接','作品发布时间','点赞量','数据日期'],
+  [`https://www.douyin.com/video/${id}`,'2026-09-12',0,''],
+  [`https://www.douyin.com/video/${other}`,'9月13',8,'9月13'],
+  ['https://v.douyin.com/decimal/',9.14,4,''],
+  ['https://v.douyin.com/ambiguous/',9.3,7,''],
+ ]}));
+ assert.deepEqual(result.facts.map(f=>f.publishedOn),['2026-09-12','2026-09-13','2026-09-14',null]);
+ const context=result.sheets[0].publicationCalendar;assert.equal(context.start,'2026-09-12');assert.equal(context.end,'2026-10-12');assert.equal(context.anchors.length,1);
+ assert.equal(result.facts[1].publicationDateResolution.contextSha256,context.sha256);assert.equal(result.facts[1].publicationDateResolution.originalValue,'9月13');
+ assert.equal(result.facts[2].publicationDateResolution.originalValue,9.14);assert.equal(Object.hasOwn(result.facts[0],'publicationDateResolution'),false);
+ assert.ok(result.facts.every(f=>f.metricDate===null));assert.equal(result.facts[3].rawDateValues.publishedOn,'9.3');assert.equal(result.summary.datedMeasurements,0);
+});
+test('missing calendar anchors, conflicting years, absent or ambiguous period and outside-period month/day remain unguessed',()=>{
+ for(const variant of ['no-anchor','multiple-years','no-period','two-periods','outside-period']){
+  const notes=variant==='no-period'?'普通登记说明':variant==='two-periods'?'9.12-10.12 或 10.15-11.15':'9.12-10.12';
+  const rows=[[notes],['作品链接','作品发布时间','点赞量']];
+  if(variant!=='no-anchor')rows.push([`https://www.douyin.com/video/${id}`,'2026-09-12',0]);
+  if(variant==='multiple-years')rows.push([`https://www.douyin.com/video/${other}`,'2025-09-12',0]);
+  rows.push(['https://v.douyin.com/month/',variant==='outside-period'?'10月13日':'9月13',5]);
+  const result=readWorkSourceWorkbook(book({'登记':rows})),last=result.facts.at(-1);
+  assert.equal(last.publishedOn,null,variant);assert.equal(last.likes,5);assert.equal(last.dateIssues[0].field,'publishedOn');assert.equal(Object.hasOwn(last,'publicationDateResolution'),false);
+ }
+});
+test('real read cutoff excludes future typos from both date fields and calendar anchors, without replacing raw cells or using the clock as a year',()=>{
+ const input=book({'登记':[['9.12-10.12'],['作品链接','作品发布时间','点赞量','数据日期'],
+  [`https://www.douyin.com/video/${id}`,'2026-09-12',0,''],
+  ['https://v.douyin.com/future/','2029-09-13',5,'2029-09-13'],
+  ['https://v.douyin.com/month/','9月13',6,''],
+ ]});
+ const raw=Buffer.from(input),result=readWorkSourceWorkbook(input,{asOf:'2026-10-31T00:00:00.000Z'});
+ assert.equal(result.facts[1].publishedOn,null);assert.equal(result.facts[1].metricDate,null);assert.equal(result.facts[1].likes,5);
+ assert.equal(result.facts[1].rawDateValues.publishedOn,'2029-09-13');assert.ok(result.facts[1].dateIssues.every(issue=>issue.reason==='future-source-date'));
+ assert.equal(result.facts[2].publishedOn,'2026-09-13');assert.equal(result.sheets[0].publicationCalendar.anchors.length,1);assert.ok(input.equals(raw),'the original workbook bytes are preserved');
+ const after2029=readWorkSourceWorkbook(input,{asOf:'2030-10-31T00:00:00.000Z'});assert.equal(after2029.facts[2].publishedOn,null,'two now-past source years remain ambiguous; the current year supplies neither');
+ const early=readWorkSourceWorkbook(input,{asOf:'2026-09-12T00:00:00.000Z'});assert.equal(early.facts[2].publishedOn,null);assert.equal(early.facts[2].dateIssues[0].reason,'future-source-date');
+ assert.throws(()=>readWorkSourceWorkbook(input,{asOf:'invalid'}),/invalid-source-asof/);
+});
 test('register aliases still reject ambiguous headers and do not turn an author-only roster into works', () => {
   assert.throws(() => readWorkSourceWorkbook(book({ '重复表头': [
     ['账号ID', '抖音号', '发布链接', '点赞'], ['handle', 'handle', `https://www.douyin.com/video/${id}`, 1],
