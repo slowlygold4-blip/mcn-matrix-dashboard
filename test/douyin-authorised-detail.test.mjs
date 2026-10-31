@@ -230,7 +230,11 @@ test('CLI cannot launch standalone even with uploaded enable flags or environmen
   for (const enabled of ['0', '1']) {
     const env = { ...process.env, DOUYIN_AUTHORISED_DETAIL_ENABLED: enabled }; delete env.MCN_BROWSER_OWNERSHIP_NONCE;
     const result = spawnSync(process.execPath, [script], { env, input: JSON.stringify({ ...payload(), enabled: true }), encoding: 'utf8', timeout: 5000 });
-    assert.equal(result.status, 1); assert.deepEqual(JSON.parse(result.stdout), { ok: false, errorCode: enabled === '1' ? 'ownership_required' : 'disabled' });
+    assert.equal(result.status, 1);
+    const response = JSON.parse(result.stdout);
+    assert.equal(response.ok, false);
+    assert.equal(response.errorCode, 'DOUYIN_BROWSER_RETIRED');
+    assert.equal(response.runtimeAI, false);
     assert.equal(result.stderr, '');
   }
 });

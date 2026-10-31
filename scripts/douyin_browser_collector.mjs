@@ -1,24 +1,19 @@
 #!/usr/bin/env node
 /**
- * Collect a public works window from an authorised current profile document.
- * Prefer the page's natural requests; if none exists, permit one explicitly
- * labelled same-origin first-page GET. No signer, challenge solving, access
- * control bypass or browser credentials are exposed.
- *
- * Input:  { items: [{ key, secUid, limit }] }
- * Output: { ok: true, data: { items, provenance } }
+ * Historical work-response parsing and offline lifecycle regression adapters.
+ * The command and default live browser launch are retired. Injected fixture
+ * operations are retained to test stored evidence without platform access.
  */
 import { access, chmod, readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
-import { chromium } from "playwright-core";
+import { reportRetiredDouyinBrowserCommand, retiredDouyinBrowserError } from "../lib/retired-douyin-browser-command.mjs";
 import { classifyBrowserWorksFailure, safeBrowserCollectorException } from "../lib/douyin-browser-failure.mjs";
 import { isExpectedDouyinWorksResponseUrl } from "../lib/douyin-browser-response-identity.mjs";
 import { browserResourceFailureKind, browserRuntimeErrorKind, sanitizeBrowserResourceObservation, sanitizeBrowserWorksDiagnostics, unknownBrowserWorksDiagnostics } from "../lib/douyin-browser-diagnostics.mjs";
 import { createBrowserResourceObservation } from "../lib/browser-resource-observation.mjs";
 import { createCdpObservation } from "../lib/browser-cdp-observation.mjs";
-import { collectorOwnershipClient } from "../lib/collector-ownership.mjs";
 import { BrowserWorksPagination, browserWorksCursor } from "../lib/browser-works-pagination.mjs";
 import { observeBrowserFirstScreen } from "../lib/browser-render-diagnostics.mjs";
 import { observeFirstPageActivation, sanitizeFirstPageActivationStructure } from "../lib/browser-first-page-activation.mjs";
@@ -1267,6 +1262,9 @@ export async function collectOne(page, item, options = {}) {
 }
 
 export async function collectBrowserWorks(payload, { executablePath = process.env.DOUYIN_CHROME_PATH || DEFAULT_CHROME, runtime = {}, collectOptions = {} } = {}) {
+  // Offline regression adapters must supply all browser operations. The real
+  // Playwright fallback has been removed; reject before reading stored state.
+  if (typeof runtime.launch !== "function" && !(typeof runtime.launchServer === "function" && typeof runtime.connect === "function")) throw retiredDouyinBrowserError();
   const items = normalizeBrowserCollectorInput(payload);
   const ownership = runtime.ownership ?? null;
   // Only the private hello ACK owns this budget. Uploaded data cannot set it.
@@ -1302,13 +1300,13 @@ export async function collectBrowserWorks(payload, { executablePath = process.en
     else {
       await ownership?.send("launch");
       requireWorkBudget();
-      browserServer = await openBoundedResource(() => (runtime.launchServer ?? (opts => chromium.launchServer(opts)))({ ...options, host: "127.0.0.1", port: 0 }), remaining(30_000));
+      browserServer = await openBoundedResource(() => runtime.launchServer({ ...options, host: "127.0.0.1", port: 0 }), remaining(30_000));
       const processHandle = browserServer.process();
       if (!Number.isSafeInteger(processHandle?.pid) || processHandle.pid <= 1) throw new Error("浏览器未提供私有进程所有权凭证");
       await ownership?.send("register", processHandle.pid);
       registeredPid = processHandle.pid;
       requireWorkBudget();
-      browser = await openBoundedResource(() => (runtime.connect ?? ((endpoint, opts) => chromium.connect(endpoint, opts)))(browserServer.wsEndpoint(), { timeout: remaining(5_000) }), remaining(5_000));
+      browser = await openBoundedResource(() => runtime.connect(browserServer.wsEndpoint(), { timeout: remaining(5_000) }), remaining(5_000));
     }
     requireWorkBudget();
     context = await openBoundedResource(() => browser.newContext({ storageState: state, locale: "zh-CN", userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/140 Safari/537.36" }), remaining(10_000));
@@ -1367,23 +1365,4 @@ export async function collectBrowserWorks(payload, { executablePath = process.en
   }
 }
 
-async function main() {
-  let text = "";
-  for await (const chunk of process.stdin) text += chunk;
-  let ownership;
-  try {
-    ownership = collectorOwnershipClient();
-    await ownership?.send("hello");
-    const result = await collectBrowserWorks(JSON.parse(text || "{}"), { runtime: { ownership } });
-    await ownership?.send("complete");
-    process.stdout.write(JSON.stringify({ ok: true, data: result }));
-  } catch (error) {
-    try { await ownership?.send("complete"); } catch { /* Parent retains uncertainty and locks the lane. */ }
-    process.stdout.write(JSON.stringify({ ok: false, ...safeBrowserCollectorException(error), failureDiagnostics: unknownBrowserWorksDiagnostics() }));
-    process.exitCode = 1;
-  } finally {
-    if (process.connected) process.disconnect();
-  }
-}
-
-if (import.meta.url === `file://${process.argv[1]}`) main();
+if (import.meta.url === `file://${process.argv[1]}`) await reportRetiredDouyinBrowserCommand();

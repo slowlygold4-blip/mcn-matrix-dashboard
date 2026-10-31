@@ -8,7 +8,9 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { createOwnedCollectorExecutor } from '../lib/collector-ownership.mjs';
 import { collectAuthorisedDetail } from '../lib/douyin-authorised-detail.mjs';
 
-const collectorUrl = new URL('../scripts/douyin_authorised_detail.mjs', import.meta.url).href;
+// Production commands are retired. Keep the captured protocol fixture so old
+// identity receipts and cleanup regressions remain independently testable.
+const collectorUrl = new URL('./fixtures/retired-authorised-detail-cli.mjs', import.meta.url).href;
 const detailUrl = new URL('../lib/douyin-authorised-detail.mjs', import.meta.url).href;
 const ownershipUrl = new URL('../lib/collector-ownership.mjs', import.meta.url).href;
 const payload = { items: [{ key: 'offline-peer-share', submittedId: 'offline_peer', shareUrl: 'https://v.douyin.com/OfflinePeer/' }] };
@@ -34,7 +36,8 @@ const legacyCleanup = `  finally {
   }
 `;
 // Pre-fix CLI control flow; absolute import URLs are the only path adaptation.
-const legacyCli = `import { collectAuthorisedDetail } from ${JSON.stringify(detailUrl)};
+const legacyCli = `import { chromium } from 'playwright-core';
+import { collectAuthorisedDetail } from ${JSON.stringify(detailUrl)};
 import { collectorOwnershipClient } from ${JSON.stringify(ownershipUrl)};
 let ownership, launched = false;
 try {
@@ -57,7 +60,7 @@ try {
     if (kind === 'register') launched = true;
     return ownership.send(kind, pid);
   } };
-  const data = await collectAuthorisedDetail(payload, { enabled: true, runtime: { ownership: trackedOwnership }, signal: controller.signal });
+  const data = await collectAuthorisedDetail(payload, { enabled: true, runtime: { ownership: trackedOwnership, chromium }, signal: controller.signal });
   await ownership.send('complete');
   process.off('SIGTERM', stop);
   process.stdout.write(JSON.stringify({ ok: true, data }));
@@ -132,7 +135,7 @@ for (const close of ['throw', 'hang']) test(`legacy lifecycle reproduces permane
   t.diagnostic('Reproduced: dead registered fixture group + skipped released + premature complete => protocol-state-invalid, recoveryEligible=false');
 });
 
-for (const close of ['normal', 'throw', 'hang']) test(`fixed CLI preserves navigation failure and releases the proven-dead group after page.close ${close}`, { timeout: 10000 }, async t => {
+for (const close of ['normal', 'throw', 'hang']) test(`historical CLI fixture preserves navigation failure and releases the proven-dead group after page.close ${close}`, { timeout: 10000 }, async t => {
   const result = await runOffline(t, { close });
   assert.equal(result.output.error, null);
   const response = JSON.parse(result.output.stdout);
@@ -142,7 +145,7 @@ for (const close of ['normal', 'throw', 'hang']) test(`fixed CLI preserves navig
   assert.equal(result.diagnostics.lastLock, null);
 });
 
-test('fixed CLI never fabricates complete without release; missing release remains fail-closed rather than protocol-invalid', { timeout: 10000 }, async t => {
+test('historical CLI fixture never fabricates complete without release; missing release remains fail-closed rather than protocol-invalid', { timeout: 10000 }, async t => {
   const result = await runOffline(t, { close: 'unconfirmed' });
   assert.equal(result.output.error?.code, 'BROWSER_OWNERSHIP_UNKNOWN');
   assert.equal(result.diagnostics.lastLock.branch, 'protocol-completion-unconfirmed');

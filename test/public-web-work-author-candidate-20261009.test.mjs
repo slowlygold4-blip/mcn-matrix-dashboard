@@ -139,19 +139,22 @@ test('cancel before or during collector cannot surface candidate as a success', 
   }
 });
 
-test('candidate CLI cannot run without explicit enable plus private parent ownership', () => {
+test('candidate CLI stays retired even with explicit legacy enable', () => {
   const script = fileURLToPath(new URL('../scripts/douyin_work_author_candidate.mjs', import.meta.url));
   for (const enabled of [false, true]) {
     const env = { ...process.env }; delete env.MCN_BROWSER_OWNERSHIP_NONCE;
     delete env.DOUYIN_WORK_AUTHOR_CANDIDATE_ENABLED;
     if (enabled) env.DOUYIN_WORK_AUTHOR_CANDIDATE_ENABLED = '1';
     const child = spawnSync(process.execPath, [script], { env, input: JSON.stringify({ items: [input] }), encoding: 'utf8', timeout: 5000 });
-    assert.equal(child.status, 1); assert.deepEqual(JSON.parse(child.stdout), { ok: false, errorCode: enabled ? 'ownership_required' : 'disabled' });
+    assert.equal(child.status, 1);
+    const response = JSON.parse(child.stdout);
+    assert.equal(response.ok, false); assert.equal(response.errorCode, 'DOUYIN_BROWSER_RETIRED');
+    assert.equal(response.runtimeAI, false);
     assert.doesNotMatch(child.stdout, /candidate-only|SECRET/);
   }
 });
 
-test('prelaunch session failure remains fail-closed without locking the lane or fabricating browser release', async t => {
+test('retired command remains fail-closed without locking the lane or fabricating browser release', async t => {
   const directory = await mkdtemp(join(tmpdir(), 'candidate-cli-no-session-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const executor = createOwnedCollectorExecutor();
