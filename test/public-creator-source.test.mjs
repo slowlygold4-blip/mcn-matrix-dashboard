@@ -83,6 +83,7 @@ test('public source corpus is complete, sealed and contains no raw source, autho
  const body=JSON.stringify(result);for(const forbidden of ['private.feishu.cn','private-document','private-bonus','sourceEditionEvidence','rowSha256'])assert.equal(body.includes(forbidden),false);
  const works=JSON.parse(result.files.find(f=>f.kind==='creatorWorks').content).items;
  assert.equal(works[1].plays,null);assert.equal(works[1].likes,0);assert.equal(works[1].publishDate,'');
+ assert.deepEqual(works.map(w=>w.classifications),[['slice'],['slice']],'known work categories survive publication without becoming new measurements');
  assert.equal(db.prepare('SELECT total_changes() n').get().n,changes,'builder performs no writes');
 });
 test('a changed publication timestamp alone keeps the public source content identity stable',t=>{
@@ -115,7 +116,7 @@ test('all source pages, exact totals, insights and data fingerprint are audited 
  const missing=read();missing.manifest.files=missing.manifest.files.filter(f=>f.kind!=='creatorWorks');await assert.rejects(audit(missing),/descriptor-conflict/);
 });
 test('shared creator analytics and validation contracts match the hosted copies',()=>{
- for(const name of ['creator-intelligence.mjs','source-ledger-track.mjs','replica-creator.mjs']){
+ for(const name of ['creator-intelligence.mjs','source-ledger-track.mjs','replica-creator.mjs','source-work-classification.mjs']){
   const sibling=new URL('../../mcn-public-site/lib/'+name,import.meta.url),tracked=new URL('../frontend/lib/'+name,import.meta.url);
   assert.equal(hash(readFileSync(new URL('../lib/'+name,import.meta.url))),hash(readFileSync(existsSync(sibling)?sibling:tracked)));
  }

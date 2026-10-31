@@ -1,3 +1,4 @@
+import {sourceContentClassifications,sourceWorkClassificationKeys} from './source-work-classification.mjs';
 const authorTrackFields = Object.freeze({
   '切片激励': 'slicePosts',
   '创作激励': 'creationPosts',
@@ -18,6 +19,10 @@ export function sourceTrackMemberships(row) {
 /** Source-table category membership, not a mutually exclusive partition. */
 export function belongsToSourceTrack(row, track, view) {
   if (track === 'all') return true;
+  if(typeof track==='string'&&track.startsWith('content:')){
+    const key=track.slice('content:'.length);
+    return sourceWorkClassificationKeys.includes(key)&&sourceContentClassifications(row,view).includes(key);
+  }
   if (view === 'authors') {
     if (track === '__unclassified__') {
       return Object.keys(authorTrackFields).every(track => !authorHasTrack(row,track));

@@ -11,9 +11,10 @@ fixture.env.BUCKET.get=async key=>fixture.objects.has(key)?{text:async()=>fixtur
 const prepare=fixture.env.DB.prepare;fixture.env.DB.prepare=sql=>{const statement=prepare(sql);return {...statement,first:()=>statement.bind().first()};};
 const {POST,GET}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 test.beforeEach(()=>fixture.reset());test.after(()=>fixture.close());
-function publication(asOf,plays,{corrupt=false}={}){
+function publication(asOf,plays,{corrupt=false,classifications}={}){
  const authors=[{row:2,name:'作者A',douyinId:'author_a',posts:1,slicePosts:1,creationPosts:0,aiPosts:0,cupPosts:0,plays,likes:0,followers:null,targetIds:[]}];
  const works=[{row:2,contentId:'7300000000000000001',author:'作者A',douyinId:'author_a',publishDate:'2026-09-12',type:'video',track:'切片激励',tracks:'切片激励',plays,likes:0,title:'作品',url:'https://www.douyin.com/video/7300000000000000001'}];
+ if(classifications!==undefined)works[0].classifications=classifications;
  const insight=buildCreatorIntelligence(authors,works);if(corrupt)insight.counts.cumulativePlays++;
  const base={version:1,asOf,timeZone:'Asia/Shanghai'},files=[];
  const add=(path,kind,count,payload)=>{const data=JSON.stringify({...base,...payload})+'\n';const file={path,kind,count,bytes:Buffer.byteLength(data),sha256:hash(data),data};files.push(file);return file;};
@@ -43,4 +44,14 @@ test('incorrect source aggregation cannot activate or displace the previous publ
  const bad=publication('2026-10-29T02:00:00.000Z',30,{corrupt:true});const rejected=await publish(bad);assert.equal(rejected.status,409);
  assert.match(await rejected.text(),/经营统计核验失败/);
  const current=await GET(new Request('https://fixture.test/api/replica'));assert.equal((await current.json()).manifest.asOf,first.asOf);
+});
+test('optional content categories activate without dropping the legacy generation or exposing unknown fields',async()=>{
+ const old=publication('2026-10-29T01:00:00.000Z',25);assert.equal((await publish(old)).status,200);
+ const current=publication('2026-10-29T02:00:00.000Z',25,{classifications:['slice']});assert.equal((await publish(current)).status,200);
+ const fetcher=url=>GET(new Request(new URL(url,'https://fixture.test')));
+ const index=await readSourceIndex('/creator-source/index.json',{preferReplica:true,fetcher});
+ const rows=await readSourcePart(index.files.find(f=>f.path==='works-001.json'),'1',null,'/creator-source/',{fetcher});
+ assert.deepEqual(rows[0].classifications,['slice']);assert.equal(rows[0].likes,0);
+ const legacy=await GET(new Request('https://fixture.test/api/replica?generation='+encodeURIComponent(old.asOf)+'&part=creator/works-001.json'));
+ assert.equal(legacy.status,200);assert.equal((await legacy.json()).items[0].classifications,undefined);
 });
