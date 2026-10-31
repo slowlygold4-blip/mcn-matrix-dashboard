@@ -261,7 +261,7 @@ async function runPublisherCycle(ownerInstance){
   if(isMainThread||owner.pid!==process.pid||owner.instance!==ownerInstance)fail('invalid-publisher-worker-owner');
   const statePath=join(home,'state.json');let state=await privateRead(statePath);if(state.version!==1)fail('invalid-state');
   let busy=false,stopping=false,immutableStage=null;const signal=new AbortController();
-  const sync=createPublicReplicaSync({activationTimeoutMs:300_000,compressRequests:true,reuseUnchanged:true,getCredential:()=>privateRead(join(home,'credential'),{credential:true}),
+  const sync=createPublicReplicaSync({activationTimeoutMs:300_000,compressRequests:true,reuseUnchanged:true,chunkedDateAudit:true,getCredential:()=>privateRead(join(home,'credential'),{credential:true}),
     loadCheckpoint:async()=>{try{return await privateRead(join(home,'checkpoint.json'));}catch(e){if(e.code==='ENOENT')return null;throw e;}},
     saveCheckpoint:value=>privateWrite(join(home,'checkpoint.json'),value)});
   const tick=async()=>{

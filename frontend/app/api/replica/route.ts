@@ -9,6 +9,8 @@ import {isReadOnlyFrontend,forwardReadOnlyFrontend} from '@/lib/standalone-reado
 import {summaryDescriptors,summaryPartValid} from '@/lib/replica-summary.mjs';
 import {auditDatePublication} from '@/lib/replica-date-audit.mjs';
 import {replicaStorageFailure} from '@/lib/replica-storage-read.mjs';
+import {auditDateChunk,requireDateAuditReceipts} from '@/lib/replica-date-audit-receipts.mjs';
+import {DATE_AUDIT_CONTRACT} from '@/lib/replica-date-audit-plan.mjs';
 export const dynamic = "force-dynamic";
 const PATH = /^(catalog|topics|summary|date-summary-index|publishing)\.json$|^(daily|works|work-metrics)\/[0-9]{1,8}\.json$|^(summary|date-summary|publishing)\/[0-9]{6}\.json$|^creator\/(index|authors|insights|works-\d{3})\.json$|^foundation\/(index|authors|works|sources|observations|other-authors|other-works|pending-authors)\.json$/;
 const SHA = /^[a-f0-9]{64}$/;
@@ -128,7 +130,7 @@ export async function POST(request: Request) {
       const response=json({accepted:input.files.length,asOf:input.asOf});
       if(reuse){response.headers.set('X-Replica-Reused',String(references.size));response.headers.set('X-Replica-Stored',String(stored));}return response;
     }
-    if(input.action!=="activate"||input.manifest?.asOf!==input.asOf||!Array.isArray(input.manifest.files)||privateKey(input.manifest))return json({error:"无效发布清单"},400);
+    if(!['activate','audit-date'].includes(input.action)||input.manifest?.asOf!==input.asOf||!Array.isArray(input.manifest.files)||privateKey(input.manifest))return json({error:"无效发布清单"},400);
     const files=input.manifest.files;
     activationStartedAt=Date.now();activationPhase='metadata';
     const filesByPath=new Map<string,any>(files.map((f:any)=>[f.path,f]));
@@ -150,6 +152,11 @@ export async function POST(request: Request) {
       const text=await readReplicaText(bucket,input.asOf,meta,map.get(path),{signal:request.signal});
       if(text===undefined)throw Object.assign(Error('missing-storage'),{code:'replica-storage-repair'});return text;
     };
+    if(input.action==='audit-date'){
+      const receipt=await auditDateChunk({manifest:input.manifest,chunkIndex:input.chunkIndex,bucket,readText:readPartText,signal:request.signal});
+      return json({audited:true,asOf:input.asOf,chunkIndex:receipt.chunkIndex,chunkCount:receipt.chunkCount,verifiedDaily:receipt.verifiedDaily});
+    }
+    if(input.dateAudit!==undefined&&input.dateAudit!==DATE_AUDIT_CONTRACT)return json({error:'日期审查协议无效'},400);
     activationPhase='summary';
     const summaryMeta=filesByPath.get('summary.json'),summaryText=await readPartText('summary.json');
     if(summaryText.length>6_000_000||await bytesHash(summaryText)!==summaryMeta.sha256)return json({error:"历史索引校验失败，未发布"},409);
@@ -157,7 +164,8 @@ export async function POST(request: Request) {
     if(descriptors)for(const descriptor of descriptors){const body=await readPartText(descriptor.path),parsed=JSON.parse(body);if(!summaryPartValid(parsed,input.asOf)||parsed.items.length!==descriptor.count)return json({error:"历史分片记录数不一致，未发布"},409);}
     if(files.some((f:{kind:string;path:string})=>f.kind==='summaryDateIndex'||f.kind==='summaryDateShard'||f.path==='date-summary-index.json'||f.path.startsWith('date-summary/'))){
       activationPhase='date';let dateProgress:Record<string,unknown>={phase:'index',verifiedDaily:0};
-      try{await auditDatePublication({manifest:input.manifest,readText:readPartText,signal:request.signal,onProgress:(progress:Record<string,unknown>)=>{dateProgress=progress;}});}
+      try{if(input.dateAudit===DATE_AUDIT_CONTRACT)await requireDateAuditReceipts({manifest:input.manifest,bucket,signal:request.signal});
+        else await auditDatePublication({manifest:input.manifest,readText:readPartText,signal:request.signal,onProgress:(progress:Record<string,unknown>)=>{dateProgress=progress;}});}
       catch(error){if(error&&typeof error==='object'&&'code'in error&&error.code==='replica-storage-repair')throw error;activationRejected('date',error,dateProgress);return json({error:"日期历史未通过全量来源核对，未发布"},409);}
     }
     activationPhase='publishing';
@@ -176,6 +184,8 @@ export async function POST(request: Request) {
     return json({published:true,asOf:input.asOf,parts:files.length});
   } catch(error) {
     const bodyCode=error&&typeof error==='object'&&'code'in error?error.code:null;
+    if(bodyCode==='date-audit-input')return json({error:'日期审查批次无效'},400);
+    if(bodyCode==='date-audit-incomplete')return json({error:'日期来源尚未全部审查，未发布'},409);
     if(bodyCode==='replica-storage-repair')return json({error:'存储分片缺失或损坏，未发布'},409);
     if(bodyCode==='too-large')return json({error:'批次过大'},413);
     if(bodyCode==='unsupported-encoding')return json({error:'不支持的传输编码'},415);

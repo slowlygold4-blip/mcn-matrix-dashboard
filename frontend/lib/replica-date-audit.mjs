@@ -10,16 +10,21 @@ const demand=(x,code='date-source-invalid')=>{if(!x)throw Object.assign(Error('d
 // request window while six still honor the 8 MB in-flight body budget.
 const MAX_DAILY_READERS=6;
 const MAX_DAILY_SOURCE_BYTES_IN_FLIGHT=8_000_000;
-export async function auditDatePublication({manifest,readText,signal,onProgress=(_progress)=>{}}){
+export async function auditDatePublication({manifest,readText,signal,sourceRange=null,onProgress=(_progress)=>{}}){
  const metas=new Map(manifest.files.map(f=>[f.path,f]));
- let verifiedDaily=0;const expectedDaily=manifest.files.filter(f=>f.kind==='daily').length;
+ const allDaily=manifest.files.filter(f=>f.kind==='daily');
+ demand(sourceRange===null||(Number.isSafeInteger(sourceRange?.start)&&Number.isSafeInteger(sourceRange?.end)
+  &&sourceRange.start>=0&&sourceRange.start<sourceRange.end&&sourceRange.end<=allDaily.length),'date-audit-input');
+ const selected=sourceRange?allDaily.slice(sourceRange.start,sourceRange.end):allDaily;
+ const selectedIds=new Set(selected.map(f=>f.targetId));
+ let verifiedDaily=0;const expectedDaily=selected.length;
  const progress=phase=>onProgress({phase,verifiedDaily,expectedDaily});progress('index');
  const read=async path=>{signal?.throwIfAborted();const meta=metas.get(path);demand(meta);let text;try{text=await readText(path);}catch(error){signal?.throwIfAborted();if(error?.code==='replica-storage-repair')throw error;throw Object.assign(Error('date-source-audit-failed'),{code:'date-storage-read',storageFailure:replicaStorageFailure(error)});}signal?.throwIfAborted();demand(typeof text==='string','date-source-missing');demand(Buffer.byteLength(text)===meta.bytes&&createHash('sha256').update(text).digest('hex')===meta.sha256,'date-source-checksum');try{return JSON.parse(text);}catch{demand(false,'date-source-json');}};
  const index=await read('date-summary-index.json'),descriptors=await dateDescriptors(index,manifest),digests=new Map();let previous=null;
  progress('shards');
- for(const s of descriptors){const part=await read(s.path);previous=validateDateShard(part,s,manifest,previous);for(const point of part.items){let state=digests.get(point.targetId);if(!state){state={hash:createHash('sha256'),count:0};digests.set(point.targetId,state);}state.hash.update(JSON.stringify(point)+'\n');state.count++;}}
+ for(const s of descriptors){const part=await read(s.path);previous=validateDateShard(part,s,manifest,previous);for(const point of part.items){if(!selectedIds.has(point.targetId))continue;let state=digests.get(point.targetId);if(!state){state={hash:createHash('sha256'),count:0};digests.set(point.targetId,state);}state.hash.update(JSON.stringify(point)+'\n');state.count++;}}
  progress('daily');
- const daily=manifest.files.filter(f=>f.kind==='daily');
+ const daily=selected;
  const largest=daily.reduce((bytes,meta)=>Math.max(bytes,meta.bytes),0);
  const readers=Math.min(MAX_DAILY_READERS,daily.length,Math.max(1,Math.floor(MAX_DAILY_SOURCE_BYTES_IN_FLIGHT/(largest||1))));
  let cursor=0, stopped=false, failure;
@@ -37,5 +42,7 @@ export async function auditDatePublication({manifest,readText,signal,onProgress=
  // source read can outlive a rejected activation attempt.
  await Promise.all(Array.from({length:readers},worker));
  if(stopped)throw failure;
- demand(digests.size===0,'date-source-extra-target');signal?.throwIfAborted();progress('done');return {fullySourceBound:true,count:index.count,shards:descriptors.length};
+ demand(digests.size===0,'date-source-extra-target');signal?.throwIfAborted();progress('done');
+ return sourceRange?{fullySourceBound:false,verifiedDaily,start:sourceRange.start,end:sourceRange.end,totalDaily:allDaily.length}
+  :{fullySourceBound:true,count:index.count,shards:descriptors.length};
 }

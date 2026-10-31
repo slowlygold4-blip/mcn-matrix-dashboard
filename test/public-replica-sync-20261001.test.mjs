@@ -937,3 +937,35 @@ test('repairable immutable-storage refusal replays acknowledged uploads without 
  cloud.fetch=async(url,init={})=>reject&&init.method==='POST'&&JSON.parse(init.body).action==='activate'?Response.json({error:'存储分片缺失或损坏，未发布',private:SENTINEL},{status:409}):original(url,init);
  const owner=producer(cloud,{reuseUnchanged:true}),first=await owner.sync(fixture());assert.equal(first.transportFailure.activationReason,'missing-upload');assert.deepEqual(owner.checkpoint().completedBatches,[]);assert.equal(JSON.stringify(first).includes(SENTINEL),false);reject=false;assert.equal((await owner.sync(fixture())).status,'success');
 });
+
+test('bounded source audit precedes activation and a failed chunk resumes without reuploading complete data',async()=>{
+ const cloud=fakeCloud(),original=cloud.fetch;let failSecond=true,uploads=0,activations=0;const chunks=[];
+ cloud.fetch=async(url,init={})=>{
+  const body=init.body?JSON.parse(init.body):null;
+  if(body?.action==='audit-date'){
+   chunks.push(body.chunkIndex);assert.equal(activations,0);
+   if(failSecond&&body.chunkIndex===1)throw Error(SENTINEL);
+   const n=body.manifest.files.filter(f=>f.kind==='daily').length;
+   return Response.json({audited:true,asOf:body.asOf,chunkIndex:body.chunkIndex,chunkCount:Math.ceil(n/256),verifiedDaily:Math.min(256,n-body.chunkIndex*256)});
+  }
+  if(body?.action==='upload')uploads++;
+  if(body?.action==='activate'){activations++;assert.equal(body.dateAudit,'date-source-chunks-v1');}
+  return original(url,init);
+ };
+ const owner=producer(cloud,{chunkedDateAudit:true}),source=fixture({accounts:257});
+ const first=await owner.sync(source,{dateIndex:true});assert.equal(first.status,'failed');assert.equal(first.phase,'source-audit');assert.equal(activations,0);assert.equal(JSON.stringify(first).includes(SENTINEL),false);
+ const priorUploads=uploads;failSecond=false;const second=await owner.sync(source,{dateIndex:true});
+ assert.equal(second.status,'success');assert.equal(uploads,priorUploads);assert.equal(activations,1);assert.deepEqual(chunks,[0,1,0,1]);assert.equal(second.sourceAuditChunksCompleted,2);
+});
+
+test('untrusted audit acknowledgement cannot enable activation or contaminate fixed diagnostics',async()=>{
+ for(const extra of [{chunkIndex:1},{verifiedDaily:0},{audited:false},{private:SENTINEL}]){
+  const cloud=fakeCloud(),original=cloud.fetch;let activation=false;
+  cloud.fetch=async(url,init={})=>{const body=init.body?JSON.parse(init.body):null;
+   if(body?.action==='audit-date')return Response.json({audited:true,asOf:body.asOf,chunkIndex:0,chunkCount:1,verifiedDaily:1,...extra});
+   if(body?.action==='activate')activation=true;return original(url,init);
+  };
+  const result=await producer(cloud,{chunkedDateAudit:true}).sync(fixture(),{dateIndex:true});assert.equal(result.status,'failed');assert.equal(result.code,'invalid-date-audit-receipt');assert.equal(activation,false);assert.equal(JSON.stringify(result).includes(SENTINEL),false);
+ }
+ assert.throws(()=>createPublicReplicaSync({getCredential:async()=>SECRET,chunkedDateAudit:'yes'}),/invalid-configuration/);
+});
