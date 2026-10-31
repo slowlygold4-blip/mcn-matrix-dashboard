@@ -157,8 +157,11 @@ test('mixed peer: source binding and last-moment pause remain effective for both
 
 test('mixed peer: real provider merge retains accepted profile and only the verified public works window', async () => {
   const f = fixture(), calls = [];
-  const provider = new PublicWebProvider({ publicPostsPerAccount: 30 }, { database: f.database, accountBrowserFallback: true,
+  const provider = new PublicWebProvider({ publicPostsPerAccount: 30 }, { accountBrowserFallback: true,
     execFileImpl() { throw new Error('No subprocess allowed'); }, fetchImpl: async () => { throw new Error('No network allowed'); } });
+  // This identity-only stub has no policy ledger/transaction API. Attach it
+  // after construction; persisted-policy restoration has independent tests.
+  provider.database = f.database;
   // Isolated policy fixture, never a production cooldown change.
   for (let i = 0; i < 3; i++) provider.worksRequestPolicy.record('anonymous-http', { targetKey: `fixture-${i}`, errorCode: 'blocked' });
   provider.run = async (operation, args) => { calls.push(operation); assert.equal(operation, 'account'); assert.ok(args.includes('deferred')); return profile(); };

@@ -238,7 +238,7 @@ def request(url, *, method="GET", data=None, referer="https://www.douyin.com/", 
     parsed_url = urlparse(url)
     capture_transport = isinstance(transport_evidence, dict) and (
         parsed_url.scheme == "https" and parsed_url.netloc == "www.douyin.com"
-        and parsed_url.path in {"/aweme/v1/web/aweme/post/", "/aweme/v1/web/aweme/detail/"}
+        and parsed_url.path in {"/aweme/v1/web/aweme/post/", "/aweme/v1/web/aweme/detail/", "/aweme/v1/web/user/profile/other/"}
     )
     args = [
         "curl",
@@ -274,10 +274,10 @@ def request(url, *, method="GET", data=None, referer="https://www.douyin.com/", 
             raise CollectorError("公开网页连接失败；未记录传输错误原文", code="network_error") from None
         raise CollectorError("公开网页连接失败：%s" % exc) from exc
     if completed.returncode != 0:
-        if capture_transport and parsed_url.path == "/aweme/v1/web/aweme/detail/" and marker in completed.stdout:
+        if capture_transport and parsed_url.path in {"/aweme/v1/web/aweme/detail/", "/aweme/v1/web/user/profile/other/"} and marker in completed.stdout:
             # Curl can fail while finishing a body after already observing an
             # explicit refusal. Do not let that transport error permit a
-            # different detail request form; other endpoint behavior is unchanged.
+            # different request form. Profile requests use the same stop rule.
             observed_status = completed.stdout.rsplit(marker, 1)[1].split(b"\t", 1)[0]
             if re.fullmatch(br"4\d{2}", observed_status):
                 status = int(observed_status)
@@ -370,7 +370,12 @@ def request_json(url, *, referer, cookie=None, transport_evidence=None):
     options = {"referer": referer, "cookie": cookie}
     if transport_evidence is not None:
         options["transport_evidence"] = transport_evidence
-    body, _ = request(url, **options)
+    body, final_url = request(url, **options)
+    profile_request = urlparse(url).path == "/aweme/v1/web/user/profile/other/"
+    if profile_request:
+        final = urlparse(final_url)
+        if final.scheme != "https" or final.netloc != "www.douyin.com" or final.path != "/aweme/v1/web/user/profile/other/":
+            raise CollectorError("公开主页响应未停留在原官方接口；已停止采样", code="upstream_changed")
     if not body.strip():
         raise CollectorError("公开网页返回空内容；为保护历史数据，本次采集已拒绝写入")
     try:
@@ -380,6 +385,15 @@ def request_json(url, *, referer, cookie=None, transport_evidence=None):
     if not isinstance(payload, dict):
         raise CollectorError("公开网页响应必须为 JSON 对象", code="upstream_changed")
     status = payload.get("status_code")
+    if profile_request:
+        if type(status) is not int:
+            raise CollectorError("公开主页未返回明确业务成功状态；已停止采样", code="upstream_changed")
+        if status != 0:
+            code = "login_required" if status == 2483 else "business_error"
+            raise CollectorError("公开主页拒绝请求；未记录业务错误原文", code=code)
+        if any(payload.get(field) not in (None, False, 0, "") for field in ("need_login", "login_required", "captcha_required", "verify_required")):
+            code = "login_required" if payload.get("need_login") or payload.get("login_required") else "business_error"
+            raise CollectorError("公开主页要求登录或验证；已停止采样，未处理验证", code=code)
     post_request = transport_evidence is not None and urlparse(url).path == "/aweme/v1/web/aweme/post/"
     # Only an explicit integer zero proves works success. Preserve the existing
     # rejection classification below for explicit nonzero integer statuses.
@@ -529,10 +543,9 @@ def public_post(item):
 def fetch_public_profile(sec_uid, guest_cookie):
     """Read the anonymous profile with the smallest proven public parameter set.
 
-    Douyin currently serves this route to guest ttwid sessions without X-Bogus.
-    Keeping the unsigned request first mirrors the working Jixuan command-console
-    collector and avoids turning a valid public profile into a signing failure.
-    The signed request remains a compatibility fallback only.
+    The proven unsigned request is the only live profile route. A refusal,
+    malformed body or transport failure does not authorize changing to a signed
+    request. Historical signed-profile evidence remains readable separately.
     """
     referer = "https://www.douyin.com/user/%s" % sec_uid
     minimal_params = {
@@ -547,38 +560,15 @@ def fetch_public_profile(sec_uid, guest_cookie):
         "cookie_enabled": "true",
         "platform": "PC",
     }
-    try:
-        return (
-            request_json(
-                "%s?%s" % (PROFILE_URL, urlencode(minimal_params)),
-                referer=referer,
-                cookie=guest_cookie,
-            ),
-            "guest-ttwid-unsigned-profile",
-        )
-    except CollectorError as unsigned_error:
-        signed_params = common_params()
-        signed_params.update(
-            {
-                "sec_user_id": sec_uid,
-                "publish_video_strategy_type": "2",
-                "personal_center_strategy": "1",
-            }
-        )
-        try:
-            return (
-                request_json(
-                    signed_url(PROFILE_URL, signed_params),
-                    referer=referer,
-                    cookie=guest_cookie,
-                ),
-                "guest-ttwid-unsigned-profile-with-x-bogus-fallback",
-            )
-        except CollectorError as signed_error:
-            raise CollectorError(
-                "公开主页读取失败：免签游客接口：%s；签名兼容接口：%s"
-                % (unsigned_error, signed_error)
-            ) from signed_error
+    return (
+        request_json(
+            "%s?%s" % (PROFILE_URL, urlencode(minimal_params)),
+            referer=referer,
+            cookie=guest_cookie,
+            transport_evidence={},
+        ),
+        "guest-ttwid-unsigned-profile",
+    )
 
 
 def pagination_scalar(value):
@@ -651,6 +641,12 @@ def collect_account(locator, limit, *, works_mode="collect"):
                 "paidAPI": False,
             },
         }
+
+    # A non-deleted profile cannot supply live counters without the exact
+    # requested canonical identity. A missing identity is not a successful
+    # anonymous match; retain the last real account observation instead.
+    if returned_sec_uid != sec_uid:
+        raise CollectorError("账号身份校验失败：公开主页未回显请求的 sec_uid", code="upstream_changed")
 
     if works_mode == "deferred":
         return {

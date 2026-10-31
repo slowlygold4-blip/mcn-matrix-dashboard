@@ -237,7 +237,7 @@ test("anonymous works require integer business success before accepting even a t
   assert.equal(results.at(-1).result.works.aweme_list.length, 1);
 });
 
-test("post success guard leaves profile, detail and uninstrumented request contracts unchanged", () => {
+test("profile and post require explicit business success; detail and uninstrumented contracts stay independent", () => {
   const python = String.raw`
 import importlib.util,json,sys
 spec=importlib.util.spec_from_file_location("collector",sys.argv[1])
@@ -265,7 +265,7 @@ print(json.dumps(out))
     fileURLToPath(new URL("../scripts/douyin_public_collector.py", import.meta.url))],
   { encoding: "utf8", timeout: 15_000 });
   assert.equal(child.status, 0, child.stderr);
-  assert.deepEqual(JSON.parse(child.stdout), ["accepted", "accepted", "upstream_changed", "accepted",
+  assert.deepEqual(JSON.parse(child.stdout), ["upstream_changed", "accepted", "upstream_changed", "accepted",
     "business_error", "login_required", "business_error"]);
 });
 
