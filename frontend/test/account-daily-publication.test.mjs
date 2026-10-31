@@ -8,7 +8,7 @@ const video=(id,publishedAt)=>({id,targetId:7,externalId:String(7500000000000000
 test('account publication uses saved work dates, never daily inventory changes or the observation day',()=>{
  const rows=[video(1,'2026-10-29T15:59:59.000Z'),video(2,'2026-10-29T16:00:00.000Z'),{...video(3,null),publishedOn:'2026-10-30',publicationDateBasis:'creator-source-date-only'}];
  const result=accountDailyPublication(rows,{targetId:7,platform:'douyin',asOf,date:'2026-10-30'});
- assert.equal(result.knownWorks,2);assert.equal(result.status,'published');assert.equal(result.complete,false);
+ assert.equal(result.knownWorks,1);assert.equal(result.recordedWorks,2);assert.equal(result.unverifiedDateWorks,1);assert.equal(result.status,'published');assert.equal(result.complete,false);
  assert.deepEqual(result.rows.map(r=>r.id),[2,3]);
 });
 test('Bilibili work IDs are supported without accepting another platform or a different account',()=>{

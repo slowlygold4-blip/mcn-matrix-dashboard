@@ -1,3 +1,4 @@
+import {savedPublicationDateValid} from './publication-date-basis.mjs';
 /** Every readable part is bound to the immutable publication manifest, never just a server header. */
 import {withReplicaReadDeadline} from './replica-read-deadline.mjs';
 const count=value=>Number.isSafeInteger(value)&&value>=0;
@@ -9,6 +10,7 @@ const day=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)
 export function validateUnifiedWorksPart(items,generation){
  const seen=new Set(),enriched=items.some(item=>Object.hasOwn(item,'source'));
  for(const item of items){
+  if(!savedPublicationDateValid(item,generation,{allowLegacy:true}))throw Error('作品日期依据或精度无效');
   if(!enriched)continue; // Older immutable generations retain their original contract.
   if(item.source!=null&&!['creator-source','platform-and-creator-source'].includes(item.source))throw Error('作品来源类型无效');
   const synthetic=typeof item.id==='string'&&item.id.startsWith('creator-source:');

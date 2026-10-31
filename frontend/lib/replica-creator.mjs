@@ -2,6 +2,7 @@
 import {buildCreatorIntelligence} from './creator-intelligence.mjs';
 import {validateSourceWorkOwners,auditWorkOwnerNativeEvidence} from './source-work-owner-contract.mjs';
 import {sourceWorkClassificationsValid} from './source-work-classification.mjs';
+import {publicationDateBasisValid} from './publication-date-basis.mjs';
 const keys=(v,k)=>v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).length===k.length&&k.every(x=>Object.hasOwn(v,x));
 const n=v=>Number.isSafeInteger(v)&&v>=0;
 const nullable=v=>v===null||n(v);
@@ -15,6 +16,10 @@ const registeredCategories=a=>Array.isArray(a.registeredClassifications)&&a.regi
  &&a.registeredClassifications.every(k=>['slice','original','ai-remix'].includes(k))
  &&new Set(a.registeredClassifications).size===a.registeredClassifications.length;
 const WORK=['row','contentId','author','douyinId','publishDate','type','track','tracks','plays','likes','title','url'];
+const workShape=w=>w&&typeof w==='object'&&!Array.isArray(w)&&keys(w,[...WORK,...['classifications','dateBasis','inferredPublishDate'].filter(k=>Object.hasOwn(w,k))])
+ &&(!Object.hasOwn(w,'classifications')||sourceWorkClassificationsValid(w.classifications))
+ &&(!Object.hasOwn(w,'dateBasis')||w.dateBasis!=='platform-timestamp'&&publicationDateBasisValid(w.dateBasis,w.publishDate))
+ &&(!Object.hasOwn(w,'inferredPublishDate')||Object.hasOwn(w,'dateBasis')&&day(w.inferredPublishDate));
 const STATS=['authors','rawAuthorRows','reciprocalDuplicates','works','datedWorks','undatedWorks','linkedAuthors','worksWithPlays','worksWithLikes','cumulativePlays','cumulativeLikes'];
 const name=path=>path?.replace(/^creator\//,'');
 export const creatorEditionIdentityPayload=(index,authors,works)=>JSON.stringify([index.revision,index.linkFingerprint,index.sourceModifiedAt,index.importedAt,authors,works]);
@@ -35,7 +40,7 @@ export function creatorPartValid(part,meta,asOf){
  if(!keys(part,[...common,'revision','items'])||!Array.isArray(part.items)||part.items.length!==meta.count)return false;
  if(meta.kind==='creatorAuthors')return part.items.every(a=>(keys(a,AUTHOR)||keys(a,[...AUTHOR,'registeredClassifications'])&&registeredCategories(a))&&n(a.row)&&a.row>0&&text(a.name,160)&&text(a.douyinId,120)
   &&AUTHOR.slice(3,11).every(k=>nullable(a[k]))&&Array.isArray(a.targetIds)&&a.targetIds.every(id=>n(id)&&id>0)&&new Set(a.targetIds).size===a.targetIds.length);
- if(meta.kind==='creatorWorks')return part.items.length<=1000&&part.items.every(w=>(keys(w,WORK)||keys(w,[...WORK,'classifications'])&&sourceWorkClassificationsValid(w.classifications))&&n(w.row)&&w.row>0&&/^\d{16,22}$/.test(w.contentId)
+ if(meta.kind==='creatorWorks')return part.items.length<=1000&&part.items.every(w=>workShape(w)&&n(w.row)&&w.row>0&&/^\d{16,22}$/.test(w.contentId)
   &&text(w.author,160)&&text(w.douyinId,120)&&(w.publishDate===''||day(w.publishDate))&&text(w.type,80)&&text(w.track,100)&&text(w.tracks,180)
   &&nullable(w.plays)&&nullable(w.likes)&&text(w.title,300)&&(w.url===null||w.url===`https://www.douyin.com/video/${w.contentId}`));
  return meta.kind==='creatorInsights'&&part.items.length===1&&part.items[0]&&typeof part.items[0]==='object';

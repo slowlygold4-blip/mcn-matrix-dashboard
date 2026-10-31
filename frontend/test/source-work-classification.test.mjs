@@ -27,7 +27,7 @@ test('explicit slice classification survives filtering, URL return and full CSV 
  assert.equal(belongsToSourceTrack(slice,'切片激励','works'),false);
  assert.equal(belongsToSourceTrack(slice,'__unclassified__','works'),true,'no named track remains no named track');
  assert.equal(sourceWorkClassificationLabel(slice),'切片');
- const csv=sourceLedgerCsv(rows);assert.match(csv,/内容分类/);assert.ok(csv.trimEnd().endsWith('"切片"'));
+ const csv=sourceLedgerCsv(rows);assert.match(csv,/内容分类/);assert.match(csv,/"切片","日期依据待核验",""/);
  assert.deepEqual(slice.classifications,['slice']);assert.equal(slice.track,'');
 });
 

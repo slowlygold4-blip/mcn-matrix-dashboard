@@ -1,5 +1,5 @@
 import {presentUnifiedWorkMetric} from './unified-work-presentation.mjs';
-import {workPublicationDay} from './replica-work-publication.mjs';
+import {workPublicationDay,workPublicationDisplay} from './replica-work-publication.mjs';
 import {indexWorkObservations,observationsForWork,workOwnerKey} from './work-metric-adoption.mjs';
 import {validateSourceWorkOwners,validateFoundationWorkOwners} from './source-work-owner-contract.mjs';
 const known=v=>Number.isSafeInteger(v)&&v>=0?v:null;
@@ -19,7 +19,7 @@ export function mergeAuthorWorks({author,sourceWorks,platformWorks,sourceObserva
   const key=String(row.contentId||'');
   if(!/^\d{15,25}$/.test(key))throw Error('作者作品 ID 无效，停止合并');
   if(works.has(key))throw Error('原始作品索引存在重复 ID，需核对');
-  works.set(key,{id:`creator-source:1:${index+1}`,externalId:key,source:'creator-source',caption:row.title||'',url:row.url||`https://www.douyin.com/video/${key}`,publishedOn:row.publishDate||null,publicationDateBasis:'creator-source-date-only',likes:known(row.likes),plays:known(row.plays),sourceCumulativeLikes:known(row.likes),sourceCumulativePlays:known(row.plays),sourcePublishedOn:row.publishDate||null,
+  works.set(key,{id:`creator-source:1:${index+1}`,externalId:key,source:'creator-source',caption:row.title||'',url:row.url||`https://www.douyin.com/video/${key}`,publishedOn:row.publishDate||null,publicationDateBasis:['source-explicit-date','source-inferred-date','source-date-conflict','unverified-date'].includes(row.dateBasis)?row.dateBasis:'creator-source-date-only',sourceInferredPublishedOn:row.inferredPublishDate||null,likes:known(row.likes),plays:known(row.plays),sourceCumulativeLikes:known(row.likes),sourceCumulativePlays:known(row.plays),sourcePublishedOn:row.publishDate||null,
    ...(owner?{canonicalOwnerTargetId:owner.targetId,sourceOwnershipConflict:owner.sourceClaimMatches!==true,ownershipClaimOnly:!owned,
     sourceClaimedCumulativeLikes:known(row.likes),sourceClaimedCumulativePlays:known(row.plays)}:{})});
  }
@@ -40,8 +40,8 @@ export function mergeAuthorWorks({author,sourceWorks,platformWorks,sourceObserva
     sourceClaimedCumulativeLikes:saved.sourceClaimedCumulativeLikes,sourceClaimedCumulativePlays:saved.sourceClaimedCumulativePlays}:{}),
    sourceCumulativeLikes:saved.sourceCumulativeLikes??row.sourceCumulativeLikes??null,
    sourceCumulativePlays:saved.sourceCumulativePlays??row.sourceCumulativePlays??null,
-   sourcePublishedOn:saved.sourcePublishedOn||row.sourcePublishedOn||null,
-   ...(!workPublicationDay(row)&&saved.publishedOn?{publishedOn:saved.publishedOn,publicationDateBasis:'creator-source-date-only'}:{})});
+   sourcePublishedOn:saved.sourcePublishedOn||row.sourcePublishedOn||null,sourceInferredPublishedOn:saved.sourceInferredPublishedOn||row.sourceInferredPublishedOn||null,
+   ...(!workPublicationDay(row)&&saved.publishedOn?{publishedOn:saved.publishedOn,publicationDateBasis:saved.publicationDateBasis}:{})});
  }
  const observations=indexWorkObservations(sourceObservations,asOf);
  return [...works.values()].map(row=>{
@@ -63,11 +63,11 @@ export function orderAuthorWorks(rows,field='publicationDay',direction='desc',qu
 
 /** Preserve the submitted counters even when they are withheld from adoption. */
 export function authorWorkExportRows(rows){
- const header=['作品ID','标题','发布日期','点赞','播放字段','点赞观察时间','播放观察时间','归属状态','已核验发布者账号编号','原登记冲突点赞','原登记冲突播放字段','来源记录点赞','来源记录播放字段','来源记录时间依据','来源记录时间'];
+ const header=['作品ID','标题','发布日期','点赞','播放字段','点赞观察时间','播放观察时间','归属状态','已核验发布者账号编号','原登记冲突点赞','原登记冲突播放字段','来源记录点赞','来源记录播放字段','来源记录时间依据','来源记录时间','发布日期依据','原参考日期'];
  return [header,...rows.map(row=>{
   const likes=presentUnifiedWorkMetric(row,'likes'),plays=presentUnifiedWorkMetric(row,'plays');
   return [row.externalId,row.caption,row.publicationDay,row.adoptedLikes,row.adoptedPlays,row.likesObservedAt||'',row.playsObservedAt||'',
    row.ownershipClaimOnly?'原登记声明，未计入此作者统计':row.canonicalOwnerTargetId?'已核验作品发布者':'已有归属记录',row.canonicalOwnerTargetId??'',row.sourceClaimedCumulativeLikes??'',row.sourceClaimedCumulativePlays??'',
-   likes.sourceRecordValue,plays.sourceRecordValue,likes.sourceRecordCount||plays.sourceRecordCount?likes.sourceTimeBasis||plays.sourceTimeBasis:'',likes.sourceRecordedAt||plays.sourceRecordedAt||''];
+   likes.sourceRecordValue,plays.sourceRecordValue,likes.sourceRecordCount||plays.sourceRecordCount?likes.sourceTimeBasis||plays.sourceTimeBasis:'',likes.sourceRecordedAt||plays.sourceRecordedAt||'',workPublicationDisplay(row).note,row.sourceInferredPublishedOn||''];
  })];
 }

@@ -1,5 +1,5 @@
 import {validDate} from './replica-date-value.mjs';
-import {workPublicationDay} from './replica-work-publication.mjs';
+import {workPublicationDay,workPublicationDateConfirmed} from './replica-work-publication.mjs';
 
 export function publicationBusinessDay(asOf) {
  if(typeof asOf!=='string'||!/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d\d:\d\d)$/.test(asOf)||!Number.isFinite(Date.parse(asOf)))throw Error('发布记录版本时间无效');
@@ -23,7 +23,7 @@ export function authorDailyPublication(rows,{asOf,date=publicationBusinessDay(as
   const timestampBasis=row.publicationDateBasis==null||row.publicationDateBasis==='platform-timestamp';
   const futureTime=timestampBasis&&typeof row.publishedAt==='string'&&Date.parse(row.publishedAt)>Date.parse(asOf);
   if(previous&&previous.futureTime!==futureTime)throw Error('同一作品的发布时间冲突，停止统计发布数');
-  if(!previous)works.set(row.externalId,{row,date:published,futureTime});
+  if(!previous||!workPublicationDateConfirmed(previous.row)&&workPublicationDateConfirmed(row))works.set(row.externalId,{row,date:published,futureTime});
  }
  const selected=[],undated=[],future=[],claims=[];
  for(const entry of works.values()){
@@ -32,7 +32,9 @@ export function authorDailyPublication(rows,{asOf,date=publicationBusinessDay(as
   else if(entry.date===null)undated.push(entry.row.externalId);
   else if(entry.date===date)selected.push(entry.row);
  }
- return {date,end,status:selected.length?'published':'unknown',knownWorks:selected.length,rows:selected,
+ const confirmed=selected.filter(workPublicationDateConfirmed).length;
+ return {date,end,status:confirmed?'published':selected.length?'date-unverified':'unknown',knownWorks:confirmed,recordedWorks:selected.length,
+  unverifiedDateWorks:selected.length-confirmed,rows:selected,
   undatedWorks:undated.length,futureDatedWorks:future.length,ownershipClaimWorks:claims.length,complete:false,currentDay:date===end};
 }
 

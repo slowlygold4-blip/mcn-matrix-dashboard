@@ -11,10 +11,11 @@ fixture.env.BUCKET.get=async key=>fixture.objects.has(key)?{text:async()=>fixtur
 const prepare=fixture.env.DB.prepare;fixture.env.DB.prepare=sql=>{const statement=prepare(sql);return {...statement,first:()=>statement.bind().first()};};
 const {POST,GET}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 test.beforeEach(()=>fixture.reset());test.after(()=>fixture.close());
-function publication(asOf,plays,{corrupt=false,classifications}={}){
+function publication(asOf,plays,{corrupt=false,classifications,dateBasis,inferredPublishDate}={}){
  const authors=[{row:2,name:'作者A',douyinId:'author_a',posts:1,slicePosts:1,creationPosts:0,aiPosts:0,cupPosts:0,plays,likes:0,followers:null,targetIds:[]}];
  const works=[{row:2,contentId:'7300000000000000001',author:'作者A',douyinId:'author_a',publishDate:'2026-09-12',type:'video',track:'切片激励',tracks:'切片激励',plays,likes:0,title:'作品',url:'https://www.douyin.com/video/7300000000000000001'}];
  if(classifications!==undefined)works[0].classifications=classifications;
+ if(dateBasis!==undefined)works[0].dateBasis=dateBasis;if(inferredPublishDate!==undefined)works[0].inferredPublishDate=inferredPublishDate;
  const insight=buildCreatorIntelligence(authors,works);if(corrupt)insight.counts.cumulativePlays++;
  const base={version:1,asOf,timeZone:'Asia/Shanghai'},files=[];
  const add=(path,kind,count,payload)=>{const data=JSON.stringify({...base,...payload})+'\n';const file={path,kind,count,bytes:Buffer.byteLength(data),sha256:hash(data),data};files.push(file);return file;};
@@ -54,4 +55,16 @@ test('optional content categories activate without dropping the legacy generatio
  assert.deepEqual(rows[0].classifications,['slice']);assert.equal(rows[0].likes,0);
  const legacy=await GET(new Request('https://fixture.test/api/replica?generation='+encodeURIComponent(old.asOf)+'&part=creator/works-001.json'));
  assert.equal(legacy.status,200);assert.equal((await legacy.json()).items[0].classifications,undefined);
+});
+
+
+test('new source date authority and retained reference date survive actual ingest; old sealed generations stay readable',async()=>{
+ const old=publication('2026-10-29T01:00:00.000Z',0),next=publication('2026-10-29T02:00:00.000Z',0,{dateBasis:'source-explicit-date',inferredPublishDate:'2026-09-13'});
+ assert.equal((await publish(old)).status,200);assert.equal((await publish(next)).status,200);
+ for(const p of [old,next]){
+  const response=await GET(new Request('https://fixture.test/api/replica?'+new URLSearchParams({generation:p.asOf,part:'creator/works-001.json'})));assert.equal(response.status,200);
+  const body=await response.json();assert.equal(body.items[0].likes,0);assert.equal(body.items[0].dateBasis,p===old?undefined:'source-explicit-date');
+  if(p===next)assert.equal(body.items[0].inferredPublishDate,'2026-09-13');
+ }
+ const bad=publication('2026-10-29T03:00:00.000Z',0,{dateBasis:'platform-timestamp'});assert.equal((await post({action:'upload',asOf:bad.asOf,files:bad.files.map(({path,sha256,data})=>({path,sha256,data}))})).status,400);
 });

@@ -1,4 +1,5 @@
 import { validDate } from './replica-model.mjs';
+import {publicationDateBasisLabel} from './publication-date-basis.mjs';
 
 const BEIJING_OFFSET_MS = 8 * 60 * 60 * 1000;
 const SOURCE_DATE_BASIS = 'creator-source-date-only';
@@ -9,7 +10,7 @@ function savedTimestamp(value) {
 }
 
 function sourceDay(work) {
-  return work?.publicationDateBasis === SOURCE_DATE_BASIS && validDate(work?.publishedOn)
+  return [SOURCE_DATE_BASIS,'source-explicit-date','source-inferred-date','source-date-conflict','unverified-date'].includes(work?.publicationDateBasis) && validDate(work?.publishedOn)
     ? work.publishedOn : null;
 }
 
@@ -25,6 +26,9 @@ export function workPublicationDay(work) {
   if (timestamp !== null) return new Date(timestamp + BEIJING_OFFSET_MS).toISOString().slice(0, 10);
   return sourceDay(work);
 }
+export function workPublicationDateConfirmed(work){
+ return platformTimestamp(work)!==null||work?.publicationDateBasis==='source-explicit-date'&&sourceDay(work)!==null;
+}
 
 export function workPublicationDisplay(work) {
   const timestamp = platformTimestamp(work);
@@ -33,7 +37,7 @@ export function workPublicationDisplay(work) {
     note: '已保存发布时间',
   };
   const day = sourceDay(work);
-  if (day) return { value: day, note: '表格作品日期（未核验）' };
+  if (day) return { value: day, note:publicationDateBasisLabel(work.publicationDateBasis===SOURCE_DATE_BASIS?'unverified-date':work.publicationDateBasis) };
   return { value: '—', note: '未记录可靠作品日期' };
 }
 

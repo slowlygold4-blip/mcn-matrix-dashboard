@@ -218,7 +218,7 @@ test('public replica preserves source-only publication day without fabricating a
   const platform = works.find(item => item.externalId === external(1));
   assert.ok(dated); assert.equal(dated.publishedAt, null);
   assert.equal(dated.publishedOn, '2026-09-12');
-  assert.equal(dated.publicationDateBasis, 'creator-source-date-only');
+  assert.equal(dated.publicationDateBasis, 'source-inferred-date');
   assert.equal(dated.lastObservedAt, null, 'source refresh is not a platform observation');
   assert.equal(dated.source, 'creator-source');
   assert.equal(dated.sourceCumulativeLikes, 20);

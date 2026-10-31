@@ -115,8 +115,24 @@ test('all source pages, exact totals, insights and data fingerprint are audited 
  }
  const missing=read();missing.manifest.files=missing.manifest.files.filter(f=>f.kind!=='creatorWorks');await assert.rejects(audit(missing),/descriptor-conflict/);
 });
+test('explicit original publication fields join by exact work ID and publish day precision without leaking raw proof',async t=>{
+ const {db,read}=fixture(t);
+ db.exec('CREATE TABLE creator_source_sheets(import_id INTEGER,sheet_id TEXT,headers_json TEXT)');
+ db.prepare('INSERT INTO creator_source_sheets VALUES(1,?,?)').run('10',JSON.stringify(['视频ID','原填发布时间']));
+ const add=db.prepare('INSERT INTO creator_source_rows VALUES(1,?,?,?)');
+ add.run('01',2,JSON.stringify(['统计开始','2026-09-10']));
+ add.run('01',3,JSON.stringify(['统计结束','2026-10-12']));
+ add.run('10',2,JSON.stringify(['7300000000000000001','9月13日']));
+ const before=db.prepare('SELECT total_changes() n').get().n;
+ const result=read(),works=result.files.filter(f=>f.kind==='creatorWorks').flatMap(f=>JSON.parse(f.content).items);
+ const work=works.find(w=>w.contentId==='7300000000000000001');
+ assert.equal(work.publishDate,'2026-09-13');assert.equal(work.dateBasis,'source-explicit-date');assert.equal(work.inferredPublishDate,'2026-09-12');
+ assert.equal(work.likes,3);assert.equal(work.plays,100);assert.equal(Object.hasOwn(work,'publishedAt'),false);
+ assert.equal(JSON.stringify(result).includes('rowSha256'),false);assert.equal(JSON.stringify(result).includes('originalValue'),false);
+ assert.equal((await audit(result)).works,2);assert.equal(db.prepare('SELECT total_changes() n').get().n,before);
+});
 test('shared creator analytics and validation contracts match the hosted copies',()=>{
- for(const name of ['creator-intelligence.mjs','source-ledger-track.mjs','replica-creator.mjs','source-work-classification.mjs']){
+ for(const name of ['creator-intelligence.mjs','source-ledger-track.mjs','replica-creator.mjs','source-work-classification.mjs','publication-date-basis.mjs']){
   const sibling=new URL('../../mcn-public-site/lib/'+name,import.meta.url),tracked=new URL('../frontend/lib/'+name,import.meta.url);
   assert.equal(hash(readFileSync(new URL('../lib/'+name,import.meta.url))),hash(readFileSync(existsSync(sibling)?sibling:tracked)));
  }

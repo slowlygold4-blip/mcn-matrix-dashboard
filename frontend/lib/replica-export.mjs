@@ -1,3 +1,4 @@
+import {savedPublicationDateValid} from './publication-date-basis.mjs';
 import {isCompactSummary} from './compact-summary-points.mjs';
 import {fields,validDate,rowsFor} from './replica-model.mjs';
 import {personalPoints} from './replica-account.mjs';
@@ -79,18 +80,12 @@ export function historyExport({rows,kind,account,manifest,start=null,end=null}){
    if(key.endsWith('Checksum')&&value!=null&&(typeof value!=='string'||!/^[a-f0-9]{64}$/.test(value)))throw Error('历史导出来源指纹无效');
   }
   if(kind==='works'){
-   const basis=row.publicationDateBasis;
-   if(basis!=null&&!['platform-timestamp','creator-source-date-only','missing'].includes(basis)
-    ||row.publishedOn!=null&&!validDate(row.publishedOn)
-    ||basis==='platform-timestamp'&&!row.publishedAt
-    ||basis==='creator-source-date-only'&&(row.publishedAt!=null||!validDate(row.publishedOn))
-    ||basis==='missing'&&(row.publishedAt!=null||row.publishedOn!=null)
-    ||basis==null&&row.publishedOn!=null)throw Error('来源表作品日期口径无效');
+   if(!savedPublicationDateValid(row,manifest.asOf,{allowLegacy:true}))throw Error('来源表作品日期口径无效');
   }
  }
  if(kind==='daily'){personalPoints(rows,account.id,manifest.asOf);if(start!==null&&rows.some(row=>row.date<start||row.date>end))throw Error('日历史记录超出导出的所选日期');}
  const note=kind==='daily'?'指标采样时间与原有来源指纹保留；sourcePartSha256为公开日历史分区指纹':kind==='works'
-  ?'同一作品只占一行；当前值优先采用有效的已存平台字段，缺测回退原表累计，二者不相加。Origin与Basis列说明逐字段口径；sourceRefreshedAt只代表来源版本刷新，不是指标采样。publishedAt为已保存精确时间；publicationDateBasis=creator-source-date-only时publishedOn仅为表格作品日期（未核验），不是平台精确发布时间或播放观察日；来源播放字段不是可靠实际播放证明'
+  ?'同一作品只占一行；当前值优先采用有效的已存平台字段，缺测回退原表累计，二者不相加。Origin与Basis列说明逐字段口径；sourceRefreshedAt只代表来源版本刷新，不是指标采样。publishedAt为已保存精确时间；publicationDateBasis区分平台时间、明确填报日期、推算或待核验日期；publishedOn保持日精度，不是平台精确发布时间或播放观察日；来源播放字段不是可靠实际播放证明'
   :'sourcePartSha256为公开历史分区指纹；作品指标未经逐条独立核验，来源播放字段不是可靠实际播放证明';
  const header=['asOf','timeZone','targetId','platform','label','requestedStart','requestedEnd','sourcePart','sourcePartSha256','provenanceNote',...keys];
  return [header,...rows.map(row=>{const derived=kind==='works'?workMetricExport(row):null;return [...fixed,account.id,account.platform,account.label,start,end,part.path,part.sha256,note,...keys.map(k=>k==='url'?workUrl(row.url,row.externalId,account.platform):derived&&Object.hasOwn(derived,k)?derived[k]:k==='playsNote'?row.playsEvidence?.note??'来源播放字段未经独立核验':row[k]??null)];})];

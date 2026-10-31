@@ -18,7 +18,7 @@ const sourceWork = {
 
 test('source-only work shows day precision and never turns source refresh into publication/playback time', () => {
   assert.deepEqual(workPublicationDisplay(sourceWork), {
-    value: '2026-10-12', note: '表格作品日期（未核验）',
+    value: '2026-10-12', note: '日期依据待核验',
   });
   assert.equal(workPublicationDay(sourceWork), '2026-10-12');
   assert.equal(workPublicationDisplay({ ...sourceWork, publicationDateBasis: 'missing' }).value, '—');
@@ -46,11 +46,11 @@ test('work CSV preserves source day and basis separately from precise timestamp,
   assert.equal(mapped.publishedAt, null);
   assert.equal(mapped.publishedOn, '2026-10-12');
   assert.equal(mapped.publicationDateBasis, 'creator-source-date-only');
-  assert.match(mapped.provenanceNote, /表格作品日期（未核验）/);
+  assert.match(mapped.provenanceNote, /明确填报日期、推算或待核验日期/);
   assert.match(mapped.provenanceNote, /不是平台精确发布时间或播放观察日/);
   assert.equal(mapped.plays, 456);
-  assert.throws(() => historyExport({ rows: [{ ...sourceWork, publishedOn: '2026-02-30' }], kind: 'works', account, manifest }), /日期口径无效/);
-  assert.throws(() => historyExport({ rows: [{ ...sourceWork, publicationDateBasis: 'unknown' }], kind: 'works', account, manifest }), /日期口径无效/);
-  assert.throws(() => historyExport({ rows: [{ ...sourceWork, publicationDateBasis: null }], kind: 'works', account, manifest }), /日期口径无效/);
-  assert.throws(() => historyExport({ rows: [{ ...sourceWork, publishedAt: '2026-10-12T00:00:00.000Z' }], kind: 'works', account, manifest }), /日期口径无效/);
+  assert.throws(() => historyExport({ rows: [{ ...sourceWork, publishedOn: '2026-02-30' }], kind: 'works', account, manifest }), /日期依据或精度无效/);
+  assert.throws(() => historyExport({ rows: [{ ...sourceWork, publicationDateBasis: 'unknown' }], kind: 'works', account, manifest }), /日期依据或精度无效/);
+  assert.throws(() => historyExport({ rows: [{ ...sourceWork, publicationDateBasis: null }], kind: 'works', account, manifest }), /日期依据或精度无效/);
+  assert.throws(() => historyExport({ rows: [{ ...sourceWork, publishedAt: '2026-10-12T00:00:00.000Z' }], kind: 'works', account, manifest }), /日期依据或精度无效/);
 });

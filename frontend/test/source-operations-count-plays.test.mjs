@@ -73,7 +73,7 @@ test('missing supplement keeps verified main table visible without inventing ful
  assert.match(failed,/原因：补充来源校验不一致/);
  assert.match(failed,/补充表未读，全部仅来源作者数待核/);
  assert.match(failed,/其他板块保存在补充表中；本次未读到补充表/);
- assert.match(failed,/下方曲线只统计<strong>每天发布了多少作品<\/strong>/);
+ assert.match(failed,/下方曲线按记录日期归集<strong>每日作品记录<\/strong>/);
  assert.doesNotMatch(failed,/表格分析暂不可读/);
 
  // Accept the previous parent contract until it passes foundationError separately.

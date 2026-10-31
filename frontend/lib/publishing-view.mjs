@@ -1,3 +1,4 @@
+import {publicationDateCounts,sumPublicationDateCounts} from './publication-date-basis.mjs';
 import {readReplicaPart} from './replica-reader.mjs';
 import {publishingPartValid,publicationMetricSummary,publicationIdentity,publicationScopeGroups,expandPublicationScopeMetrics} from './replica-publishing.mjs';
 import {matchesMatrixScope} from './matrix-scope.mjs';
@@ -50,9 +51,9 @@ export function scopedPublishingIndex(index,scope={}){
  const days=index.days.flatMap(day=>{
   const groups=day.scopeGroups.filter(g=>ids.has(g.scopeId));if(!groups.length)return [];
   const tracks={};for(const group of groups)for(const [key,value] of Object.entries(group.tracks))tracks[key]=(tracks[key]??0)+value;
-  return [{...day,works:groups.reduce((n,g)=>n+g.works,0),tracks,metrics:sumMetrics(groups.map(expandPublicationScopeMetrics))}];
+  return [{...day,works:groups.reduce((n,g)=>n+g.works,0),tracks,metrics:sumMetrics(groups.map(expandPublicationScopeMetrics)),...(index.dateMode?{dateCounts:sumPublicationDateCounts(groups.map(g=>g.dateCounts))}:{})}];
  });
- return {...index,count:days.reduce((n,d)=>n+d.works,0),days,metrics:sumMetrics(days.map(d=>d.metrics))};
+ return {...index,count:days.reduce((n,d)=>n+d.works,0),days,metrics:sumMetrics(days.map(d=>d.metrics)),...(index.dateMode?{dateCounts:sumPublicationDateCounts(days.map(d=>d.dateCounts))}:{})};
 }
 /** Missing days remain null, not inferred zero-publication days. */
 export function publishingCalendar(index,asOf,start='2026-09-12',endDate='') {
@@ -64,7 +65,7 @@ export function publishingCalendar(index,asOf,start='2026-09-12',endDate='') {
  const days=[];
  for(let at=first;at<=Date.parse(end+'T00:00:00.000Z');at+=DAY_MS){
   const date=new Date(at).toISOString().slice(0,10),entry=observed.get(date);
-  days.push({date,works:entry?.works??null,tracks:entry?.tracks??{}});
+  days.push({date,works:entry?.works??null,tracks:entry?.tracks??{},...(index?.dateMode?{dateCounts:entry?.dateCounts??null}:{})});
  }
  return days;
 }
@@ -84,6 +85,7 @@ export async function loadPublishingDay({index,manifest,day,signal,fetcher=fetch
  }
  if(rows.length!==selected.works||new Set(rows.map(publicationIdentity)).size!==rows.length)throw Error('作品数量或去重核验失败');
  if(rows.some(row=>Object.hasOwn(row,'metrics')!==Object.hasOwn(index,'metrics')))throw Error('作品指标版本不一致');
+ if(index.dateMode&&JSON.stringify(publicationDateCounts(rows))!==JSON.stringify(selected.dateCounts))throw Error('作品日期依据合计核验失败');
  if(index.metrics&&JSON.stringify(publicationMetricSummary(rows))!==JSON.stringify(selected.metrics))throw Error('作品指标合计核验失败');
  if(index.scopes&&(rows.some(row=>!Number.isSafeInteger(row.scopeId)||row.scopeId>=index.scopes.length)
   ||JSON.stringify(publicationScopeGroups(rows))!==JSON.stringify(selected.scopeGroups)))throw Error('作品范围合计核验失败');
@@ -100,7 +102,7 @@ export function publishingSelection(index,{track='all',startDate='',endDate=''}=
  const selected=index.days.filter(d=>(!startDate||d.date&&d.date>=startDate)&&(!endDate||d.date&&d.date<=endDate));
  const works=selected.reduce((sum,d)=>sum+(publishingTrackCount(d,track)??0),0);
  const undatedWorks=publishingTrackCount(index.days.find(d=>d.date===''),track)??0;
- if(!index.metrics)return {works,metrics:null,days:selected,undatedWorks};
+ if(!index.metrics)return {works,metrics:null,days:selected,undatedWorks,...(index.dateMode?{dateCounts:sumPublicationDateCounts(selected.map(d=>d.dateCounts))[track]}:{})};
  const metrics={};
  for(const key of ['likes','plays']){
   let sum=0n,known=0,missing=0,conflicts=0,overflow=false;
@@ -111,7 +113,7 @@ export function publishingSelection(index,{track='all',startDate='',endDate=''}=
   overflow ||= sum>BigInt(Number.MAX_SAFE_INTEGER);
   metrics[key]={value:known&&!overflow?Number(sum):null,known,missing,conflicts,overflow};
  }
- return {works,metrics,days:selected,undatedWorks};
+ return {works,metrics,days:selected,undatedWorks,...(index.dateMode?{dateCounts:sumPublicationDateCounts(selected.map(d=>d.dateCounts))[track]}:{})};
 }
 export function sortPublicationRows(rows,key='id',direction='asc'){
  if(!['id','author','date','likes','plays'].includes(key)||!['asc','desc'].includes(direction))throw Error('作品排序无效');
