@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { exportPublicReplica, writePublicReplica, PUBLIC_REPLICA_EXPORT_REVISION } from '../lib/public-replica-export.mjs';
-import { createPublicReplicaSync, preparePublicReplicaPublication, sealPublicReplicaSource } from '../lib/public-replica-sync.mjs';
+import { createPublicReplicaSync, preparePublicReplicaPublication, sealPublicReplicaSource, PUBLIC_REPLICA_OPERATION_MAX_MS } from '../lib/public-replica-sync.mjs';
 import { readCommittedTargetPublication, isCommittedTargetPublication, COMMITTED_TARGET_PUBLICATION,
   preparePublishedSnapshotBaseline, attachPublishedSnapshotBaseline, releaseCommittedTargetPublication } from '../lib/committed-target-publication.mjs';
 import {readPublicSourceMarker} from '../lib/public-source-marker.mjs';
@@ -261,7 +261,10 @@ async function runPublisherCycle(ownerInstance){
   if(isMainThread||owner.pid!==process.pid||owner.instance!==ownerInstance)fail('invalid-publisher-worker-owner');
   const statePath=join(home,'state.json');let state=await privateRead(statePath);if(state.version!==1)fail('invalid-state');
   let busy=false,stopping=false,immutableStage=null;const signal=new AbortController();
-  const sync=createPublicReplicaSync({activationTimeoutMs:300_000,compressRequests:true,reuseUnchanged:true,chunkedDateAudit:true,getCredential:()=>privateRead(join(home,'credential'),{credential:true}),
+  // Full uploads plus seventeen bounded source audits exceed the legacy
+  // eight-minute window. Keep one finite operation, request deadlines and the
+  // caller's cancellation; never discard checkpoints to force a restart.
+  const sync=createPublicReplicaSync({operationTimeoutMs:PUBLIC_REPLICA_OPERATION_MAX_MS,activationTimeoutMs:300_000,compressRequests:true,reuseUnchanged:true,chunkedDateAudit:true,getCredential:()=>privateRead(join(home,'credential'),{credential:true}),
     loadCheckpoint:async()=>{try{return await privateRead(join(home,'checkpoint.json'));}catch(e){if(e.code==='ENOENT')return null;throw e;}},
     saveCheckpoint:value=>privateWrite(join(home,'checkpoint.json'),value)});
   const tick=async()=>{

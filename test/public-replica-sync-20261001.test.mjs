@@ -2,7 +2,7 @@ import {setTimeout as waitWithSignal} from 'node:timers/promises';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { createPublicReplicaSync, sealPublicReplicaSource, preparePublicReplicaPublication, PUBLIC_REPLICA_ORIGIN,
+import { createPublicReplicaSync, sealPublicReplicaSource, preparePublicReplicaPublication, PUBLIC_REPLICA_ORIGIN,PUBLIC_REPLICA_OPERATION_MAX_MS,
   PUBLIC_REPLICA_SUMMARY_FIELDS } from '../lib/public-replica-sync.mjs';
 import { describeWorkPlays } from '../lib/work-play-semantics.mjs';
 import { preparePublishedSnapshotBaseline } from '../lib/committed-target-publication.mjs';
@@ -894,6 +894,12 @@ test('activation has its own bounded audit budget; uploads keep the short reques
  }
 });
 
+test('production full-publication budget is finite and rejects invalid or unbounded operation windows',async()=>{
+ assert.equal(PUBLIC_REPLICA_OPERATION_MAX_MS,900000);
+ for(const operationTimeoutMs of [0,-1,900001,Infinity,NaN,'900000'])assert.throws(()=>createPublicReplicaSync({getCredential:async()=>SECRET,operationTimeoutMs}),/invalid-configuration/);
+ const cloud=fakeCloud(),result=await producer(cloud,{operationTimeoutMs:PUBLIC_REPLICA_OPERATION_MAX_MS}).sync(fixture());
+ assert.equal(result.status,'success');assert.equal(result.batchesCompleted,result.batchesTotal);
+});
 test('activation override cannot remove the enclosing operation deadline or accept an unbounded budget',async()=>{
  for(const activationTimeoutMs of [0,-1,300001,Infinity,NaN,'300000'])assert.throws(()=>createPublicReplicaSync({getCredential:async()=>SECRET,activationTimeoutMs}),/invalid-configuration/);
  const cloud=fakeCloud(),original=cloud.fetch;cloud.fetch=async(url,init={})=>{
