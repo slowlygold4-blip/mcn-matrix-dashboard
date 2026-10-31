@@ -6,10 +6,11 @@ test('actual collection console distinguishes homepage coverage, refused works a
  try{const context=await browser.newContext({viewport:{width:1100,height:850},reducedMotion:'reduce'});try{const page=await context.newPage(),errors=[],writes=[];page.on('pageerror',e=>errors.push(e.message));
  const status={online:true,canControl:false,status:{observedAt:'2026-10-29T08:50:00Z',accounts:4081,topics:4,queue:{pending:5,rejected:2},rolling:{total:4085,updated:4076,profiles:4072,notUpdated:9,worksComplete:0,worksLimited:692,workIssues:4058,reasons:[{code:'transport-cooldown',count:3969},{code:'blocked',count:89},{code:'UNTRUSTED_RAW_REASON',count:1}]},run:{id:26125,kind:'scheduled',status:'success',total:1,processed:1,success:1,failed:0,warnings:1}}};
  await page.route('**/*',async route=>{const req=route.request(),u=new URL(req.url());if(u.origin!=='https://mcn-console.test')return route.abort();if(req.method()!=='GET')writes.push({url:u.pathname,method:req.method()});if(u.pathname==='/api/collection')return route.fulfill({contentType:'application/json',body:JSON.stringify(status)});return route.fulfill({contentType:'text/html',body:'<!doctype html><meta charset="utf-8"><div class="workspace"><main class="content"><div id="root"></div></main></div>'});});
- await page.goto('https://mcn-console.test/');await page.addStyleTag({content:['replica.css','source-operations.css','visual-theme.css','observatory.css'].map(n=>readFileSync(site+'app/'+n,'utf8')).join('\n')});await page.addScriptTag({content:bundle.outputFiles[0].text});
+ await page.goto('https://mcn-console.test/');await page.addStyleTag({content:['replica.css','source-operations.css','visual-theme.css','collection-console.css','observatory.css'].map(n=>readFileSync(site+'app/'+n,'utf8')).join('\n')});await page.addScriptTag({content:bundle.outputFiles[0].text});
  const panel=page.getByRole('region',{name:'脚本采集进度'});await panel.getByText('脚本在线 · 等待下一批',{exact:true}).waitFor();assert.match(await panel.textContent(),/作品完整\s*0/);assert.match(await panel.textContent(),/作品部分取得\s*692/);
  assert.match(await page.getByRole('progressbar').getAttribute('aria-label'),/不代表作品采集完整/);assert.equal(await page.getByRole('progressbar').getAttribute('aria-valuenow'),String(4076/4085*100));
- await page.locator('.collection-more summary').click();const detail=await page.locator('.collection-more').textContent();assert.match(detail,/4,058 个作品采样提示/);assert.match(detail,/接口冷却中，作品请求暂缓（非本次请求失败） 3,969 个/);assert.match(detail,/作品接口拒绝访问（401\/403） 89 个/);assert.match(detail,/作品采集原因待核验 1 个/);assert.equal(detail.includes('UNTRUSTED_RAW_REASON'),false);
+ const counts=page.getByRole('group',{name:'近24小时采样明细'});assert.equal(await counts.isVisible(),false);
+ await page.locator('.collection-more summary').focus();await page.keyboard.press('Enter');assert.equal(await counts.isVisible(),true);const detail=await page.locator('.collection-more').textContent();assert.match(detail,/4,058 个作品采样提示/);assert.match(detail,/接口冷却中，作品请求暂缓（非本次请求失败） 3,969 个/);assert.match(detail,/作品接口拒绝访问（401\/403） 89 个/);assert.match(detail,/作品采集原因待核验 1 个/);assert.equal(detail.includes('UNTRUSTED_RAW_REASON'),false);
  await page.getByRole('button',{name:'全量采集 ↗',exact:true}).click();await page.getByRole('region',{name:'开启采集管理'}).waitFor();assert.deepEqual(writes,[],'public visitors never start a collector');
  for(const width of [390,320]){await page.setViewportSize({width,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);}
  assert.deepEqual(errors,[]);
@@ -34,7 +35,13 @@ test('daily profile coverage stays visible, updates from script receipts, reject
   const daily=page.getByLabel('当天粉丝和总获赞采样覆盖');await daily.waitFor();
   assert.equal(await daily.isVisible(),true);assert.match(await daily.innerText(),/粉丝 2\/10（1 可比）.*总获赞 1\/10（0 可比）/);
   assert.match(await page.locator('.collection-sampling-notice').last().innerText(),/作品点赞采样状态尚未上报/);
-  for(const width of [390,320]){await page.setViewportSize({width,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth),true);assert.equal(await daily.isVisible(),true);}
+  for(const width of [390,320]){
+   await page.setViewportSize({width,height:844});
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth),true);
+   assert.equal(await daily.isVisible(),true);
+   const height=await page.locator('.collection-console').evaluate(el=>el.getBoundingClientRect().height);
+   assert.ok(height<=(width===390?310:350),`The closed collection panel at ${width}px occupies ${height}px and hides the management content`);
+  }
   status.status.dailyProfiles.platforms[0].followers=metric(3,2);
   await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await page.getByText(/粉丝 3\/10（2 可比）/).waitFor();
   status.status.dailyProfiles.date='2026-10-30';
