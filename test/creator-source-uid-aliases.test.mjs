@@ -1,7 +1,8 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';import {createHash} from 'node:crypto';import * as XLSX from '@e965/xlsx';
 import {checksum} from '../lib/utils.mjs';import {OFFICIAL_DOUYIN_PROFILE_ENDPOINT} from '../lib/official-profile-evidence.mjs';
-import {commitWorkSourceEdition} from '../lib/work-source-store.mjs';
+import {commitWorkSourceEdition,readWorkSourceEditions,readKnownWorkSourceFacts} from '../lib/work-source-store.mjs';
+import {readCreatorSourceUIDEvidence} from '../lib/creator-source-uid-evidence.mjs';
 import {readCurrentCreatorSourceLinks,projectCanonicalCreatorLinks} from '../lib/creator-source-current-links.mjs';
 import {reconcileCreatorProfileIdentityLinks} from '../lib/reconcile-creator-profile-links.mjs';
 import {CREATOR_PROFILE_LINK_TABLE} from '../lib/creator-profile-identity-links.mjs';
@@ -79,6 +80,29 @@ test('a modified UID receipt or original source work cannot authorize an alias',
  const f=fixture(t);f.reconcile();const receipt=f.db.prepare(`SELECT * FROM ${CREATOR_PROFILE_LINK_TABLE}`).get(),body=JSON.parse(receipt.receipt_json);
  body.uidEvidence.uid='99999';const json=JSON.stringify(body);f.db.prepare(`UPDATE ${CREATOR_PROFILE_LINK_TABLE} SET receipt_json=?,receipt_sha256=?`).run(json,hash(json));
  assert.equal(f.read().accountLinks.length,1);
+});
+
+test('historical UID receipts retain their immutable edition fingerprint across parser-projection upgrades',t=>{
+ const f=fixture(t);assert.equal(f.reconcile().admitted,1);
+ const receipt=f.db.prepare(`SELECT * FROM ${CREATOR_PROFILE_LINK_TABLE}`).get(),body=JSON.parse(receipt.receipt_json);
+ // Reproduce a receipt committed before the row-projection executable existed.
+ body.uidEvidence.sourceSetFingerprint=hash(JSON.stringify(readWorkSourceEditions(f.db,{asOf:NOW}).map(v=>[v.id,v.factsSha256])));
+ const json=JSON.stringify(body);f.db.prepare(`UPDATE ${CREATOR_PROFILE_LINK_TABLE} SET receipt_json=?,receipt_sha256=?`).run(json,hash(json));
+ assert.equal(f.read().accountLinks.length,2,'a parser/cache upgrade must not revoke the exact original identity proof');
+ assert.equal(f.read(LATER).accountLinks.length,2);
+ assert.equal(f.reconcile().admitted,0,'an existing receipt must not be replaced or duplicated');
+});
+
+test('derived rejected-row recovery supplies work facts without silently changing the original UID identity-proof namespace',t=>{
+ const f=fixture(t);f.laterSource(null);
+ const book=XLSX.utils.book_new(),sheet=XLSX.utils.aoa_to_sheet([['作品链接','作者UID','点赞数'],['https://www.douyin.com/video/'+B,UID,5]]);
+ sheet.A2.l={Target:'mailto:unsupported@example.test'};XLSX.utils.book_append_sheet(book,sheet,'作品');
+ const at='2026-10-10T12:00:00.000Z',metadata={url:'https://fixture.feishu.cn/sheets/RecoveredUID123456',revision:1,modifiedAt:at,title:'作品',sheets:[{id:'one',name:'作品',region:'A1:C2'}]};
+ const raw=commitWorkSourceEdition(f.db,{buffer:XLSX.write(book,{type:'buffer',bookType:'xlsx'}),before:metadata,after:structuredClone(metadata),readAt:at},{now:()=>Date.parse(at)});
+ assert.equal(raw.factCount,0);
+ const known=readKnownWorkSourceFacts(f.db,{asOf:at});assert.ok(known.facts.some(f=>f.parserRecovery&&f.uid===UID));
+ const imported=f.db.prepare('SELECT * FROM creator_source_imports').get();
+ assert.equal(readCreatorSourceUIDEvidence(f.db,{imported,reference:at}).candidates.length,0,'derived rows require their own explicit identity admission contract');
 });
 test('a modified canonical-row pointer cannot evict an existing good binding; newer UID contradictions revoke only the alias',t=>{
  for(const scenario of ['pointer','new-uid']){

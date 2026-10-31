@@ -19,6 +19,12 @@ Original source editions and memberships are never rewritten. The existing
 source policy fingerprints cause one initial recheck, without duplicating a
 pending owned import job or introducing another scheduler.
 
+The original-edition fingerprint is also embedded in durable UID identity
+receipts. It retains its historical meaning across parser upgrades; projection
+cache invalidation uses `workSourceFingerprint` separately. V1 UID identity
+evidence continues to use original accepted members. Derived rejected rows can
+enrich works without silently granting a new identity-proof namespace.
+
 Recovered facts keep the original source time and original metric/publication
 dates. A publication date never becomes a measurement date. A successful link
 redirect proves a work reference; it does not prove author ownership or fresh
@@ -31,8 +37,16 @@ row-recovery evidence remains behind the existing public export allowlist.
 
 Regression coverage includes raw-edition/reimport stability, historical cutoffs,
 later genuine source updates, receipt membership forgery, artifact corruption,
-pending-job deduplication and unsafe link evidence. Runtime parsing, joining,
+historical UID receipt retention, pending-job deduplication and unsafe link evidence. Runtime parsing, joining,
 link resolution and publication call no model.
+
+A confirmed invalid derived view may be retired after upload only through the
+separate maintenance recovery proposal: the owned publisher must be stopped,
+activation must be demonstrably unattempted, the rejected partition must have a
+proved correction, and fresh anonymous manifest/partition readback must match
+the last published baseline. Original stage/control evidence is quarantined;
+unknown or attempted activation, stale readback, and observation timeouts never
+grant this recovery. The stricter unsent-preparation recovery remains unchanged.
 
 ```sh
 node --test test/work-source-row-projection.test.mjs
