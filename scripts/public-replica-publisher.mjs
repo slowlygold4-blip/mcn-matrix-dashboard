@@ -24,7 +24,7 @@ const iso=value=>typeof value==='string'&&Number.isFinite(Date.parse(value))&&ne
 const fail=code=>{throw Object.assign(new Error(code),{code});};
 // A staged generation is immutable. Its preparation features must not change
 // merely because a newer executable uses a different export revision.
-const legacyDateIndexRevisions=new Set(['catalog-date-range-v1','catalog-date-range-v2-roster-classification','catalog-date-range-v13-publication-scope','catalog-date-range-v14-independent-work-publishers','catalog-date-range-v15-source-field-order','catalog-date-range-v16-source-work-classification','catalog-date-range-v17-publication-date-basis',PUBLIC_REPLICA_EXPORT_REVISION]);
+const legacyDateIndexRevisions=new Set(['catalog-date-range-v1','catalog-date-range-v2-roster-classification','catalog-date-range-v13-publication-scope','catalog-date-range-v14-independent-work-publishers','catalog-date-range-v15-source-field-order','catalog-date-range-v16-source-work-classification','catalog-date-range-v17-publication-date-basis','catalog-date-range-v18-registration-work-facts',PUBLIC_REPLICA_EXPORT_REVISION]);
 export function shouldPreparePublicDateIndex(active){
   return typeof active?.dateIndex==='boolean' ? active.dateIndex
     : legacyDateIndexRevisions.has(active?.exportRevision);
