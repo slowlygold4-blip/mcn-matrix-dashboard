@@ -8,6 +8,7 @@ import "./collection-console.css";
 import "./matrix-pulse.css";
 import "./observatory.css";
 import "@/components/table-scroll-frame.css";
+import "@/components/tuantuan-roster-controls.css";
 import { DashboardMotion } from "@/components/dashboard-motion";
 
 export const metadata: Metadata = {

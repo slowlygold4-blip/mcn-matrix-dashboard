@@ -1,0 +1,48 @@
+/* Roster-only controls; selectors do not change other source tables. */
+.tuantuan-roster-table .roster-search-row {
+ display:flex;align-items:center;gap:8px;min-width:0;padding:0 20px 12px;
+}
+.tuantuan-roster-table .roster-search-row input {
+ min-width:0;max-width:400px;flex:1;background:var(--mcn-surface);
+}
+.tuantuan-roster-table .roster-filter-bar {display:none;}
+.tuantuan-roster-table .roster-filter-controls[hidden] {display:none!important;}
+.tuantuan-roster-table .roster-page-controls {display:flex;align-items:center;gap:8px;min-width:0;}
+.tuantuan-roster-table .roster-page-jump .roster-jump-short {display:none;}
+.tuantuan-roster-table .roster-page-jump :is(.roster-jump-lead,.roster-jump-full,.roster-jump-short) {
+ margin:0;flex-basis:auto;
+}
+@media(max-width:767px) {
+ .tuantuan-roster-table .roster-search-row input,
+ .tuantuan-roster-table .roster-search-row button {min-height:44px;}
+ .tuantuan-roster-table .roster-search-row input {font-size:16px;}
+ .tuantuan-roster-table .roster-search-row button {padding-inline:8px;font-size:12px;}
+ .tuantuan-roster-table .roster-filter-bar {
+  display:flex;align-items:center;gap:12px;min-width:0;padding:0 20px 12px;
+ }
+ .tuantuan-roster-table .roster-filter-toggle {min-height:44px;padding-inline:10px;flex:none;font-size:12px;}
+ .tuantuan-roster-table .roster-filter-brief {min-width:0;color:var(--mcn-muted);font-size:12px;line-height:1.5;}
+ .tuantuan-roster-table .roster-filter-controls {padding-bottom:16px;}
+ .tuantuan-roster-table .roster-filter-controls select {min-height:44px;}
+ .tuantuan-roster-table .roster-filter-controls button {min-height:44px;}
+ .tuantuan-roster-table .roster-pager {display:block;padding:10px 20px;}
+ .tuantuan-roster-table .roster-pager>span {display:block;margin:0 0 8px;}
+ .tuantuan-roster-table .roster-page-controls {
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px;width:100%;
+ }
+ .tuantuan-roster-table .roster-page-controls>button {
+  min-height:44px;padding-inline:8px;font-size:12px;
+ }
+ .tuantuan-roster-table .roster-page-jump {
+  display:flex;justify-content:center;gap:4px;min-width:0;
+ }
+ .tuantuan-roster-table .roster-page-jump label {gap:4px;white-space:nowrap;font-size:11px;}
+ .tuantuan-roster-table .roster-page-jump input {width:44px;min-width:0;min-height:44px;padding:4px;font-size:16px;}
+ .tuantuan-roster-table .roster-page-jump>button {min-height:44px;padding-inline:6px;font-size:12px;}
+ .tuantuan-roster-table .roster-page-jump :is(.roster-jump-lead,.roster-jump-full) {display:none;}
+ .tuantuan-roster-table .roster-page-jump .roster-jump-short {display:inline;}
+ .tuantuan-roster-table .roster-page-jump [role="alert"] {flex-basis:100%;font-size:11px;overflow-wrap:anywhere;}
+}
+@media(max-width:360px) {
+ .tuantuan-roster-table .roster-pager {padding-inline:10px;}
+}

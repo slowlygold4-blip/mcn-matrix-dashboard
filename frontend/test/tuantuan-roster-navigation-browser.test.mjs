@@ -30,7 +30,7 @@ test('real roster controls preserve task state across URL navigation, loading an
    await panel.getByRole('button',{name:'导出当前筛选',exact:true}).click();
    const csv=await page.evaluate(()=>window.exports.at(-1).text());assert.equal(csv.trim().split(/\r?\n/).length,66);assert.match(csv,/alias-64/);assert.match(csv,/合成总表 \/ 合成补表/);
    const group=page.getByRole('group',{name:'团团作者范围'});
-   for(const label of ['全部作者 65','启用监控 33','暂停监控 16','未关联监控 16'])assert.equal(await group.getByRole('button',{name:label,exact:true}).count(),1);
+   for(const label of ['全部作者 65','启用监控 33','暂停监控 16','未纳入矩阵监控 16'])assert.equal(await group.getByRole('button',{name:label,exact:true}).count(),1);
    assert.match(await panel.innerText(),/全部作者统一展示/);
    assert.equal(await panel.getByRole('columnheader',{name:/^已登记作品/}).count(),1);
    const explanation=panel.locator('details.roster-method');assert.equal(await explanation.getAttribute('open'),null,'secondary data explanation stays collapsed for a simpler first view');
