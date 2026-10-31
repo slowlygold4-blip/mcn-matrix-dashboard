@@ -94,7 +94,7 @@ test("narrow snapshot candidates are deep-equal to the former wide query across 
   const otherBoard = account("其他板块账号", { board: "其他矩阵" });
 
   // Offset timestamps resolve to the same normalized UTC instants; for the
-  // duplicate A-end instant, the later row id remains the tie-break winner.
+  // duplicate A-end instant, contradictory counters are withheld independently.
   sample(primary, "2026-09-11T15:00:00.000Z", [70, 700, 7]);
   sample(primary, "2026-09-01T08:00:00+08:00", [10, 100, 1]);
   sample(primary, "2026-09-03T20:00:00+08:00", [20, 200, 2]);
@@ -143,9 +143,10 @@ test("narrow snapshot candidates are deep-equal to the former wide query across 
 
   const primaryA = getAccountInsight(database, primary.id, { period: "custom", startDate: "2026-09-12",
     endDate: "2026-09-14", reference, timeZone }).account;
-  assert.equal(primaryA.metrics.followers.delta, -62, "offset-equal timestamp uses the greatest id as the ending sample");
+  assert.equal(primaryA.metrics.followers.delta, null, "equal-instant contradictory followers cannot pick the greatest row ID");
+  assert.match(primaryA.metrics.followers.reason, /冲突/);
   assert.equal(primaryA.metrics.likes.delta, -650);
-  assert.equal(primaryA.metrics.posts.delta, -5);
+  assert.equal(primaryA.metrics.posts.delta, null, "the same conflict rule applies to account inventory");
   const partialB = getAccountInsight(database, partial.id, { period: "custom", startDate: "2026-09-01",
     endDate: "2026-09-03", reference, timeZone }).account;
   assert.equal(partialB.metrics.likes.delta, null, "a missing likes baseline is not manufactured from null observations");

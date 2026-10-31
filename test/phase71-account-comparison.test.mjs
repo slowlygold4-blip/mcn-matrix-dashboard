@@ -6,13 +6,14 @@ import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {createRequire} from 'node:module';
 import vm from 'node:vm';
+import {existsSync} from 'node:fs';
 import {derivePublicHistoryDateIndex} from '../lib/public-history-range.mjs';
-import {parseAccountRequest,accountShareQuery} from '../../mcn-public-site/lib/replica-account.mjs';
-import {workspaceNavigation} from '../../mcn-public-site/lib/replica-navigation.mjs';
-import {growthSeries} from '../../mcn-public-site/lib/replica-trends.mjs';
-import {readReplicaPart} from '../../mcn-public-site/lib/replica-reader.mjs';
-
-const SITE=new URL('../../mcn-public-site/',import.meta.url);
+const SITE=new URL(existsSync(new URL('../frontend/components/account-panel.tsx',import.meta.url))
+ ?'../frontend/':'../../mcn-public-site/',import.meta.url);
+const [{parseAccountRequest,accountShareQuery},{workspaceNavigation},{growthSeries},{readReplicaPart}]=await Promise.all([
+ import(new URL('lib/replica-account.mjs',SITE)),import(new URL('lib/replica-navigation.mjs',SITE)),
+ import(new URL('lib/replica-trends.mjs',SITE)),import(new URL('lib/replica-reader.mjs',SITE)),
+]);
 const oldHarness=await readFile(new URL('./public-global-url-phase53-peer-20261001.test.mjs',import.meta.url),'utf8');
 const first=oldHarness.indexOf('const SITE = new URL('),last=oldHarness.indexOf('\nasync function apply(h,key)');
 assert.ok(first>0&&last>first,'unchanged actual Home harness boundaries exist');
@@ -272,9 +273,16 @@ test('phase71 actual Home first unpinned personal B link gains generation withou
 test('phase71 actual Home personal B fixed-generation refresh preserves request and share state',async()=>{
  const h=await pageHarness('https://synthetic.invalid/'+queryWithB);try{
   const before=h.window.location.href;assert.deepEqual(deep(h.element(n=>n.type==='AccountPanel').props.request.comparison),B);
-  await h.click('刷新已发布数据');assert.equal(h.window.location.href,before);
+  await h.click('重新读取已保存数据');assert.equal(h.window.location.href,before);
   assert.deepEqual(deep(h.element(n=>n.type==='AccountPanel').props.request.comparison),B);
-  assert.ok(h.fetches.every(f=>new URL(f.url,'https://synthetic.invalid').searchParams.get('generation')===generation));
+  // Live status and latest-version notification reads do not replace the
+  // personal page's fixed publication. Applied metadata stays pinned.
+  const replicaReads=h.fetches.filter(f=>new URL(f.url,'https://synthetic.invalid').pathname==='/api/replica');
+  const pinned=replicaReads.filter(f=>new URL(f.url,'https://synthetic.invalid').searchParams.has('generation'));
+  assert.ok(pinned.length>0);
+  assert.ok(pinned.every(f=>new URL(f.url,'https://synthetic.invalid').searchParams.get('generation')===generation));
+  assert.ok(replicaReads.filter(f=>!pinned.includes(f)).every(f=>new URL(f.url,'https://synthetic.invalid').search===''));
+  assert.equal(h.element(n=>n.type==='AccountPanel').props.manifest.asOf,generation);
  }finally{h.close();}
 });
 
@@ -313,7 +321,7 @@ test('phase71 actual Home does not save a foreign identity or publication from p
 });
 
 test('phase71 personal B editing and returning preserves original matrix A/B list contract',async()=>{
- const original='?theme=tuantuan&classification=slice&period=custom&start='+A.start+'&end='+A.end+'&compareStart='+B.otherStart+'&compareEnd='+B.otherEnd+'&sort=likes.delta&order=asc&query=Synthetic#accounts';
+ const original='?rosterPanel=changes&theme=tuantuan&classification=slice&period=custom&start='+A.start+'&end='+A.end+'&compareStart='+B.otherStart+'&compareEnd='+B.otherEnd+'&sort=likes.delta&order=asc&query=Synthetic#accounts';
  const h=await pageHarness('https://synthetic.invalid/'+original);try{
   const before=h.window.location.href;const historyEntry=h.element(n=>n.type==='Button'&&n.props['aria-label']==='查看Synthetic 1的历史');assert.ok(historyEntry);historyEntry.props.onClick({currentTarget:{isConnected:true,focus(){}}});await h.flush();await h.click('打开独立账号页面');
   const p=h.element(n=>n.type==='AccountPanel');assert.ok(p);
