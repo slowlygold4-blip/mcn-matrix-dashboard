@@ -15,7 +15,7 @@ function fixture() {
     isFile: () => kind === "file", isDirectory: () => kind === "dir", isSymbolicLink: () => kind === "link" });
   files.set("/srv/mcn/data", meta("dir"));
   for (const path of ["/usr/bin/python3", "/usr/bin/curl", "/usr/bin/sqlite3", "/bin/ps", "/usr/bin/lark-cli", "/usr/bin/chrome"]) files.set(path, meta("file", 0o755, 0));
-  for (const path of ["package-lock.json", "scripts/douyin_public_collector.py", "vendor/evil0ctal/xbogus.py", "vendor/f2/abogus.py", "vendor/f2/__init__.py", "vendor/gmssl/sm3.py", "vendor/gmssl/func.py", "vendor/gmssl/__init__.py"]) files.set(`/srv/mcn/${path}`, meta("file", 0o644));
+  for (const path of ["package-lock.json", "scripts/douyin_public_collector.py", "vendor/f2/abogus.py", "vendor/f2/__init__.py", "vendor/gmssl/sm3.py", "vendor/gmssl/func.py", "vendor/gmssl/__init__.py"]) files.set(`/srv/mcn/${path}`, meta("file", 0o644));
   const deps = {
     platform: "linux", nodeVersion: "24.16.0", uid: 1000, homeDirectory: "/home/mcn",
     stat(path) { calls.push(["stat", path]); if (!files.has(path)) throw new Error("missing SECRET"); return files.get(path); },
@@ -97,6 +97,11 @@ test("lockfile, vendored files and installed package resolution are required", (
   f.deps.resolveModule = () => { throw new Error("missing SECRET"); };
   const result = f.run(); assert.equal(check(result, "node-packages").status, "fail");
   assert.ok(!JSON.stringify(result).includes("SECRET"));
+});
+
+test("retired X-Bogus signer is not an active collector dependency or a deployment gate", () => {
+  const f=fixture();assert.equal(f.run().offlineReady,true);
+  assert.ok(!f.calls.some(([,path])=>typeof path==='string'&&path.includes('evil0ctal')));
 });
 
 test("poller requires literal loopback HTTP, matching port/family, no credentials, query or path", () => {

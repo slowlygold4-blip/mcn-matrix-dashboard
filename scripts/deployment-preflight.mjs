@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 const PROJECT_DIR = fileURLToPath(new URL("..", import.meta.url));
 const SOURCE_FILES = ["package-lock.json", "scripts/douyin_public_collector.py",
-  "vendor/evil0ctal/xbogus.py", "vendor/f2/abogus.py", "vendor/f2/__init__.py",
+  "vendor/f2/abogus.py", "vendor/f2/__init__.py",
   "vendor/gmssl/sm3.py", "vendor/gmssl/func.py", "vendor/gmssl/__init__.py"];
 const PACKAGES = ["@e965/xlsx", "exceljs", "playwright-core"];
 const REMAINING_ACCEPTANCE = [

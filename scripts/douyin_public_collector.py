@@ -28,8 +28,6 @@ import urllib.error
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_DIR / "vendor"))
-sys.path.insert(0, str(PROJECT_DIR / "vendor" / "evil0ctal"))
-from xbogus import XBogus  # noqa: E402
 from f2.abogus import ABogus, BrowserFingerprintGenerator  # noqa: E402
 
 
@@ -260,7 +258,9 @@ def request(url, *, method="GET", data=None, referer="https://www.douyin.com/", 
     ]
     if capture_transport:
         # stderr remains in memory; stdout/body and the tuple contract do not change.
-        args.extend(["-D", "/dev/stderr"])
+        # Counter endpoints have a fixed official identity. Stop at redirects
+        # before forwarding even the ephemeral guest cookie to another URL.
+        args.extend(["--no-location", "-D", "/dev/stderr"])
         transport_evidence.update(post_transport_evidence(b"", None))
     if cookie:
         args.extend(["-b", "ttwid=%s" % cookie])
@@ -274,10 +274,11 @@ def request(url, *, method="GET", data=None, referer="https://www.douyin.com/", 
             raise CollectorError("公开网页连接失败；未记录传输错误原文", code="network_error") from None
         raise CollectorError("公开网页连接失败：%s" % exc) from exc
     if completed.returncode != 0:
-        if capture_transport and parsed_url.path in {"/aweme/v1/web/aweme/detail/", "/aweme/v1/web/user/profile/other/"} and marker in completed.stdout:
+        if capture_transport and marker in completed.stdout:
             # Curl can fail while finishing a body after already observing an
             # explicit refusal. Do not let that transport error permit a
-            # different request form. Profile requests use the same stop rule.
+            # different request form or a shorter transient cooldown. Works
+            # lists, details and profiles use the same refusal-first rule.
             observed_status = completed.stdout.rsplit(marker, 1)[1].split(b"\t", 1)[0]
             if re.fullmatch(br"4\d{2}", observed_status):
                 status = int(observed_status)
@@ -298,6 +299,8 @@ def request(url, *, method="GET", data=None, referer="https://www.douyin.com/", 
         raise CollectorError("公开网页响应缺少有效状态信息") from None
     if capture_transport:
         transport_evidence.update(post_transport_evidence(completed.stderr, status))
+        if 300 <= status < 400:
+            raise CollectorError("公开数据接口返回跳转；已停止请求，未访问跳转目标", code="upstream_changed")
     if status < 200 or status >= 400:
         if capture_transport:
             code = {401: "login_required", 403: "blocked", 429: "rate_limited"}.get(status)
@@ -351,13 +354,6 @@ def register_guest():
     return match.group(1).decode("ascii", "strict")
 
 
-def signed_url(base_url, params):
-    query = urlencode(params)
-    unsigned = "%s?%s" % (base_url, query)
-    signature = XBogus(user_agent=UA).getXBogus(unsigned)[1]
-    return "%s&%s" % (unsigned, urlencode({"X-Bogus": signature}))
-
-
 def a_bogus_signed_url(base_url, params):
     """Sign a public-web request with the current anonymous A-Bogus route."""
     query = urlencode(params)
@@ -372,10 +368,11 @@ def request_json(url, *, referer, cookie=None, transport_evidence=None):
         options["transport_evidence"] = transport_evidence
     body, final_url = request(url, **options)
     profile_request = urlparse(url).path == "/aweme/v1/web/user/profile/other/"
-    if profile_request:
+    post_request = transport_evidence is not None and urlparse(url).path == "/aweme/v1/web/aweme/post/"
+    if profile_request or post_request:
         final = urlparse(final_url)
-        if final.scheme != "https" or final.netloc != "www.douyin.com" or final.path != "/aweme/v1/web/user/profile/other/":
-            raise CollectorError("公开主页响应未停留在原官方接口；已停止采样", code="upstream_changed")
+        if final.scheme != "https" or final.netloc != "www.douyin.com" or final.path != urlparse(url).path:
+            raise CollectorError("公开数据响应未停留在原官方接口；已停止采样", code="upstream_changed")
     if not body.strip():
         raise CollectorError("公开网页返回空内容；为保护历史数据，本次采集已拒绝写入")
     try:
@@ -394,11 +391,19 @@ def request_json(url, *, referer, cookie=None, transport_evidence=None):
         if any(payload.get(field) not in (None, False, 0, "") for field in ("need_login", "login_required", "captcha_required", "verify_required")):
             code = "login_required" if payload.get("need_login") or payload.get("login_required") else "business_error"
             raise CollectorError("公开主页要求登录或验证；已停止采样，未处理验证", code=code)
-    post_request = transport_evidence is not None and urlparse(url).path == "/aweme/v1/web/aweme/post/"
     # Only an explicit integer zero proves works success. Preserve the existing
     # rejection classification below for explicit nonzero integer statuses.
     if post_request and type(status) is not int:
         raise CollectorError("公开作品列表未返回明确业务成功状态", code="upstream_changed")
+    if post_request and status == 0 and any(
+            payload.get(field) not in (None, False, 0, "")
+            for field in ("need_login", "login_required", "captcha_required", "verify_required")):
+        # An explicit gate takes precedence over even a terminal empty list.
+        # Preserve a public not_login_module window: it is not such a demand.
+        code = "login_required" if any(
+            payload.get(field) not in (None, False, 0, "")
+            for field in ("need_login", "login_required")) else "business_error"
+        raise CollectorError("公开作品列表要求登录或验证；本次作品未采到，未处理验证", code=code)
     detail_request = transport_evidence is not None and urlparse(url).path == "/aweme/v1/web/aweme/detail/"
     if detail_request and status in (None, 0) and type(status) is not int:
         raise CollectorError("公开视频详情未返回明确业务成功状态", code="upstream_changed")
