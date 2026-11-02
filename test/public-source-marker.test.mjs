@@ -32,3 +32,20 @@ test('an identity-only admission triggers publication without a new sampling run
   }
  }finally{db.close()}
 });
+
+test('an accepted HTTP work observation triggers publication at commitment time without profile collection',()=>{
+ const db=new DatabaseSync(':memory:');try{
+  db.exec('CREATE TABLE account_events(id INTEGER,target_id INTEGER,event_type TEXT,event_key TEXT,observed_at TEXT,source_checksum TEXT,created_at TEXT)');
+  const asOf='2026-11-02T14:20:00Z',before=readPublicSourceMarker(db,asOf);
+  const insert=db.prepare('INSERT INTO account_events VALUES(?,?,?,?,?,?,?)');
+  insert.run(1,1,'lifecycle','unrelated','2026-11-02T14:00:00Z','a'.repeat(64),'2026-11-02T14:00:00Z');
+  assert.equal(readPublicSourceMarker(db,asOf),before);
+  insert.run(2,1,'remote-work-observation','receipt','2026-11-02T14:07:19.135Z','b'.repeat(64),'2026-11-02T14:19:19.575Z');
+  assert.equal(readPublicSourceMarker(db,'2026-11-02T14:12:00Z'),before,'not visible before its real commitment');
+  const after=readPublicSourceMarker(db,asOf);assert.notEqual(after,before);
+  insert.run(3,1,'remote-work-observation','future-observation','2026-11-02T15:00:00Z','c'.repeat(64),'2026-11-02T14:19:19.575Z');
+  assert.equal(readPublicSourceMarker(db,asOf),after);
+  const changes=db.prepare('SELECT total_changes() n').get().n;readPublicSourceMarker(db,asOf);
+  assert.equal(db.prepare('SELECT total_changes() n').get().n,changes);
+ }finally{db.close()}
+});
