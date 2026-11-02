@@ -18,6 +18,44 @@ test('missing work statistics never borrow the author counters',()=>{
  assert.deepEqual(input,before);
 });
 
+test('remote content_id retains the exact work identity ahead of an unrelated row id',()=>{
+ const contentId='7660369906369629476';
+ const post=normalizePost({content_id:contentId,id:'42',platform:'douyin',
+  author:{sec_uid:account.locator},stats:{digg_count:11,play_count:null},
+  fetched_at:'2026-11-02T13:56:37.732971Z'});
+ assert.equal(post.externalId,contentId);
+ assert.equal(post.url,`https://www.douyin.com/video/${contentId}`);
+ assert.equal(post.likes,11);
+ assert.equal(post.plays,null);
+ assert.equal(post.publishedAt,null); // fetch time is not publication time
+ assert.equal(normalizePost({aweme_id:id,content_id:contentId}).externalId,id);
+ const authorOnly=normalizePost({author:{content_id:contentId}});
+ assert.notEqual(authorOnly.externalId,contentId);
+});
+
+test('HTTP content_id and an existing aweme_id share one stored work and adjacent-day history',()=>{
+ const db=new DatabaseSync(':memory:');
+ try{
+  db.exec(`CREATE TABLE posts(id INTEGER PRIMARY KEY,target_id INTEGER,external_id TEXT,author_id TEXT,
+   author_name TEXT,caption TEXT,published_at TEXT,likes INTEGER,comments INTEGER,shares INTEGER,
+   collects INTEGER,plays INTEGER,url TEXT,first_seen_at TEXT,last_seen_at TEXT,raw_json TEXT,
+   UNIQUE(target_id,external_id));
+   CREATE TABLE post_metrics(post_id INTEGER,captured_at TEXT,likes INTEGER,comments INTEGER,
+   shares INTEGER,collects INTEGER,plays INTEGER,UNIQUE(post_id,captured_at));`);
+  persistPosts(db,{target:account,posts:[normalizePost(item({desc:'旧标题',statistics:{digg_count:8}}))],
+   capturedAt:'2026-11-01T04:00:00.000Z'});
+  const current=normalizePost({content_id:id,title:'改过的标题',author:{sec_uid:account.locator},
+   stats:{digg_count:11,play_count:null}});
+  for(let attempt=0;attempt<2;attempt++)persistPosts(db,{target:account,posts:[current],
+   capturedAt:'2026-11-02T04:00:00.000Z'});
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM posts').get().n,1);
+  const observations=db.prepare('SELECT p.target_id,p.external_id,m.captured_at,m.likes FROM posts p JOIN post_metrics m ON m.post_id=p.id ORDER BY m.captured_at').all();
+  assert.deepEqual(observations.map(r=>[r.external_id,r.likes]),[[id,8],[id,11]]);
+  const result=summarizeWorkLikeComparability(observations,{enabled:[account],asOf:'2026-11-02T05:00:00.000Z'});
+  assert.equal(result.platforms[0].comparableWorks,1);
+ }finally{db.close();}
+});
+
 test('author creation date, profile link and biography are never adopted as work metadata',()=>{
  const input={aweme_id:id,author:{id:'123456',created_at:'2026-10-31T03:00:00.000Z',
   url:'https://www.douyin.com/user/profileFixture',description:'作者简介'}};
