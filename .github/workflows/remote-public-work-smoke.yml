@@ -1,0 +1,36 @@
+name: Remote public work capability check
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: remote-public-work-smoke
+  cancel-in-progress: false
+jobs:
+  public-sample:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: Install isolated, pinned browser runtime
+        shell: bash
+        run: |
+          npm install --prefix "$RUNNER_TEMP/mcn-smoke" --no-audit --no-fund --ignore-scripts playwright@1.64.1
+          "$RUNNER_TEMP/mcn-smoke/node_modules/.bin/playwright" install --with-deps --only-shell chromium
+      - name: Observe public sample and its first public author page
+        env:
+          MCN_SMOKE_RUNTIME: ${{ runner.temp }}/mcn-smoke
+        run: node scripts/ci/remote-public-work-smoke.mjs
+      - name: Save bounded, credential-free observation
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: public-work-capability
+          path: ${{ runner.temp }}/mcn-public-smoke.json
+          if-no-files-found: warn
+          retention-days: 1
