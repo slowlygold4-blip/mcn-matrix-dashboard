@@ -21,11 +21,11 @@ jobs:
         shell: bash
         run: |
           npm install --prefix "$RUNNER_TEMP/mcn-smoke" --no-audit --no-fund --ignore-scripts playwright@1.64.1
-          "$RUNNER_TEMP/mcn-smoke/node_modules/.bin/playwright" install --with-deps --only-shell chromium
+          "$RUNNER_TEMP/mcn-smoke/node_modules/.bin/playwright" install --with-deps chromium
       - name: Observe public sample and its first public author page
         env:
           MCN_SMOKE_RUNTIME: ${{ runner.temp }}/mcn-smoke
-        run: node scripts/ci/remote-public-work-smoke.mjs
+        run: xvfb-run --auto-servernum node scripts/ci/remote-public-work-smoke.mjs
       - name: Save bounded, credential-free observation
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

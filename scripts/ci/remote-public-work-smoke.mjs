@@ -104,7 +104,7 @@ async function main(){
  let browser;
  try{
   const require=createRequire(join(process.env.MCN_SMOKE_RUNTIME,'package.json'));
-  const {chromium}=require('playwright');browser=await chromium.launch({headless:true});
+  const {chromium}=require('playwright');browser=await chromium.launch({headless:false});
   const context=await browser.newContext();
   await context.route('**/*',route=>{
    const r=route.request();let u;try{u=new URL(r.url());}catch{return route.abort();}
