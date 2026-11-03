@@ -22,6 +22,21 @@ export function referenceCandidate(file,previous,previousGeneration,generation){
  return{source_generation,source_checksum,source_bytes,trailing_newline:ending,etag:md5(source),data:source};
 }
 export function referenceHeadMatches(head,ref){return !!head&&head.size===ref.source_bytes&&head.etag===ref.etag;}
+// A compact upload supplies no body to trust. Reconstruct it exclusively from
+// the named published file and its verified immutable storage object.
+export async function restoreReplicaUploadReference(bucket,file,previous,previousGeneration,generation,options={}){
+ if(!previous||!time(previousGeneration)||!time(generation)||previousGeneration>=generation
+  ||!checksum(file.sha256)||!Number.isSafeInteger(file.bytes)||file.bytes<1
+  ||previous.bytes!==file.bytes)fail();
+ const text=await readReplicaText(bucket,previousGeneration,{path:file.path,sha256:previous.checksum,bytes:previous.bytes},previous,options);
+ if(text===undefined)fail();
+ let value;try{value=JSON.parse(text);}catch{fail();}
+ const ending=newline(text,value);
+ if(value?.asOf!==previousGeneration||ending===null)fail();
+ const restored=JSON.stringify({...value,asOf:generation})+(ending?'\n':'');
+ if(Buffer.byteLength(restored)!==file.bytes||sha(restored)!==file.sha256)fail();
+ return restored;
+}
 export async function readReplicaText(bucket,generation,meta,ref,options={}){
  const referenced=ref?.source_generation!=null;
  if(referenced&&(!time(ref.source_generation)||Date.parse(ref.source_generation)>=Date.parse(generation)||!checksum(ref.source_checksum)||!Number.isSafeInteger(ref.source_bytes)||ref.source_bytes<1||![0,1].includes(ref.trailing_newline)))fail();

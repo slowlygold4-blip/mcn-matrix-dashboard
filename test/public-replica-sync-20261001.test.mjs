@@ -8,6 +8,7 @@ import { describeWorkPlays } from '../lib/work-play-semantics.mjs';
 import { preparePublishedSnapshotBaseline } from '../lib/committed-target-publication.mjs';
 import { shouldPreparePublicDateIndex } from '../scripts/public-replica-publisher.mjs';
 import { PUBLIC_REPLICA_EXPORT_REVISION } from '../lib/public-replica-export.mjs';
+import {replicaUploadBatches} from '../lib/replica-upload-plan.mjs';
 
 const SECRET = 'c'.repeat(64);
 const SENTINEL = 'PRIVATE_FAKE_SECRET_MUST_NOT_ESCAPE';
@@ -63,6 +64,12 @@ function fixture({ accounts = 1 } = {}) {
       likes: 0, comments: null, shares: 0, collects: null, plays: 0, playsEvidence: describeWorkPlays(0, 'douyin') }] }, id);
   }
   return { manifest: { ...common, policy, counts, files: files.map(({ content, ...file }) => file) }, files };
+}
+function fixtureAt(asOf,accounts=40){
+ const source=fixture({accounts});source.manifest.asOf=asOf;
+ for(const file of source.files){file.content=JSON.stringify({...JSON.parse(file.content),asOf})+'\n';file.sha256=hash(file.content);file.bytes=Buffer.byteLength(file.content);
+  Object.assign(source.manifest.files.find(row=>row.path===file.path),{sha256:file.sha256,bytes:file.bytes});}
+ return source;
 }
 
 function editPart(source, path, edit) {
@@ -135,7 +142,8 @@ function summaryRows(publication) {
 function fakeCloud() {
   const calls = [], staged = new Map(), published = new Map();
   const api = { calls, staged, published, failUploadAt: null, uploads: 0, onUpload: null,
-    failActivationResponse: false, corruptPart: null, rejectActivationOnce: false };
+    failActivationResponse: false, corruptPart: null, rejectActivationOnce: false,
+    referenceCapability:false,rejectCompact:false };
   api.fetch = async (url, init = {}) => {
     assert.equal(new URL(url).origin, PUBLIC_REPLICA_ORIGIN); assert.equal(init.redirect, 'error');
     const body = init.body ? JSON.parse(init.body) : null;
@@ -143,10 +151,11 @@ function fakeCloud() {
     if (init.method !== 'POST') {
       assert.equal(init.headers?.Authorization, undefined);
       const params = new URL(url).searchParams, generation = params.get('generation');
-      const manifest = published.get(generation);
-      if (!manifest) return Response.json({ error: SENTINEL }, { status: 404 });
+      const manifest = published.get(generation??(api.referenceCapability?[...published.keys()].sort().at(-1):null));
+      const headers=api.referenceCapability?{'X-Replica-Reference-Upload':'v1'}:{};
+      if (!manifest) return Response.json({ error: SENTINEL }, { status: 404,headers });
       const path = params.get('part');
-      if (!path) return Response.json({ manifest, publishedAt: AS_OF, readOnly: true, collectionRequiresLocalComputer: true });
+      if (!path) return Response.json({ manifest, publishedAt: AS_OF, readOnly: true, collectionRequiresLocalComputer: true },{headers});
       const value = staged.get(generation)?.get(path);
       return new Response(api.corruptPart === path ? `${value.data} ` : value.data);
     }
@@ -154,8 +163,18 @@ function fakeCloud() {
     if (body.action === 'upload') {
       api.uploads++;
       if (api.uploads === api.failUploadAt) throw Error(`network ${SECRET} ${SENTINEL}`);
+      const prepared=[];
+      for(const file of body.files){
+        if(typeof file.data==='string'){prepared.push(file);continue;}
+        if(!api.referenceCapability||api.rejectCompact)return Response.json({error:SENTINEL},{status:409});
+        const previous=published.get(body.referenceGeneration),old=staged.get(body.referenceGeneration)?.get(file.path);
+        if(!previous||!old)return Response.json({error:SENTINEL},{status:409});
+        const data=JSON.stringify({...JSON.parse(old.data),asOf:body.asOf})+'\n';
+        if(hash(data)!==file.sha256||Buffer.byteLength(data)!==file.bytes)return Response.json({error:SENTINEL},{status:409});
+        prepared.push({...file,data});
+      }
       const parts = staged.get(body.asOf) ?? new Map(); staged.set(body.asOf, parts);
-      for (const file of body.files) {
+      for (const file of prepared) {
         assert.equal(hash(file.data), file.sha256);
         const previous = parts.get(file.path); if (previous) assert.equal(previous.sha256, file.sha256);
         parts.set(file.path, file);
@@ -181,6 +200,39 @@ function producer(cloud, options = {}) {
     loadCheckpoint: async () => clone(checkpoint), saveCheckpoint: async value => { checkpoint = clone(value); }, ...options });
   return { ...sync, checkpoint: () => clone(checkpoint) };
 }
+
+test('advertised compact uploads reduce request bodies while publishing exact generation bytes with unchanged v1 checkpoints',async()=>{
+ const cloud=fakeCloud();cloud.referenceCapability=true;
+ const sync=producer(cloud,{referenceUploads:true,reuseUnchanged:true});assert.equal((await sync.sync(fixtureAt(AS_OF))).status,'success');
+ const B='2026-09-21T12:00:00.000Z',source=fixtureAt(B),result=await sync.sync(source);
+ assert.equal(result.status,'success');assert.equal(sync.checkpoint().version,1);assert.ok(result.uploadTransport.compactFileAttempts>100);
+ const uploads=cloud.calls.filter(c=>c.body?.action==='upload'&&c.body.asOf===B);
+ assert.ok(uploads.some(c=>c.body.referenceGeneration===AS_OF));assert.ok(uploads.some(c=>c.body.files.some(f=>f.data===undefined)));
+ const prepared=await preparePublicReplicaPublication(source),full=[...replicaUploadBatches(prepared,{reuseUnchanged:true})].reduce((sum,files)=>sum+Buffer.byteLength(JSON.stringify({action:'upload',asOf:B,files,reuseUnchanged:true})),0);
+ assert.ok(result.uploadTransport.plainBytes<full/2);
+ for(const file of prepared.files)assert.equal(cloud.staged.get(B).get(file.path).data,file.content);
+});
+
+test('compact refusal retries the exact immutable full batch once without acknowledging partial data or leaking messages',async()=>{
+ const cloud=fakeCloud();cloud.referenceCapability=true;const sync=producer(cloud,{referenceUploads:true,reuseUnchanged:true});
+ assert.equal((await sync.sync(fixtureAt(AS_OF))).status,'success');cloud.rejectCompact=true;
+ const B='2026-09-21T12:00:00.000Z',result=await sync.sync(fixtureAt(B));
+ assert.equal(result.status,'success');assert.ok(result.uploadTransport.fullFallbacks>0);assert.ok(!JSON.stringify(result).includes(SENTINEL));
+ assert.ok(cloud.published.has(B));assert.equal(sync.checkpoint().completedBatches.length,sync.checkpoint().batchSha256.length);
+});
+
+test('changing wire mode after interruption resumes the same acknowledged batch hashes and never repacks the checkpoint',async()=>{
+ const cloud=fakeCloud();cloud.referenceCapability=true;let checkpoint=null;
+ const options={loadCheckpoint:async()=>clone(checkpoint),saveCheckpoint:async value=>{checkpoint=clone(value);},reuseUnchanged:true};
+ let sync=producer(cloud,{...options,referenceUploads:true});assert.equal((await sync.sync(fixtureAt(AS_OF))).status,'success');
+ cloud.failUploadAt=cloud.uploads+2;const B='2026-09-21T12:00:00.000Z',source=fixtureAt(B);
+ assert.equal((await sync.sync(source)).status,'failed');const before=clone(checkpoint);assert.ok(before.completedBatches.length>0);
+ const publication=await preparePublicReplicaPublication(source),batches=[...replicaUploadBatches(publication,{reuseUnchanged:true})];
+ const acknowledged=new Set(before.completedBatches.flatMap(index=>batches[index].map(file=>file.path))),offset=cloud.calls.length;
+ cloud.failUploadAt=null;sync=producer(cloud,{...options,referenceUploads:false});assert.equal((await sync.sync(source)).status,'success');
+ assert.deepEqual(checkpoint.batchSha256,before.batchSha256);
+ for(const request of cloud.calls.slice(offset).filter(c=>c.body?.action==='upload'))for(const file of request.body.files)assert.ok(!acknowledged.has(file.path));
+});
 
 test('sync prepare preserves real 0/null/negative history and new summary shards have exactly nine source-bound fields', async () => {
   const source = fixture(), publication = await preparePublicReplicaPublication(source);

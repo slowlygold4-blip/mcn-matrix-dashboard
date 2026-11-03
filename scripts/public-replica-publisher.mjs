@@ -281,7 +281,7 @@ async function runPublisherCycle(ownerInstance){
   // Full uploads plus seventeen bounded source audits exceed the legacy
   // eight-minute window. Keep one finite operation, request deadlines and the
   // caller's cancellation; never discard checkpoints to force a restart.
-  const sync=createPublicReplicaSync({operationTimeoutMs:PUBLIC_REPLICA_OPERATION_MAX_MS,activationTimeoutMs:300_000,compressRequests:true,reuseUnchanged:true,chunkedDateAudit:true,getCredential:()=>privateRead(join(home,'credential'),{credential:true}),
+  const sync=createPublicReplicaSync({operationTimeoutMs:PUBLIC_REPLICA_OPERATION_MAX_MS,activationTimeoutMs:300_000,compressRequests:true,reuseUnchanged:true,referenceUploads:true,chunkedDateAudit:true,getCredential:()=>privateRead(join(home,'credential'),{credential:true}),
     loadCheckpoint:async()=>{try{return await privateRead(join(home,'checkpoint.json'));}catch(e){if(e.code==='ENOENT')return null;throw e;}},
     saveCheckpoint:value=>privateWrite(join(home,'checkpoint.json'),value)});
   const tick=async()=>{
