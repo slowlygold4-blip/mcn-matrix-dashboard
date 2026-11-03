@@ -6,6 +6,8 @@ import {MonitorDatabase} from '../lib/database.mjs';
 import {PublicWebProvider} from '../lib/providers/public-web.mjs';
 import {readKnownBilibiliWorks} from '../lib/bilibili-known-works.mjs';
 import {collectionProgress} from '../lib/collection-progress.mjs';
+import {exportPublicReplica} from '../lib/public-replica-export.mjs';
+import {readCommittedTargetPublication,releaseCommittedTargetPublication} from '../lib/committed-target-publication.mjs';
 
 const mid='525138167',ids=['BV1fi416bEpi','BV1H5sf6NEP6'];
 const collector=fileURLToPath(new URL('../scripts/douyin_public_collector.py',import.meta.url));
@@ -55,7 +57,7 @@ test('only own enabled stored BVs are selected, bounded and rotated by actual li
  assert.deepEqual(readKnownBilibiliWorks(null,f.target,mid),[]);
 });
 test('a refused author inventory does not prevent independently bound stored work metrics or invent daily inventory',async t=>{
- const f=setup(t),fixture=rawFixture();let args;
+ const f=setup(t),run=f.database.beginRun('test',f.target.id,1),fixture=rawFixture();let args;
  for(const id of ids)f.db.prepare("INSERT INTO posts(target_id,external_id,author_id,caption,first_seen_at,last_seen_at) VALUES(?,?,?,'',?,?)")
   .run(f.target.id,id,mid,'2026-11-01T00:00:00.000Z','2026-11-01T00:00:00.000Z');
  const provider=new PublicWebProvider({}, {database:f.database,execFileImpl:(_file,a,_options,callback)=>{args=a;callback(null,JSON.stringify({ok:true,data:fixture.raw}), '');}});
@@ -63,12 +65,23 @@ test('a refused author inventory does not prevent independently bound stored wor
  assert.equal(result.worksCoverage,'limited');assert.equal(result.snapshot.totalLikes,500);
  assert.deepEqual(result.posts.map(p=>p.likes),[0,11]);assert.equal(result.raw.worksListEvidence.status,'refused');
  assert.equal(result.raw.knownWorksEvidence.used,true);assert.match(result.warnings.join(' '),/每日新投稿数量仍未确认/);
- const run=f.database.beginRun('test',f.target.id,1);f.database.saveCollection(f.target,run,result);
+ f.database.saveCollection(f.target,run,result);
+ f.database.finishRun(run,{status:'success',successCount:1,warningCount:1});
  const progress=collectionProgress(f.db);
  assert.equal(progress.dailyWorkLikes.platforms[0].observedWorks,2);
  assert.equal(progress.dailyWorkLikes.platforms[0].observedAccounts,1);
  assert.equal(progress.rolling.worksComplete,0);assert.equal(f.db.prepare('SELECT total_likes FROM snapshots').get().total_likes,500);
  assert.deepEqual(args.flatMap((a,i)=>a==='--known-work'?[args[i+1]]:[]),ids);
+ // Verify the real durable collection can reach the public replica, rather
+ // than only testing a process response or the local metric count.
+ f.db.exec('BEGIN');let receipt;
+ try{
+  const asOf=new Date().toISOString();receipt=readCommittedTargetPublication(f.db,{asOf});
+  const replica=exportPublicReplica(f.db,{asOf,committedPublication:receipt});
+  const metrics=replica.partitions.filter(p=>p.kind==='workMetrics').flatMap(p=>p.items);
+  assert.equal(metrics.length,2);assert.deepEqual(metrics.map(p=>p.likes),[0,11]);
+  assert.equal(replica.catalog.accounts[0].latest.likes.value,500);
+ }finally{if(receipt)releaseCommittedTargetPublication(receipt);f.db.exec('ROLLBACK');}
 });
 test('a detail refusal stops further known details and never turns local references into observed list rows',()=>{
  const x=rawFixture({detailRefusal:true});assert.equal(x.calls.length,1);
