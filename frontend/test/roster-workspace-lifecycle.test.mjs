@@ -384,8 +384,12 @@ test('editing dates during a delayed refresh wins over live-period advancement',
  const browser=await launch();
  try{const f=await openFixture(browser,'?theme=tuantuan&period=since#overview'),{context,page,errors,requests}=f;try{
   await page.waitForFunction(()=>new URL(location.href).searchParams.get('end')==='2026-09-30');
+  // The URL can settle before the initial load's finally/effects. Do not
+  // install the delayed-response gate until initial reads have completed.
+  const refresh=page.getByRole('button',{name:'重新读取已保存数据',exact:true});
+  await refresh.waitFor();await settleFrame(page);assert.equal(await refresh.isEnabled(),true);
   await f.advanceEdition();const release=f.holdManifest(),request=page.waitForRequest(r=>new URL(r.url()).pathname==='/api/replica');
-  await page.getByRole('button',{name:'重新读取已保存数据',exact:true}).click();await request;
+  await refresh.click();await request;
   await page.getByLabel('起点',{exact:true}).fill('2026-09-23');release();
   await page.waitForFunction(()=>{const p=new URL(location.href).searchParams;return p.get('period')==='custom'&&p.get('followLatest')==='0';});
   assert.equal(new URL(page.url()).searchParams.get('start'),'2026-09-23');assert.equal(new URL(page.url()).searchParams.get('end'),'2026-09-30');
