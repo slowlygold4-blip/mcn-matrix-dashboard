@@ -8,6 +8,8 @@ import {build} from 'esbuild';
 import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {coverageTotals} from '../lib/replica-coverage.mjs';
+import {matchesMatrixScope} from '../lib/matrix-scope.mjs';
+import {readFileSync} from 'node:fs';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
 const bundle=await build({entryPoints:[root+'components/coverage-panel.tsx'],absWorkingDir:root,
@@ -31,6 +33,23 @@ const accounts=[
 ];
 const topics={topics:[],items:[]};
 const render=(element)=>renderToStaticMarkup(React.createElement(element.type,element.props));
+
+test('coverage denominator uses the selected enabled matrix scope and labels topic independence',()=>{
+ const classified=(id,theme,board,enabled=true)=>({...make(id,'limited',at(-1),at(-1)),enabled,
+  boardKeys:[board],classification:{theme:{key:theme},labels:[{key:'slice'}]}});
+ const all=[classified(1,'tuantuan','团团矩阵'),classified(2,'tuantuan','团团矩阵',false),
+  classified(3,'other','其他矩阵'),classified(4,'douyin-streamers','抖音主播板块')];
+ const selected=all.filter(a=>a.enabled&&matchesMatrixScope(a,{theme:'tuantuan'}));
+ const html=render({type:CoveragePanel,props:{accounts:selected,topics,asOf,scopeLabel:'团团 · 切片',onAccount:()=>{}}});
+ assert.match(html,/账号范围：团团 · 切片/);
+ assert.match(html,/话题双指标独立统计全部已登记话题/);
+ assert.match(html,/作品覆盖有限 1\/1/);
+ assert.ok(html.includes('查看合成账号1的经营详情'));
+ for(const id of [2,3,4])assert.ok(!html.includes('查看合成账号'+id+'的经营详情'));
+ const page=readFileSync(root+'app/page.tsx','utf8');
+ assert.ok(page.includes('<CoveragePanel accounts={scope} topics={data.topics} asOf={data.manifest.asOf} scopeLabel={overviewAccountScope}'));
+ assert.equal((page.match(/<CoveragePanel accounts=\{data.accounts\}/g)||[]).length,1,'only the explicitly global topic page retains global accounts');
+});
 
 test('fresh complete, fresh limited and recent unsuccessful attempts remain separate evidence',()=>{
  const before=JSON.stringify(accounts);

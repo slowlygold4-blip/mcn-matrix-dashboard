@@ -20,7 +20,7 @@ const names:Record<string,string>={
 const time=(s:string|null)=>s?new Date(s).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'无记录';
 export const coverageHeadline=(totals:Totals)=>`主页新数据 ${totals.profileFresh}/${totals.denominator} · 作品完整核验 ${totals.worksComplete}/${totals.denominator} · 作品覆盖有限 ${totals.worksLimited}/${totals.denominator} · 最近未取得 ${totals.worksUnavailableRecent}/${totals.denominator} · 话题双指标 ${totals.topicsFresh}/${totals.topicDenominator}`;
 
-export function CoveragePanel({accounts,topics,asOf,onAccount}:{accounts:Row[];topics:Record<string,unknown>;asOf:string;onAccount:(a:Row,trigger?:HTMLButtonElement|null)=>void}){
+export function CoveragePanel({accounts,topics,asOf,onAccount,scopeLabel="全部采集账号"}:{accounts:Row[];topics:Record<string,unknown>;asOf:string;scopeLabel?:string;onAccount:(a:Row,trigger?:HTMLButtonElement|null)=>void}){
  const [now,setNow]=useState<number|null>(null);
  const [filter,setFilter]=useState('all'),[query,setQuery]=useState(''),[page,setPage]=useState(1);
  useEffect(()=>{const update=()=>setNow(Date.now()),first=setTimeout(update,0),interval=setInterval(update,60000);
@@ -34,6 +34,7 @@ export function CoveragePanel({accounts,topics,asOf,onAccount}:{accounts:Row[];t
    <span>{current?coverageHeadline(current):'正在核对最近 8 小时的数据状态…'}</span>
    <span>展开查看证据与账号</span></summary>
   <div className="coverage-details">
+   <p className="meta coverage-scope" role="status">账号范围：{scopeLabel} · 仅统计启用账号；话题双指标独立统计全部已登记话题。</p>
    <p className="meta">发布截面 {time(asOf)} 的近 8 小时窗口：主页 {published.profileFresh}/{published.denominator} · 作品完整核验 {published.worksComplete}/{published.denominator} · 作品覆盖有限 {published.worksLimited}/{published.denominator} · 话题双指标 {published.topicsFresh}/{published.topicDenominator}。已有作品更新后仍可能缺少最新投稿；有限覆盖不能确认每天实际发布数量或全部作品。</p>
    <section className="coverage-gaps" aria-label="采样缺口账号"><h3>完整性待核 {gaps.totalGaps} 个账号</h3>
     <p className="meta">可搜索、筛选并翻页查看全部待核账号。优先列出最近未取得或尚无有效作品采样的账号；指标与分母沿用当前选择范围。</p>
