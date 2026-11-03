@@ -1249,7 +1249,14 @@ def bili_latest_videos(opener, mid, limit, *, evidence=None):
     return accepted(output, "dynamic", len(items))
 
 
-def collect_bilibili_account(locator, limit):
+def collect_bilibili_account(locator, limit, known_work_ids=None):
+    # Independent public work resources already registered to this author;
+    # never use these IDs to invent a successful/empty author inventory.
+    known_work_ids = [] if known_work_ids is None else known_work_ids
+    if (not isinstance(known_work_ids, list) or len(known_work_ids) > 6
+            or any(not isinstance(value, str) or not re.fullmatch(r"BV[0-9A-Za-z]{10}", value)
+                   for value in known_work_ids) or len(set(known_work_ids)) != len(known_work_ids)):
+        raise CollectorError("B站已登记作品请求无效")
     started_at = observation_timestamp()
     mid = extract_bilibili_mid(locator)
     opener = bili_opener()
@@ -1292,14 +1299,22 @@ def collect_bilibili_account(locator, limit):
                             and works_list_evidence.get("rawCount") == 0)
     if not video_refs and not confirmed_empty_list:
         warnings.append("B站公开投稿列表当前受限；已保存账号粉丝与稿件总量，未用空列表覆盖历史作品")
+    known_refs_used = not video_refs and not confirmed_empty_list and bool(known_work_ids)
+    if known_refs_used:
+        video_refs = [{"bvid": value, "known_only": True} for value in known_work_ids[:max(1, min(limit, 6))]]
     works = []
     observations = []
     seen_bvids = set()
     details = {"version": 1, "requestedCount": 0, "successfulCount": 0,
                "failedCount": 0, "deferredCount": 0, "errors": []}
     detail_refused = False
+    known_attempted = []
 
     def retain_list_reference(video, bvid):
+        # Local IDs are not a newly observed list response. A failed detail
+        # cannot acquire a fresh metric/last-seen time from the local registry.
+        if video.get("known_only"):
+            return
         works.append({
             "aweme_id": bvid,
             "desc": video.get("title") or "",
@@ -1321,6 +1336,8 @@ def collect_bilibili_account(locator, limit):
             continue
         try:
             details["requestedCount"] += 1
+            if video.get("known_only"):
+                known_attempted.append(bvid)
             detail = (bili_json(opener, "https://api.bilibili.com/x/web-interface/view?bvid=%s" % bvid).get("data") or {})
             detail_observed_at = observation_timestamp()
         except CollectorError as exc:
@@ -1381,6 +1398,9 @@ def collect_bilibili_account(locator, limit):
         }},
         "works": {"aweme_list": works},
         "worksListEvidence": works_list_evidence,
+        "knownWorksEvidence": {"version": 1, "source": "stored-account-work-ids",
+                               "requestedCount": len(known_work_ids), "used": known_refs_used,
+                               "attemptedIds": known_attempted},
         "workDetailEvidence": details,
         "worksErrorCode": failure.get("errorCode", "upstream_changed") if failure is not None else None,
         "worksError": works_error,
@@ -1682,6 +1702,7 @@ def main():
     parser.add_argument("--limit", type=int, default=30)
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--works-mode", choices=("collect", "deferred"), default="collect")
+    parser.add_argument("--known-work", action="append", default=[])
     args = parser.parse_args()
     limit = max(1, min(args.limit, 100))
     try:
@@ -1692,7 +1713,7 @@ def main():
         if args.operation == "bilibili-account":
             if not args.locator.strip():
                 raise CollectorError("缺少 B站 UID 或官方主页")
-            emit({"ok": True, "data": collect_bilibili_account(args.locator, limit)})
+            emit({"ok": True, "data": collect_bilibili_account(args.locator, limit, args.known_work)})
         if args.operation == "identity-work":
             emit({"ok": True, "data": collect_identity_work(args.locator)})
         if args.operation == "hot":
