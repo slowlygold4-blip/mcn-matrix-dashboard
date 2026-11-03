@@ -2,7 +2,7 @@
 
 采集与入库不调用模型。`lib/remote-work-observation.mjs` 接受已由操作者核验的 HTTP 回执，将作品与点赞追加到现有 `posts/post_metrics`，来源证明放在 `account_events`；不新增展示板块，也不修改账号分类、主页统计或旧指标历史。
 
-当前是单账号样本接入能力，**没有启用全量远程采集**。白名单仅包含本轮实际测试的公开演示站。上游演示服务明确不保证可用性，不能配置为日常生产依赖：[项目使用说明](https://github.com/Evil0ctal/Douyin_TikTok_Download_API/blob/b5505e3830a2e4b9b8608962f58e96dfe75f23c5/README.md)。自行部署或使用其他供应商仍需单独审查授权、资源、来源和稳定性；本实现不购买服务、不导出本机登录态。
+当前是单账号样本接入能力，**没有启用全量远程采集**。默认只接受本轮实际测试的公开演示站，保留旧回执重放兼容；管理员可在命令参数中显式指定另一个已审查的 HTTPS 来源。来源不能由回执自行授权。上游演示服务明确不保证可用性，不能配置为日常生产依赖：[项目使用说明](https://github.com/Evil0ctal/Douyin_TikTok_Download_API/blob/b5505e3830a2e4b9b8608962f58e96dfe75f23c5/README.md)。自行部署或使用其他供应商仍需单独审查授权、资源、来源和稳定性；本实现不购买服务、不导出本机登录态。
 
 ## 契约与校验
 
@@ -24,7 +24,13 @@ node scripts/admit-remote-work-page.mjs --receipt /absolute/receipt.json --datab
 
 # 明确提交已核验的样本；生产写入前应先验证既有一致性备份
 node scripts/admit-remote-work-page.mjs --receipt /absolute/receipt.json --database /absolute/monitor.sqlite --commit
+
+# 已经核验实际 HTTP 来源及授权后，预检同一 DTK 契约的其他服务
+node scripts/admit-remote-work-page.mjs --receipt /absolute/receipt.json --database /absolute/monitor.sqlite --source-origin https://your-reviewed-service.example
+# 提交时仍须最后显式添加 --commit
 ```
+
+来源参数必须是精确、规范的 HTTPS origin，不含凭据、路径、查询、片段或自定义端口，且与回执 `source` 完全相等。该参数只授权本次文件接入，不注册或启用采集服务，不替代 TLS/来源核验，也不放宽时间、作者、缺值及去重规则。其他供应商若不是同一数据契约，仍需独立适配，不能仅改来源就当成兼容。
 
 不要把凭据放在命令参数或回执中。命令本身没有网络请求、定时器、浏览器或模型调用。
 

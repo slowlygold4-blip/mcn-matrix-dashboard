@@ -97,3 +97,44 @@ test('same receipt with different facts fails atomically and preserves the accep
  assert.equal(f.db.prepare('SELECT likes FROM post_metrics ORDER BY post_id').get().likes,0);
  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM account_events').get().n,1);
 });
+
+test('operator-approved HTTPS origin is required independently of receipt data and keeps transactional deduplication',t=>{
+ const f=fixture(t),origin='https://reviewed-service.example';
+ f.input.receipt.source=origin;
+ // An uploaded receipt cannot approve its own source, including via extra keys.
+ f.input.sourceOrigin=origin;f.input.receipt.sourceOrigin=origin;
+ assert.throws(f.save,{code:'REMOTE_WORK_OBSERVATION_INVALID'});
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM post_metrics').get().n,0);
+ const save=()=>recordRemoteWorkPage(f.db,f.input,{sourceOrigin:origin});
+ assert.equal(save().duplicate,false);assert.equal(save().duplicate,true);
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM post_metrics').get().n,2);
+ const event=JSON.parse(f.db.prepare("SELECT raw_json FROM account_events WHERE event_type='remote-work-observation'").get().raw_json);
+ assert.equal(event.source,origin);assert.equal(event.automaticCollectionEnabled,false);
+ assert.equal(event.coverage,'limited');assert.equal(event.dailyPublicationCountConfirmed,false);
+ f.input.receipt.source='https://another-service.example';
+ assert.throws(save,{code:'REMOTE_WORK_OBSERVATION_INVALID'});
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM post_metrics').get().n,2);
+});
+
+test('approved source is a canonical HTTPS origin, never credentials, paths, query strings or normalized lookalikes',t=>{
+ const f=fixture(t);
+ for(const sourceOrigin of [null,7,'http://reviewed-service.example','https://user:password@reviewed-service.example',
+  'https://reviewed-service.example/path','https://reviewed-service.example?token=SECRET',
+  'https://reviewed-service.example#fragment','https://reviewed-service.example:8443',
+  'https://reviewed-service.example:443','https://reviewed-service.example/',
+  'https://REVIEWED-service.example',' https://reviewed-service.example']){
+  assert.throws(()=>recordRemoteWorkPage(f.db,f.input,{sourceOrigin}),{code:'REMOTE_WORK_OBSERVATION_INVALID'});
+ }
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM posts').get().n,0);
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM account_events').get().n,0);
+});
+
+test('explicit original origin is byte-identical to legacy evidence and replays the accepted receipt',t=>{
+ const f=fixture(t);
+ const legacy=normalizeRemoteWorkPage(f.input.receipt,f.anchor);
+ const explicit=normalizeRemoteWorkPage(f.input.receipt,f.anchor,{sourceOrigin:'https://demo.douyin.wtf'});
+ assert.deepEqual(explicit,legacy);
+ f.save();
+ assert.equal(recordRemoteWorkPage(f.db,f.input,{sourceOrigin:'https://demo.douyin.wtf'}).duplicate,true);
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM account_events').get().n,1);
+});
