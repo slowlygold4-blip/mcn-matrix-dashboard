@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -16,6 +17,30 @@ const SECRET = 'PRIVATE_SYNTHETIC_VALUE_MUST_NOT_ESCAPE';
 const AS_OF = '2026-09-20T12:00:00.000Z';
 const at = day => `2026-09-${String(day).padStart(2, '0')}T02:00:00.000Z`;
 const external = index => String(7200000000000000000n + BigInt(index));
+
+test('disk export writes each encoded part before encoding the next, preserving all sealed bytes',async t=>{
+  const {sample,read}=fixture(t);sample(19,{works:[{index:1,likes:7},{index:2,likes:0}]});
+  const replica=read(),expected=serializePublicReplica(replica);
+  const directory=await mkdtemp(join(tmpdir(),'mcn-streaming-export-'));t.after(()=>rm(directory,{recursive:true,force:true}));
+  const original=JSON.stringify;let encoded=0;
+  const spy=t.mock.method(JSON,'stringify',function(value,...args){
+    if(value?.version===1&&value.asOf===AS_OF&&value.timeZone==='Asia/Shanghai'&&!Object.hasOwn(value,'policy')){
+      if(encoded>0)assert.equal(existsSync(join(directory,expected.files[encoded-1].path)),true,'previous bytes must be on disk before encoding another partition');
+      encoded++;
+    }
+    return original.call(JSON,value,...args);
+  });
+  const manifest=await writePublicReplica(directory,replica);spy.mock.restore();
+  assert.equal(encoded,expected.files.length);assert.deepEqual(manifest,expected.manifest);
+  assert.equal(await readFile(join(directory,'manifest.json'),'utf8'),original(expected.manifest)+'\n');
+  for(const file of expected.files)assert.equal(await readFile(join(directory,file.path),'utf8'),file.content);
+});
+
+test('an unverified export is rejected before creating its destination directory',async t=>{
+  const root=await mkdtemp(join(tmpdir(),'mcn-unverified-export-'));t.after(()=>rm(root,{recursive:true,force:true}));
+  const directory=join(root,'not-created');
+  await assert.rejects(writePublicReplica(directory,{partitions:[]}),/已校验/);assert.equal(existsSync(directory),false);
+});
 
 function fixture(t) {
   t.mock.timers.enable({ apis: ['Date'], now: Date.parse(AS_OF) + 1 });
