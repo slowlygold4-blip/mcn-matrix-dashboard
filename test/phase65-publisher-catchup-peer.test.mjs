@@ -14,6 +14,8 @@ import vm from 'node:vm';
 import {shouldStagePublicReplica,shouldPreparePublicDateIndex,completedSourceMarker,validatedReceipt,canPreparePublicReplica} from '../scripts/public-replica-publisher.mjs';
 import {inspectPublicDelivery as inspectDelivery,publicDeliveryFromSyncFailure} from '../lib/public-delivery-health.mjs';
 import {PUBLIC_REPLICA_EXPORT_REVISION as REVISION} from '../lib/public-replica-export.mjs';
+import {PUBLIC_REPLICA_VALIDATION_CONTRACT} from '../lib/public-replica-sync.mjs';
+import {publisherRuntimeSnapshot} from '../lib/publisher-runtime.mjs';
 
 const source=await readFile(new URL('../scripts/public-replica-publisher.mjs',import.meta.url),'utf8');
 const sitePackages=process.env.MCN_SITE_ROOT?[resolve(process.env.MCN_SITE_ROOT,'package.json')]
@@ -32,7 +34,7 @@ function visit(n){
   const findParentTick=child=>{if(ts.isVariableDeclaration(child)&&child.name.getText(ast)==='tick')parentTickExpression=child.initializer.getText(ast);ts.forEachChild(child,findParentTick);};
   findParentTick(n);
  }
- if(ts.isFunctionDeclaration(n)&&['recordPublisherPreparation','recordPublisherSyncStart'].includes(n.name?.text))cycleHelpers[n.name.text]=n.getText(ast);
+ if(ts.isFunctionDeclaration(n)&&['recordPublisherPreparation','recordPublisherSyncStart','recordPublisherRuntime'].includes(n.name?.text))cycleHelpers[n.name.text]=n.getText(ast);
  ts.forEachChild(n,visit);
 }visit(ast);
 assert.ok(tickExpression&&runDeclaration,'Actual publisher tick/run must be found');
@@ -147,7 +149,7 @@ function harness(initial=state(),{initialObserved=observed(),now=T+121*MINUTE,pu
  const stages=[],syncs=[],writes=[],reads=[],dbOps=[],logs=[];let persisted=clone(initial);
  class Clock extends Date{constructor(...args){super(...(args.length?args:[control.now]));}static now(){return control.now;}}
  class ReadonlyDB{constructor(path,options){assert.equal(options.readOnly,true);dbOps.push({open:path});}exec(sql){assert.ok(['PRAGMA query_only=ON;BEGIN','ROLLBACK'].includes(sql));dbOps.push(sql);}prepare(sql){assert.equal(sql,'SELECT total_changes() n');return{get:()=>({n:0})};}close(){dbOps.push('close');}}
- const context=vm.createContext({state:clone(initial),busy:false,stopping:false,immutableStage:null,Date:Clock,join,data:'/in-memory-fixture-only',statePath:'in-memory-state',DatabaseSync:ReadonlyDB,PUBLIC_REPLICA_EXPORT_REVISION:REVISION,signal:{signal:new AbortController().signal},hash,
+ const context=vm.createContext({state:clone(initial),busy:false,stopping:false,immutableStage:null,Date:Clock,join,data:'/in-memory-fixture-only',statePath:'in-memory-state',DatabaseSync:ReadonlyDB,PUBLIC_REPLICA_EXPORT_REVISION:REVISION,PUBLIC_REPLICA_VALIDATION_CONTRACT,publisherRuntimeSnapshot,signal:{signal:new AbortController().signal},hash,
   iso:value=>typeof value==='string'&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString()===value,
   fail:code=>{throw Object.assign(Error(code),{code});},canPreparePublicReplica:s=>canPreparePublicReplica(s,control.now),
   // These are the same synthetic immutable bytes supplied by storage/export
@@ -268,4 +270,14 @@ test('an older verified visitor check cannot label a different active generation
  assert.equal(h.logs.at(-1).publicAccessStatus,'not-checked');
  assert.equal(h.logs.at(-1).publicAccessAsOf,prior);assert.equal(h.logs.at(-1).asOf,seed.active.asOf);
  assert.equal(h.state().publicAccess.status,'verified','retain accurately dated prior evidence without relabelling it');
+});
+
+test('actual tick persists a bounded phase trace of loaded code without adding diagnostics to source bytes',async()=>{
+ const h=harness();await h.tick();const runtime=h.state().publisherRuntime;
+ assert.equal(runtime.validationContract,PUBLIC_REPLICA_VALIDATION_CONTRACT);
+ assert.equal(runtime.exportRevision,REVISION);assert.equal(runtime.asOf,h.state().publishedAsOf);
+ assert.deepEqual(runtime.samples.map(s=>s.phase),['preparation-started','baseline-validated','export-created','stage-written','source-sealed','sync-started','sync-finished','cycle-finished']);
+ assert.equal(JSON.stringify(h.syncs[0].publication).includes('publisher-phase-memory'),false);
+ assert.equal(h.dbOps.filter(v=>v==='close').length,1);
+ const traceWrites=h.writes.filter(v=>v.publisherRuntime);assert.ok(traceWrites.length>=8);
 });

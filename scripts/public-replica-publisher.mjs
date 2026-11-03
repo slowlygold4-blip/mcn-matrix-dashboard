@@ -1,5 +1,6 @@
 import { constants, watch } from 'node:fs';
 import {ensureBackgroundPriority as ensurePublisherBackgroundPriority} from '../lib/background-priority.mjs';
+import {publisherRuntimeSnapshot} from '../lib/publisher-runtime.mjs';
 export {ensurePublisherBackgroundPriority};
 import { prunePublicReplicaStaging } from '../lib/public-replica-retention.mjs';
 import { open, mkdir, readFile, rename, lstat, link, unlink } from 'node:fs/promises';
@@ -10,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { exportPublicReplica, writePublicReplica, PUBLIC_REPLICA_EXPORT_REVISION } from '../lib/public-replica-export.mjs';
-import { createPublicReplicaSync, preparePublicReplicaPublication, sealPublicReplicaSource, PUBLIC_REPLICA_OPERATION_MAX_MS } from '../lib/public-replica-sync.mjs';
+import { createPublicReplicaSync, preparePublicReplicaPublication, sealPublicReplicaSource, PUBLIC_REPLICA_OPERATION_MAX_MS, PUBLIC_REPLICA_VALIDATION_CONTRACT } from '../lib/public-replica-sync.mjs';
 import { readCommittedTargetPublication, isCommittedTargetPublication, COMMITTED_TARGET_PUBLICATION,
   preparePublishedSnapshotBaseline, attachPublishedSnapshotBaseline, releaseCommittedTargetPublication } from '../lib/committed-target-publication.mjs';
 import {readPublicSourceMarker} from '../lib/public-source-marker.mjs';
@@ -139,7 +140,9 @@ export async function acquirePublisherLock(path) {
  * successful publication does not mean the daemon is currently idle. */
 export async function recordPublisherPreparation(path, state, at) {
   if (state.active || !iso(at)) fail('invalid-preparation');
-  const next = { ...state, status: 'preparing', code: null, checkedAt: at };
+  const next = { ...state, status: 'preparing', code: null, checkedAt: at,
+    publisherRuntime:publisherRuntimeSnapshot(state.publisherRuntime,'preparation-started',{
+      asOf:at,at,validationContract:PUBLIC_REPLICA_VALIDATION_CONTRACT,exportRevision:PUBLIC_REPLICA_EXPORT_REVISION}) };
   await privateWrite(path, next);
   Object.assign(state, next);
 }
@@ -147,7 +150,14 @@ export async function recordPublisherSyncStart(path,state,at){
   if(!iso(at)||!iso(state.active?.asOf)||Date.parse(state.active.asOf)>Date.parse(at))fail('invalid-sync-start');
   const next={...state,status:'syncing',code:null,checkedAt:at,
     lastSync:state.sync?.status==='running'?(state.lastSync??null):(state.sync??state.lastSync??null),
-    sync:{status:'running',phase:'sync',asOf:state.active.asOf,requestEncoding:'gzip',reuseUnchanged:true}};
+    sync:{status:'running',phase:'sync',asOf:state.active.asOf,requestEncoding:'gzip',reuseUnchanged:true},
+    publisherRuntime:publisherRuntimeSnapshot(state.publisherRuntime,'sync-started',{
+      asOf:state.active.asOf,at,validationContract:PUBLIC_REPLICA_VALIDATION_CONTRACT,exportRevision:PUBLIC_REPLICA_EXPORT_REVISION})};
+  await privateWrite(path,next);Object.assign(state,next);
+}
+export async function recordPublisherRuntime(path,state,phase,asOf,at=new Date().toISOString()){
+  const next={...state,publisherRuntime:publisherRuntimeSnapshot(state.publisherRuntime,phase,{
+    asOf,at,validationContract:PUBLIC_REPLICA_VALIDATION_CONTRACT,exportRevision:PUBLIC_REPLICA_EXPORT_REVISION})};
   await privateWrite(path,next);Object.assign(state,next);
 }
 export function validatedReceipt(run,receipt,now=Date.now()){
@@ -268,7 +278,7 @@ async function runPublisherCycle(ownerInstance){
       if(!state.active){
         if(!canPreparePublicReplica(state))return;
         const asOf=new Date().toISOString(),directory=join(data,'public-replica-staging','publisher-'+asOf.replace(/[:.]/g,'-'));
-        const db=new DatabaseSync(join(data,'douyin-monitor.sqlite'),{readOnly:true});let replica,observed;
+        let db=new DatabaseSync(join(data,'douyin-monitor.sqlite'),{readOnly:true});let replica,observed;
         try{db.exec('PRAGMA query_only=ON;BEGIN');
           observed=await observe(db,asOf);observed.source??=state.coveredSource;
           observed.committedPublication=readCommittedTargetPublication(db,{asOf});
@@ -279,22 +289,30 @@ async function runPublisherCycle(ownerInstance){
           await recordPublisherPreparation(statePath,state,asOf);
           if(state.publishedAsOf){
             if(state.sync?.status!=='success'||state.sync.asOf!==state.publishedAsOf)fail('invalid-published-baseline');
-            const previous=await readPublication(join(data,'public-replica-staging','publisher-'+state.publishedAsOf.replace(/[:.]/g,'-')));
+            let previous=await readPublication(join(data,'public-replica-staging','publisher-'+state.publishedAsOf.replace(/[:.]/g,'-')));
             const baseline=await preparePublishedSnapshotBaseline(previous,{asOf:state.publishedAsOf,manifestSha256:state.sync.manifestSha256,exportRevision:state.exportRevision});
+            previous=null;
             attachPublishedSnapshotBaseline(observed.committedPublication,baseline);
+            await recordPublisherRuntime(statePath,state,'baseline-validated',asOf);
           }
           replica=exportPublicReplica(db,{asOf,committedPublication:observed.committedPublication});
           if(db.prepare('SELECT total_changes() n').get().n!==0)fail('unexpected-write');}
-        finally{releaseCommittedTargetPublication(observed?.committedPublication);try{db.exec('ROLLBACK');}catch{}db.close();}
+        finally{releaseCommittedTargetPublication(observed?.committedPublication);try{db.exec('ROLLBACK');}catch{}db.close();db=null;}
+        await recordPublisherRuntime(statePath,state,'export-created',asOf);
         const manifest=await writePublicReplica(directory,replica);
+        replica=null;
+        await recordPublisherRuntime(statePath,state,'stage-written',asOf);
         state.active={directory,asOf,manifestHash:hash(manifest),marker:observed.marker,source:observed.source,exportRevision:PUBLIC_REPLICA_EXPORT_REVISION,dateIndex:true,publicationContract:COMMITTED_TARGET_PUBLICATION};state.status='staged';await privateWrite(statePath,state);
       }
       if(!immutableStage||immutableStage.directory!==state.active.directory||immutableStage.manifestHash!==state.active.manifestHash){
         const publication=await readPublication(state.active.directory);if(publication.manifest.asOf!==state.active.asOf||hash(publication.manifest)!==state.active.manifestHash)fail('staging-version-conflict');
         immutableStage={directory:state.active.directory,manifestHash:state.active.manifestHash,source:sealPublicReplicaSource(publication)};
       }
+      await recordPublisherRuntime(statePath,state,'source-sealed',state.active.asOf);
+      const cycleAsOf=state.active.asOf;
       await recordPublisherSyncStart(statePath,state,new Date().toISOString());
       const result=await sync.sync(immutableStage.source,{signal:signal.signal,dateIndex:shouldPreparePublicDateIndex(state.active)});
+      await recordPublisherRuntime(statePath,state,'sync-finished',cycleAsOf);
       state.status=result.status;state.code=result.code??null;state.checkedAt=new Date().toISOString();state.sync=result;
       const accessFailure=publicDeliveryFromSyncFailure(result,state.checkedAt);
       if(accessFailure)state.publicAccess=accessFailure;
@@ -307,6 +325,8 @@ async function runPublisherCycle(ownerInstance){
         state.coveredMarker=state.active.marker;state.coveredSource=state.active.source;state.exportRevision=state.active.exportRevision??null;
         state.publicationContract=state.active.publicationContract??null;state.active=null;immutableStage=null;
       }
+      state.publisherRuntime=publisherRuntimeSnapshot(state.publisherRuntime,'cycle-finished',{
+        asOf:cycleAsOf,at:new Date().toISOString(),validationContract:PUBLIC_REPLICA_VALIDATION_CONTRACT,exportRevision:PUBLIC_REPLICA_EXPORT_REVISION});
       await privateWrite(statePath,state);console.log(JSON.stringify({status:state.status,code:state.code,asOf:state.active?.asOf??state.publishedAsOf,publicAccessStatus:state.publicAccess&&state.publicAccess.asOf===(state.active?.asOf??state.publishedAsOf)?state.publicAccess.status:'not-checked',publicAccessAsOf:state.publicAccess?.asOf??null,runtimeAI:false}));
       if(result.status==='success')try{const retention=await prunePublicReplicaStaging({dataDir:data,dryRun:false});console.log(JSON.stringify({cacheRetention:retention.status,removed:retention.removed.length,runtimeAI:false}));}catch(error){console.error('cache-retention-deferred',error.code||error.name);}
     }catch(e){state.status='failed';state.code=['invalid-source','invalid-summary','unsafe-private-file','invalid-staging-directory'].includes(e.code)?e.code:'publisher-check-failed';state.checkedAt=new Date().toISOString();await privateWrite(statePath,state).catch(()=>{});console.log(JSON.stringify({status:'failed',code:state.code,runtimeAI:false}));}
