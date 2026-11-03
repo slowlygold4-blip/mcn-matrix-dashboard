@@ -22,4 +22,13 @@ CLI exit codes are 0 for passed, 1 for failure/unavailable, and 2 for incomplete
 
 After a successful publisher activation and durable success-state write, the existing publisher writes `data/public-replica-publisher/coverage-audit.json` with the same generation and original manifest hash. This runs inside the existing disposable cycle and adds no scheduler or daemon. Inspection/report failures retain an explicit diagnostic and cannot rewind the confirmed publication, restart collection or clear upload checkpoints. Existing immutable-data and source-validation gates remain in place.
 
-The new synthetic tests include cross-source deduplication, Beijing midnight, genuine source-only and Bilibili rows, before-window exclusions, undated retention, missing/extra rows, conflicting ownership/dates, omitted index shards, byte/hash/path checks, CLI nonzero exit and post-activation failure isolation. The related 15-file backend suite passes 153 cases; the existing cloud workflow includes this suite alongside its interface regressions.
+The new synthetic tests include cross-source deduplication, Beijing midnight, genuine source-only and Bilibili rows, before-window exclusions, undated retention, missing/extra rows, conflicting ownership/dates, omitted index shards, byte/hash/path checks, CLI nonzero exit and post-activation failure isolation. The related 16-file backend suite passes 195 cases; the existing cloud workflow includes this suite alongside its interface regressions.
+
+
+## Registered link-only works
+
+The coverage audit also consumes `foundationOtherWorks`: an explicitly registered work link is retained in the existing undated publication entry even if no account binding, title, metric or publication timestamp has been observed. The export revision is `catalog-date-range-v21-source-work-references`; older immutable editions and the v20 baseline remain readable. This does not create new account observations or claim a work was newly published.
+
+The projection deduplicates these references against every known source/native identity, including works outside the September 12 window and conflicting native ownership. It retains only a source author display label, leaves the target ID unset, and keeps both metrics and date missing. A unique confirmed theme shared by the exact registered board may supply scope; missing or conflicting board evidence remains unassigned. Nicknames and work titles never supply author ownership or account classifications.
+
+The same day index, undated entry, sorting, scope filters and pagination serve these rows. No extra product board or separate dataset UI is created. Existing metric values and dated counts stay unchanged. A cloud actual-component fixture checks 35 link-only rows, both pages, missing indicators and scope changes that must not classify them as Tuantuan. Source/native facts continue to take precedence, so a duplicate link cannot resurrect an old or ambiguous publication.

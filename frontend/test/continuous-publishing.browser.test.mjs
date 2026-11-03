@@ -116,3 +116,43 @@ test('merged metric cards, publication dates, category filters, sorting and page
   assert.deepEqual(errors,[]);
  }finally{await browser.close();}
 });
+
+test('registered link-only references are reachable in the same undated entry without invented dates, counters or Tuantuan ownership',async()=>{
+ const {pathToFileURL}=await import('node:url');
+ const {registeredReferencePublications}=await import(pathToFileURL(resolve(main,'lib/publication-catalog.mjs')));
+ const asOf='2026-10-29T11:00:00.000Z';
+ const additions=registeredReferencePublications({withDates:true,accounts:[{classification:{theme:{key:'yuqilin',confirmed:true}},boardKeys:['玉麒麟切片矩阵']}],
+  referenceWorks:Array.from({length:35},(_,i)=>({contentId:String(7300000000000001000n+BigInt(i)),author:'登记作者'+i,board:i<3?'玉麒麟切片矩阵':'未分板块'}))});
+ const scopes=[],scopeIds=new Map();
+ const rows=additions.map(({row,scope})=>{const key=JSON.stringify(scope);if(!scopeIds.has(key)){scopeIds.set(key,scopes.length);scopes.push(scope);}return {...row,scopeId:scopeIds.get(key)};});
+ const files=publishingPartitions(rows,{withMetrics:true,withDates:true,scopes}).map(({path,kind,items,count,...body})=>{
+  const content=JSON.stringify({version:1,asOf,timeZone:'Asia/Shanghai',...body,...(items?{items}:{count})});
+  return {content,meta:{path,kind,count:items?.length??count,bytes:Buffer.byteLength(content),sha256:createHash('sha256').update(content).digest('hex')}};
+ });
+ const manifest={asOf,files:files.map(f=>f.meta)};
+ const bundle=await build({stdin:{contents:`import React,{useState}from'react';import{createRoot}from'react-dom/client';import{ContinuousPublishing}from'./components/continuous-publishing';function Harness(){const[theme,setTheme]=useState('all');window.referenceFixture={setTheme};return <div className="workspace"><main className="content" style={{gridColumn:'1 / -1'}}><ContinuousPublishing manifest={${JSON.stringify(manifest)}} theme={theme} startDate="2026-09-12" endDate="2026-10-29"/></main></div>;}createRoot(document.getElementById('root')).render(<Harness/>);`,resolveDir:site,sourcefile:'registered-reference-fixture.tsx',loader:'tsx'},absWorkingDir:site,bundle:true,write:false,format:'iife',platform:'browser',jsx:'automatic',tsconfig:site+'tsconfig.json',define:{'process.env.NODE_ENV':'"test"'}});
+ const browser=await chromium.launch({headless:true,executablePath:process.env.MCN_TEST_CHROME||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',args:['--disable-background-networking']});
+ try{
+  const context=await browser.newContext({viewport:{width:1000,height:850},reducedMotion:'reduce'}),page=await context.newPage(),errors=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  await page.route('**/*',route=>{const u=new URL(route.request().url());if(u.origin!=='https://mcn-reference.test')return route.abort();if(u.pathname==='/')return route.fulfill({contentType:'text/html',body:'<!doctype html><meta charset="utf-8"><div id="root"></div>'});const file=files.find(f=>f.meta.path===u.searchParams.get('part'));return file?route.fulfill({contentType:'application/json',body:file.content,headers:{'X-Data-SHA256':file.meta.sha256,'X-Data-Cutoff':asOf}}):route.fulfill({status:404,body:'not found'});});
+  await page.goto('https://mcn-reference.test/');
+  await page.addStyleTag({content:['replica.css','source-operations.css','visual-theme.css','observatory.css'].map(name=>readFileSync(site+'app/'+name,'utf8')).join('\n')});
+  await page.addScriptTag({content:bundle.outputFiles[0].text});
+  await page.getByRole('button',{name:'查看未记录日期的作品 · 35 条',exact:true}).click();
+  const panel=page.getByRole('region',{name:'所选发布日作品'});
+  await panel.locator('tbody tr').first().waitFor();assert.equal(await panel.locator('tbody tr').count(),20);
+  assert.equal(await panel.locator('tbody tr').first().locator('td').nth(3).innerText(),'—');
+  assert.equal(await panel.locator('tbody tr').first().locator('td').nth(4).innerText(),'—');
+  assert.match(await panel.locator('tbody tr').first().locator('td').nth(2).innerText(),/未记录/);
+  await panel.getByRole('button',{name:'下一页',exact:true}).click();await page.waitForFunction(()=>document.querySelector('[aria-label="所选发布日作品"] tbody')?.children.length===15);
+  assert.match(await panel.innerText(),/第 2 \/ 2 页/);
+  await page.evaluate(()=>window.referenceFixture.setTheme('yuqilin'));
+  await page.getByRole('button',{name:'查看未记录日期的作品 · 3 条',exact:true}).waitFor();
+  await page.waitForFunction(()=>document.querySelector('[aria-label="所选发布日作品"] tbody')?.children.length===3);
+  await page.evaluate(()=>window.referenceFixture.setTheme('tuantuan'));
+  await page.getByText('当前日期没有符合此分类的已收录作品。',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:/查看未记录日期的作品/}).count(),0);
+  assert.deepEqual(errors,[]);
+ }finally{await browser.close();}
+});

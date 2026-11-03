@@ -55,3 +55,26 @@ test('scope aggregates are checked against all work rows; tampered scope IDs/gro
  const f=edition(c);assert.equal(publishingPartValid(f.parts[1].body,f.parts[1].meta,asOf),true);
  const row={...c.rows[0]};delete row.scopeId;assert.throws(()=>publishingPartitions([row],{withMetrics:true,scopes:c.scopes}),/scope-mode/);
 });
+test('registered links join the existing undated ledger with only board-supported scope and no invented metrics or identity',async()=>{
+ const c=buildPublicationCatalog({sourceWorks:[],accounts:[account(1,'yuqilin',['slice'],['玉麒麟切片矩阵'])],partitions:[],asOf,withDates:true,
+  referenceWorks:[{contentId:'99',author:'团团字样不能证明归属',board:'玉麒麟切片矩阵'}]});
+ assert.equal(c.rows.length,1);const r=c.rows[0];assert.equal(r.date,'');assert.equal(r.dateBasis,'missing');assert.equal(r.targetId,null);
+ assert.deepEqual(r.metrics,{likes:{value:null,origin:'unavailable'},plays:{value:null,origin:'unavailable'}});
+ assert.deepEqual(c.scopes[r.scopeId],{theme:'yuqilin',boardKeys:['玉麒麟切片矩阵'],labels:[]});assert.deepEqual(r.classifications,[]);
+});
+test('work references do not duplicate facts, resurrect pre-start records, or choose an ambiguous native owner',()=>{
+ const accounts=[account(1,'tuantuan',['slice']),account(2,'anlan',[])];
+ const partitions=[{kind:'works',targetId:1,items:[work(1),work(3,{publishedAt:'2026-08-01T00:00:00.000Z'}),work(5)]},
+  {kind:'works',targetId:2,items:[work(5)]}];
+ const c=buildPublicationCatalog({sourceWorks:[source(2)],accounts,partitions,asOf,knownSourceWorkIds:['2','4'],
+  referenceWorks:[1,2,3,4,5].map(id=>({contentId:String(id),author:'登记',board:'未分板块'}))});
+ assert.deepEqual(c.rows.map(r=>r.contentId).sort(),['1','2']);assert.equal(c.rows.find(r=>r.contentId==='2').metrics.likes.value,10);
+});
+test('repeated reference IDs stay one work, and conflicting or absent board evidence stays unassigned',()=>{
+ const c=buildPublicationCatalog({sourceWorks:[],accounts:[account(1,'tuantuan',[],['A']),account(2,'yuqilin',[],['B'])],partitions:[],asOf,
+  referenceWorks:[{contentId:'99',author:'甲',board:'A'},{contentId:'99',author:'乙',board:'B'},
+   {contentId:'100',author:'甲',board:'未分板块'}]});
+ assert.equal(c.rows.length,2);const first=c.rows.find(r=>r.contentId==='99');assert.equal(first.author,'乙 / 甲');
+ assert.equal(c.scopes[first.scopeId].theme,'unassigned');assert.deepEqual(c.scopes[first.scopeId].boardKeys,['A','B']);
+ assert.deepEqual(c.scopes[c.rows.find(r=>r.contentId==='100').scopeId],{theme:'unassigned',boardKeys:[],labels:[]});
+});

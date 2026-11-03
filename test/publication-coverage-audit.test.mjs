@@ -14,12 +14,13 @@ import {recordConfirmedPublicationCoverage} from '../scripts/public-replica-publ
 const asOf='2026-10-03T01:00:00.000Z',common={version:1,asOf,timeZone:'Asia/Shanghai'};
 const native=(id,extra={})=>({externalId:String(id),targetId:1,publishedAt:'2026-09-12T17:00:00.000Z',...extra});
 const row=(id,extra={})=>({contentId:String(id),date:'2026-09-13',author:'synthetic author',title:'synthetic work',targetId:1,classifications:[],origin:'platform',...extra});
-function fixture({works=[native(100)],sources=[],rows=[row(100)],accounts=[{id:1,platform:'douyin'}],scoped=false}={}){
+function fixture({works=[native(100)],sources=[],references=[],rows=[row(100)],accounts=[{id:1,platform:'douyin'}],scoped=false}={}){
   const files=[],parts=new Map();
   const add=(path,kind,part,count,targetId)=>{const meta={path,kind,count,...(targetId==null?{}:{targetId})};files.push(meta);parts.set(path,{...common,...part});};
   add('catalog.json','catalog',{accounts},accounts.length);
   for(const account of accounts){const items=works.filter(work=>work.targetId===account.id);add(`works/${account.id}.json`,'works',{items},items.length,account.id);}
   if(sources.length)add('creator/works-001.json','creatorWorks',{items:sources},sources.length);
+  if(references.length)add('foundation/other-works.json','foundationOtherWorks',{items:references},references.length);
   const ledgerRows=scoped?rows.map(r=>({...r,scopeId:0,platform:r.platform??'douyin',metrics:{likes:{value:0,origin:'platform'},plays:{value:null,origin:'unavailable'}}})):rows;
   for(const {path,kind,items,count,...part}of publishingPartitions(ledgerRows,scoped?{withMetrics:true,scopes:[{theme:'tuantuan',boardKeys:[],labels:[]}]}:{}))add(path,kind,items?{items}:{...part,count},items?.length??count);
   return {manifest:{...common,files},parts,readPart:async meta=>parts.get(meta.path)};
@@ -124,4 +125,13 @@ test('audit and private report persistence failures cannot throw or expose priva
   assert.equal(unavailable.status,'unavailable');assert.equal(JSON.stringify(unavailable).includes('PRIVATE_SOURCE_ERROR'),false);
   const failed=await recordConfirmedPublicationCoverage('/synthetic-only',asOf,{inspect:async()=>({asOf,status:'passed'}),persist:async()=>{throw Error('PRIVATE_DISK_ERROR');}});
   assert.equal(failed.code,'publication-coverage-report-write-failed');assert.equal(JSON.stringify(failed).includes('PRIVATE_DISK_ERROR'),false);
+});
+test('registered link-only works are audited too, without inventing a date or resurrecting a known old work',async()=>{
+ const references=[{contentId:'200',author:'登记作者',board:'未分板块'}];
+ const missing=await auditPublicationCoverage(fixture({references}));assert.equal(missing.mismatchKinds['missing-from-ledger'],1);
+ assert.equal(missing.referenceOnlyWorks,1);assert.equal(missing.mismatches[0].expectedDate,'');
+ const found=await auditPublicationCoverage(fixture({references,rows:[row(100),row(200,{date:'',targetId:null,origin:'source'})]}));
+ assert.equal(found.status,'passed');assert.equal(found.savedReferenceRows,1);
+ const old=await auditPublicationCoverage(fixture({works:[native(200,{publishedAt:'2026-08-01T00:00:00.000Z'})],references,rows:[]}));
+ assert.equal(old.status,'passed');assert.equal(old.excludedBeforeStart,1);assert.equal(old.referenceOnlyWorks,0);
 });
