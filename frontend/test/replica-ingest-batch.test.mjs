@@ -18,6 +18,31 @@ const part=(id=1)=>{const data=JSON.stringify({asOf,items:[],fixtureId:id});retu
 const request=(files,auth=true)=>POST(new Request('https://example.test/api/replica',{method:'POST',headers:{'Content-Type':'application/json',...(auth?{Authorization:'Bearer '+producer}:{})},body:JSON.stringify({action:'upload',asOf,files})}));
 const rows=()=>fixture.sqlite.prepare('SELECT * FROM replica_files ORDER BY path').all();
 
+function metricPart(edit=()=>{}){
+ const value={version:1,asOf,timeZone:'Asia/Shanghai',items:[{targetId:1,id:1,workId:1,externalId:'7300000000000000001',capturedAt:'2026-10-28T02:00:00.000Z',
+  likes:0,comments:null,shares:0,collects:null,plays:null,playsEvidence:{basis:'missing',actualCountVerified:false,mayBePlaceholder:null,note:'missing'}}]};
+ edit(value);const data=JSON.stringify(value);return{path:'work-metrics/1.json',data,sha256:createHash('sha256').update(data).digest('hex')};
+}
+for(const [name,edit]of [
+ ['negative likes',p=>{p.items[0].likes=-1;}],['text comments',p=>{p.items[0].comments='5';}],
+ ['fractional shares',p=>{p.items[0].shares=1.5;}],['boolean collects',p=>{p.items[0].collects=false;}],
+ ['unsafe likes',p=>{p.items[0].likes=Number.MAX_SAFE_INTEGER+1;}],
+ ['wrong account',p=>{p.items[0].targetId=2;}],['invalid work key',p=>{p.items[0].workId=0;}],
+ ['future timestamp',p=>{p.items[0].capturedAt='2026-10-28T03:00:00.001Z';}],
+ ['invalid calendar day',p=>{p.items[0].capturedAt='2026-02-30T02:00:00.000Z';}],
+ ['duplicate observation',p=>{p.items.push({...p.items[0]});}],
+ ['verified-play upgrade',p=>{p.items[0].playsEvidence.actualCountVerified=true;}],
+ ['source cumulative posing as a sample',p=>{p.items[0].plays=10;p.items[0].playsEvidence.basis='creator-source-cumulative';}],
+ ['missing time zone',p=>{delete p.timeZone;}],
+])test('authenticated upload rejects '+name+' before any object or metadata write',async()=>{
+ const response=await request([part(2),metricPart(edit)]);assert.equal(response.status,400);assert.equal(fixture.metrics.puts,0);
+ assert.equal(fixture.metrics.batches,0);assert.equal(rows().length,0);
+});
+test('valid zeros, nulls, large counters and observation IDs retain exact uploaded bytes',async()=>{
+ const file=metricPart(p=>{p.items[0].id=100000001;p.items[0].likes=Number.MAX_SAFE_INTEGER;p.items.push({...p.items[0],id:100000002,likes:0});});
+ assert.equal((await request([file])).status,200);assert.equal(fixture.objects.get(asOf+'/'+file.sha256),file.data);
+});
+
 test('50 immutable files use bounded R2 workers and four D1 round trips, not per-file reads/writes',async()=>{
  fixture.control.putDelay=2;const files=Array.from({length:50},(_,i)=>part(i+1));
  const response=await request(files);assert.equal(response.status,200);assert.deepEqual(await response.json(),{accepted:50,asOf});

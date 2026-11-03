@@ -975,3 +975,30 @@ test('untrusted audit acknowledgement cannot enable activation or contaminate fi
  }
  assert.throws(()=>createPublicReplicaSync({getCredential:async()=>SECRET,chunkedDateAudit:'yes'}),/invalid-configuration/);
 });
+
+const invalidMetricCases=[
+ ['negative likes',r=>{r.likes=-1;}],['text comments',r=>{r.comments='7';}],
+ ['fractional shares',r=>{r.shares=1.5;}],['boolean collects',r=>{r.collects=false;}],
+ ['unsafe likes',r=>{r.likes=Number.MAX_SAFE_INTEGER+1;}],
+ ['zero observation ID',r=>{r.id=0;}],['empty external ID',r=>{r.externalId='';}],
+ ['future sample',r=>{r.capturedAt='2026-09-20T12:00:00.001Z';}],
+ ['invalid calendar sample',r=>{r.capturedAt='2026-02-30T02:00:00.000Z';}],
+ ['wrong native work ID',r=>{r.workId=2;}],['wrong public work ID',r=>{r.externalId='7200000000000000999';}],
+];
+for(const [name,change]of invalidMetricCases)test('work history rejects '+name+' even when the edited bytes have a matching seal',async()=>{
+ const source=fixture();editPart(source,'work-metrics/1.json',part=>change(part.items[0]));
+ await assert.rejects(preparePublicReplicaPublication(source),{code:'invalid-source'});
+});
+test('duplicate observations cannot be hidden behind matching metadata counts and hashes',async()=>{
+ const source=fixture();editPart(source,'work-metrics/1.json',part=>part.items.push({...part.items[0]}));
+ source.files.find(f=>f.kind==='workMetrics').count=2;source.manifest.files.find(f=>f.kind==='workMetrics').count=2;source.manifest.counts.workMetrics=2;
+ await assert.rejects(preparePublicReplicaPublication(source),{code:'invalid-source'});
+});
+test('work metrics require a native work partition for the same account and identity',async()=>{
+ const source=fixture();source.files=source.files.filter(f=>f.kind!=='works');source.manifest.files=source.manifest.files.filter(f=>f.kind!=='works');source.manifest.counts.works=0;
+ await assert.rejects(preparePublicReplicaPublication(source),{code:'invalid-source'});
+});
+test('work binding validation permits metric partitions before their native work partition',async()=>{
+ const source=fixture();for(const files of [source.files,source.manifest.files])files.sort((a,b)=>(b.kind==='workMetrics')-(a.kind==='workMetrics'));
+ const result=await preparePublicReplicaPublication(source);assert.equal(result.manifest.counts.workMetrics,1);
+});

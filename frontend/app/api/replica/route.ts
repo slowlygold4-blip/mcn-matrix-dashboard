@@ -11,6 +11,7 @@ import {auditDatePublication} from '@/lib/replica-date-audit.mjs';
 import {replicaStorageFailure} from '@/lib/replica-storage-read.mjs';
 import {auditDateChunk,requireDateAuditReceipts} from '@/lib/replica-date-audit-receipts.mjs';
 import {DATE_AUDIT_CONTRACT} from '@/lib/replica-date-audit-plan.mjs';
+import {storedWorkMetricPartValid} from '@/lib/stored-work-metric-contract.mjs';
 export const dynamic = "force-dynamic";
 const PATH = /^(catalog|topics|summary|date-summary-index|publishing)\.json$|^(daily|works|work-metrics)\/[0-9]{1,8}\.json$|^(summary|date-summary|publishing)\/[0-9]{6}\.json$|^creator\/(index|authors|insights|works-\d{3})\.json$|^foundation\/(index|authors|works|sources|observations|other-authors|other-works|pending-authors)\.json$/;
 const SHA = /^[a-f0-9]{64}$/;
@@ -81,6 +82,7 @@ export async function POST(request: Request) {
         if(paths.has(f.path))return json({error:"重复分区路径"},400);paths.add(f.path);
         const parsed=JSON.parse(f.data);
         if(parsed.asOf!==input.asOf || privateKey(parsed) || await bytesHash(f.data)!==f.sha256)return json({error:"分区审查或校验失败"},400);
+        if(f.path.startsWith('work-metrics/')&&!storedWorkMetricPartValid(parsed,input.asOf,Number(f.path.slice('work-metrics/'.length,-5))))return json({error:'作品指标身份、时间或计数无效'},400);
         if(creatorFile(f)&&!creatorPartValid(parsed,{path:f.path,kind:creatorKind(f.path),count:f.path==='creator/index.json'?parsed.stats?.works:parsed.items?.length},input.asOf))return json({error:'作者作品分区字段或版本无效'},400);
         if(foundationFile(f)&&!foundationPartValid(parsed,{path:f.path,kind:foundationKind(f.path),count:f.path==='foundation/index.json'?(Array.isArray(parsed.files)?parsed.files.reduce((sum:number,p:{count:number})=>sum+p.count,0):undefined):parsed.items?.length},input.asOf))return json({error:'补充来源分区字段或版本无效'},400);
         if(f.path.startsWith('summary/')&&(f.data.length>1_000_000||!summaryPartValid(parsed,input.asOf)||parsed.items.length<1))return json({error:"历史分片字段或时间不一致"},400);
