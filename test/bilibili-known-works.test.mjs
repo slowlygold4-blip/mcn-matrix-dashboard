@@ -5,6 +5,8 @@ import {fileURLToPath} from 'node:url';
 import {MonitorDatabase} from '../lib/database.mjs';
 import {PublicWebProvider} from '../lib/providers/public-web.mjs';
 import {readKnownBilibiliWorks} from '../lib/bilibili-known-works.mjs';
+import {normalizeCollection} from '../lib/providers/normalize.mjs';
+import {bilibiliWorkObservation} from '../lib/bilibili-work-observation.mjs';
 import {collectionProgress} from '../lib/collection-progress.mjs';
 import {exportPublicReplica} from '../lib/public-replica-export.mjs';
 import {readCommittedTargetPublication,releaseCommittedTargetPublication} from '../lib/committed-target-publication.mjs';
@@ -18,7 +20,7 @@ s=importlib.util.spec_from_file_location('collector',sys.argv[1]);c=importlib.ut
 options=json.loads(sys.argv[2]);ids=['BV1fi416bEpi','BV1H5sf6NEP6'];calls=[];c.bili_opener=lambda:object()
 def listing(o,mid,limit,evidence=None):
  evidence.update({'status':'success' if options.get('empty') or options.get('list') else 'refused','source':'wbi','statusCode':0,'listObserved':bool(options.get('empty') or options.get('list')),'rawCount':1 if options.get('list') else 0,'errorCode':'login_required'})
- return [{'bvid':ids[0]}] if options.get('list') else []
+ return [{'bvid':'BV9999999999','title':'new head work','created':1789250010,'author_mid':'99999' if options.get('foreignHead') else mid}] if options.get('newHead') else [{'bvid':ids[0]}] if options.get('list') else []
 c.bili_latest_videos=listing
 def request(o,url):
  if '/card?' in url:return {'data':{'card':{'mid':'525138167','fans':42},'like_num':500}}
@@ -27,7 +29,7 @@ def request(o,url):
  if options.get('detailRefusal'):raise c.BilibiliRequestError('blocked',http_status=403)
  return {'data':{'bvid':bvid,'title':'public work','pubdate':1789250000,'owner':{'mid':'99999' if options.get('foreign') else '525138167'},'stat':{'like':0 if bvid==ids[0] else 11,'view':100}}}
 c.bili_json=request
-try:print(json.dumps({'raw':c.collect_bilibili_account('525138167',30,options.get('ids',ids)),'calls':calls}))
+try:print(json.dumps({'raw':c.collect_bilibili_account('525138167',30,options.get('ids',ids),options.get('prefer',False)),'calls':calls}))
 except c.CollectorError as e:print(json.dumps({'rejected':True,'calls':calls}))
 `;
  const result=spawnSync('/usr/bin/python3',['-B','-c',code,collector,JSON.stringify(options)],{encoding:'utf8',timeout:10000});
@@ -101,4 +103,24 @@ test('known works cannot authorize another owner, replace a valid window or over
  for(const values of [[...ids,ids[0]],Array(7).fill(ids[0]),['https://private.invalid/'],['BVnot-valid'],[1]]){
   const x=rawFixture({ids:values});assert.equal(x.rejected,true);assert.deepEqual(x.calls,[]);
  }
+});
+
+test('automatic daily selection updates old works even with a valid new head, retaining actual head dates without invented likes',()=>{
+ const x=rawFixture({list:true,newHead:true,prefer:true});
+ assert.equal(x.raw.knownWorksEvidence.used,true);assert.equal(x.calls.length,2);
+ assert.deepEqual(x.raw.knownWorksEvidence.attemptedIds,ids);
+ assert.deepEqual(x.raw.works.aweme_list.map(w=>w.aweme_id),[...ids,'BV9999999999']);
+ const head=x.raw.works.aweme_list.at(-1);assert.equal(head.desc,'new head work');assert.equal(head.create_time,1789250010);
+ assert.equal(head.statistics.digg_count,undefined,'a list fact is not a new like observation');
+ assert.equal(x.raw.workObservationTimes.observations.at(-1).source,'list');
+ const target={id:1,type:'account',provider:'public-web',locator:mid,metadata:{platform:'bilibili'}};
+ const normalized=normalizeCollection(target,x.raw,{capturedAt:x.raw.capturedAt});
+ const clocks=bilibiliWorkObservation(target,normalized);
+ assert.equal(clocks.postTimes.get('BV9999999999'),x.raw.workObservationTimes.observations.at(-1).observedAt);
+ assert.equal(normalized.posts.at(-1).likes,null);
+ assert.deepEqual(rawFixture({list:true,newHead:true,prefer:true,foreignHead:true}).raw.works.aweme_list.map(w=>w.aweme_id),ids,'unbound head facts must not be assigned to this author');
+ const empty=rawFixture({empty:true,prefer:true});assert.equal(empty.calls.length,0);assert.equal(empty.raw.knownWorksEvidence.used,false);
+ const refused=rawFixture({list:true,newHead:true,prefer:true,detailRefusal:true});
+ assert.equal(refused.calls.length,1,'the same refusal still stops detail requests');
+ assert.deepEqual(refused.raw.works.aweme_list.map(w=>w.aweme_id),['BV9999999999'],'only the actually returned head fact survives');
 });

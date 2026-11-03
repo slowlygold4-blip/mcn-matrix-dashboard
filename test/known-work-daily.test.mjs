@@ -129,9 +129,9 @@ test('the real disposable read-only planner reads durable pending works and does
 });
 
 test('actual provider passes only pending IDs to the unchanged Python transport and explicit manual refresh can repeat IDs',async t=>{
- const f=fixture(t);save(f,raw([1,2,3,4,5,6].map(id)));const requests=[];
+ const f=fixture(t);save(f,raw([1,2,3,4,5,6].map(id)));const requests=[],preferFlags=[];
  const execFileImpl=(_file,args,_options,done)=>{
-  const selected=args.flatMap((arg,i)=>arg==='--known-work'?[args[i+1]]:[]);requests.push(selected);
+  const selected=args.flatMap((arg,i)=>arg==='--known-work'?[args[i+1]]:[]);requests.push(selected);preferFlags.push(args.includes('--prefer-known-works'));
   done(null,JSON.stringify({ok:true,data:raw(selected)}),'');
  };
  const automatic=new PublicWebProvider({}, {database:f.database,knownWorksDailyOnly:true,cooldownMs:0,execFileImpl});
@@ -139,5 +139,6 @@ test('actual provider passes only pending IDs to the unchanged Python transport 
  assert.equal(observed.posts.length,4);assert.equal(observed.worksCoverage,'limited');
  const manual=new PublicWebProvider({}, {database:f.database,cooldownMs:0,execFileImpl});
  await manual.collect(f.target);assert.equal(requests[1].length,6);
+ assert.deepEqual(preferFlags,[true,false]);
  assert.equal(requests[1].some(value=>[1,2,3,4,5,6].map(id).includes(value)),true);
 });

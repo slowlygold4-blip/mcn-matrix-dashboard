@@ -1205,6 +1205,7 @@ def bili_latest_videos(opener, mid, limit, *, evidence=None):
         return accepted([
             {
                 "bvid": value.get("bvid"), "title": value.get("title"), "created": value.get("created"),
+                "author_mid": str(value.get("mid") or ""),
                 "play": value.get("play"), "comment": value.get("comment") or value.get("video_review"),
             }
             for value in videos[:count]
@@ -1243,13 +1244,15 @@ def bili_latest_videos(opener, mid, limit, *, evidence=None):
             if not isinstance(archive, dict):
                 return failed(BilibiliRequestError("upstream_changed"), "list")
         if archive.get("bvid"):
-            output.append({"bvid": archive.get("bvid"), "title": archive.get("title"), "created": None})
+            module_author = (item.get("modules") or {}).get("module_author")
+            output.append({"bvid": archive.get("bvid"), "title": archive.get("title"), "created": None,
+                           "author_mid": str(module_author.get("mid") or "") if isinstance(module_author, dict) else ""})
         if len(output) >= count:
             break
     return accepted(output, "dynamic", len(items))
 
 
-def collect_bilibili_account(locator, limit, known_work_ids=None):
+def collect_bilibili_account(locator, limit, known_work_ids=None, prefer_known_work_ids=False):
     # Independent public work resources already registered to this author;
     # never use these IDs to invent a successful/empty author inventory.
     known_work_ids = [] if known_work_ids is None else known_work_ids
@@ -1293,13 +1296,14 @@ def collect_bilibili_account(locator, limit, known_work_ids=None):
         warnings.append("B站公开账号卡片未返回有效累计获赞；保留为空，未用作品点赞合计或 0 替代")
     works_list_evidence = {}
     video_refs = bili_latest_videos(opener, mid, limit, evidence=works_list_evidence)
+    window_refs = list(video_refs)
     list_observed_at = observation_timestamp()
     confirmed_empty_list = (nav.get("video") == 0 and works_list_evidence.get("status") == "success"
                             and works_list_evidence.get("listObserved") is True
                             and works_list_evidence.get("rawCount") == 0)
     if not video_refs and not confirmed_empty_list:
         warnings.append("B站公开投稿列表当前受限；已保存账号粉丝与稿件总量，未用空列表覆盖历史作品")
-    known_refs_used = not video_refs and not confirmed_empty_list and bool(known_work_ids)
+    known_refs_used = not confirmed_empty_list and bool(known_work_ids) and (not video_refs or prefer_known_work_ids)
     if known_refs_used:
         video_refs = [{"bvid": value, "known_only": True} for value in known_work_ids[:max(1, min(limit, 6))]]
     works = []
@@ -1370,6 +1374,19 @@ def collect_bilibili_account(locator, limit, known_work_ids=None):
             "share_url": "https://www.bilibili.com/video/%s" % bvid,
         })
         observations.append({"contentId": bvid, "observedAt": detail_observed_at, "source": "view"})
+    if known_refs_used and prefer_known_work_ids:
+        # Updating old works must not get stuck on the same recent window.
+        # Keep newly seen list facts too, with their actual list-response
+        # clock and missing likes; they are never detail-success substitutes.
+        for video in window_refs:
+            if len(works) >= max(1, min(limit, 30)):
+                break
+            bvid = str(video.get("bvid") or "").strip()
+            if (not re.fullmatch(r"BV[0-9A-Za-z]{10}", bvid) or bvid in seen_bvids
+                    or str(video.get("author_mid") or "") != mid):
+                continue
+            seen_bvids.add(bvid)
+            retain_list_reference(video, bvid)
     completed_at = observation_timestamp()
     failure = None
     if details["errors"]:
@@ -1703,6 +1720,7 @@ def main():
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--works-mode", choices=("collect", "deferred"), default="collect")
     parser.add_argument("--known-work", action="append", default=[])
+    parser.add_argument("--prefer-known-works", action="store_true")
     args = parser.parse_args()
     limit = max(1, min(args.limit, 100))
     try:
@@ -1713,7 +1731,7 @@ def main():
         if args.operation == "bilibili-account":
             if not args.locator.strip():
                 raise CollectorError("缺少 B站 UID 或官方主页")
-            emit({"ok": True, "data": collect_bilibili_account(args.locator, limit, args.known_work)})
+            emit({"ok": True, "data": collect_bilibili_account(args.locator, limit, args.known_work, args.prefer_known_works)})
         if args.operation == "identity-work":
             emit({"ok": True, "data": collect_identity_work(args.locator)})
         if args.operation == "hot":
