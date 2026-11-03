@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {fileURLToPath} from 'node:url';
+import {resolve} from 'node:path';
 import {build} from 'esbuild';
 
 const site=fileURLToPath(new URL('../',import.meta.url));
 const backend=process.env.MCN_MAIN_ROOT||fileURLToPath(new URL('../../douyin-monitor-workbench/',import.meta.url));
-const {chromium}=createRequire(backend+'package.json')('playwright-core');
+const {chromium}=createRequire(resolve(backend,'package.json'))('playwright-core');
 const fixture=`import React,{useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {OverviewAccountPreview} from './components/overview-account-preview';
