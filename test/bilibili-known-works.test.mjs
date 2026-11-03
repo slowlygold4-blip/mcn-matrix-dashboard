@@ -81,6 +81,9 @@ test('a refused author inventory does not prevent independently bound stored wor
   const metrics=replica.partitions.filter(p=>p.kind==='workMetrics').flatMap(p=>p.items);
   assert.equal(metrics.length,2);assert.deepEqual(metrics.map(p=>p.likes),[0,11]);
   assert.equal(replica.catalog.accounts[0].latest.likes.value,500);
+  assert.equal(replica.catalog.accounts[0].coverage.works.status,'limited');
+  assert.equal(replica.catalog.accounts[0].coverage.works.observedAt,result.raw.workObservationTimes.observations.at(-1).observedAt);
+  assert.equal(replica.catalog.accounts[0].coverage.works.attemptedAt,result.raw.capturedAt);
  }finally{if(receipt)releaseCommittedTargetPublication(receipt);f.db.exec('ROLLBACK');}
 });
 test('a detail refusal stops further known details and never turns local references into observed list rows',()=>{
