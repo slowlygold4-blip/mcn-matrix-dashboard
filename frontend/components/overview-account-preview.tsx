@@ -62,7 +62,7 @@ export function OverviewAccountPreview({compact=false,selectedMetric,onMetricCha
       <span>最近有效主页采样：{observedTime(latestProfile)}（北京时间）</span>
       <span>公开数据截至：{observedTime(asOf)}（北京时间）</span>
     </div>
-    <p className="meta overview-account-preview__summary">该发布截面近 8 小时：主页三指标 {profileFresh}/{accountCount}；作品列表完整核验 {worksComplete}/{accountCount}；作品列表有限观察 {worksLimited}/{accountCount}。三种覆盖分开统计；未取得不当作零。</p>
+    <p className="meta overview-account-preview__summary">该发布截面近 8 小时：主页三指标 {profileFresh}/{accountCount}；作品列表完整核验 {worksComplete}/{accountCount}；作品覆盖有限 {worksLimited}/{accountCount}。三种覆盖分开统计；未取得不当作零。</p>
     <div className="overview-account-preview__scope" aria-label="名册和可比快照的不同口径">
       <strong>已整合资料</strong>
       <span>团团作者名册 {rosterTotal == null ? '核对中' : rosterTotal.toLocaleString("zh-CN") + ' 位'}（含仅表格作者）</span>

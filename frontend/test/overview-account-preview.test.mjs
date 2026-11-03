@@ -44,7 +44,7 @@ test('overview shows only verified account deltas and mounts the trend on demand
   assert.match(await panel.innerText(),/已保存的每日采样/);
   assert.match(await panel.innerText(),/最近有效主页采样：2026\/10\/23 09:30:00（北京时间）/);
   assert.match(await panel.innerText(),/公开数据截至：2026\/10\/23 10:00:00（北京时间）/);
-  assert.match(await panel.innerText(),/主页三指标 2\/3；作品列表完整核验 1\/3；作品列表有限观察 1\/3/);
+  assert.match(await panel.innerText(),/主页三指标 2\/3；作品列表完整核验 1\/3；作品覆盖有限 1\/3/);
   assert.match(await panel.innerText(),/团团作者名册 5,068 位（含仅表格作者）/);
   assert.match(await panel.innerText(),/当前筛选 3 个启用监控账号；粉丝起止可比 2\/3 个/);
   assert.equal(await page.locator('.source-ops-archive').evaluate(node=>node.open),false);

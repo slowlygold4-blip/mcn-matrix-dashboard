@@ -36,7 +36,7 @@ jobs:
           export MCN_TEST_CHROME="$(node -e 'process.stdout.write(require("playwright-core").chromium.executablePath())')"
           export MCN_QA_DIR="$RUNNER_TEMP/mcn-product-qa"
           mkdir -p "$MCN_QA_DIR"
-          node --test --test-concurrency=1 frontend/test/collection-console.browser.test.mjs frontend/test/collection-client.browser.test.mjs frontend/test/continuous-publishing.browser.test.mjs frontend/test/publishing-chart.test.mjs frontend/test/roster-workspace-lifecycle.test.mjs 2>&1 | tee "$MCN_QA_DIR/results.txt"
+          node --test --test-concurrency=1 frontend/test/coverage-panel-status.test.mjs frontend/test/replica-daily-coverage.test.mjs frontend/test/coverage-gap-view.test.mjs frontend/test/overview-account-preview.test.mjs frontend/test/collection-console.browser.test.mjs frontend/test/collection-client.browser.test.mjs frontend/test/continuous-publishing.browser.test.mjs frontend/test/publishing-chart.test.mjs frontend/test/roster-workspace-lifecycle.test.mjs 2>&1 | tee "$MCN_QA_DIR/results.txt"
       - name: Retain UI evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

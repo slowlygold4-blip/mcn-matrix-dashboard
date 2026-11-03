@@ -40,7 +40,7 @@ test('fresh complete, fresh limited and recent unsuccessful attempts remain sepa
  assert.deepEqual(totals.statusCounts,{complete:2,limited:2,unavailable:2,missing:1,unknown:0});
  const headline=coverageHeadline(totals);
  assert.match(headline,/主页新数据 7\/7/);
- assert.match(headline,/作品完整核验 1\/7 · 作品有限观察 1\/7 · 最近未取得 1\/7/);
+ assert.match(headline,/作品完整核验 1\/7 · 作品覆盖有限 1\/7 · 最近未取得 1\/7/);
  assert.doesNotMatch(headline,/作品列表采全|已保存作品 0/);
  assert.equal(JSON.stringify(accounts),before,'coverage counting must not reorder or change the catalog');
 });
@@ -48,10 +48,10 @@ test('fresh complete, fresh limited and recent unsuccessful attempts remain sepa
 test('real coverage panel prioritizes a recent miss, retains a prior observation, and does not call partial work a nonempty list',()=>{
  const before=JSON.stringify(accounts);
  const html=render({type:CoveragePanel,props:{accounts,topics,asOf,onAccount:()=>{}}});
- assert.match(html,/发布截面 .*作品完整核验 1\/7 · 作品有限观察 1\/7/);
- assert.match(html,/作品不完整不等于没有已保存作品；有限观察也不保证列表非空或平台全集/);
- assert.match(html,/最近尝试 .*最后有效列表观察 .*保留此前观察，不代表本次取得/);
- assert.doesNotMatch(html,/作品列表采全 0\/7|有限观察 2\/7/,'stale limited observations are not recent observations');
+ assert.match(html,/发布截面 .*作品完整核验 1\/7 · 作品覆盖有限 1\/7/);
+ assert.match(html,/已有作品更新后仍可能缺少最新投稿；有限覆盖不能确认每天实际发布数量或全部作品/);
+ assert.match(html,/最近尝试 .*最后有效作品采样 .*保留此前观察，不代表本次取得/);
+ assert.doesNotMatch(html,/作品列表采全 0\/7|作品覆盖有限 2\/7/,'stale limited observations are not recent observations');
  const names=[20,30,40,1,10,50].map(id=>'合成账号'+id);
  const indices=names.map(name=>html.indexOf('查看'+name+'的经营详情'));
  assert.ok(indices.every(index=>index>0));
@@ -65,9 +65,9 @@ test('real account coverage shows last attempt and prior valid observation as di
  const html=render({type:AccountCoverage,props:{account,asOf}});
  const attempt=new Date(account.coverage.works.attemptedAt).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false});
  const observation=new Date(account.coverage.works.observedAt).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false});
- assert.match(html,/本轮列表未取得/);
- assert.ok(html.includes('最近作品列表尝试 '+attempt));
- assert.ok(html.includes('最后有效列表观察 '+observation));
+ assert.match(html,/最近作品采样未取得/);
+ assert.ok(html.includes('最近作品采样尝试 '+attempt));
+ assert.ok(html.includes('最后有效作品采样 '+observation));
  assert.match(html,/保留此前观察，不代表本次取得/);
  assert.notEqual(attempt,observation);
 });
@@ -77,7 +77,7 @@ test('real panel renders an accessible search, all issue filters and 205-page na
  const html=render({type:CoveragePanel,props:{accounts:all,topics,asOf,onAccount:()=>{}}});
  assert.match(html,/完整性待核 4081 个账号/);
  assert.match(html,/type="search"/);assert.match(html,/查找账号/);assert.match(html,/待核问题/);
- for(const label of ['全部待核问题','主页过时或缺测','作品尚未完整','作品最近尝试未取得','作品尚无有效观察','作品仅有限观察'])assert.ok(html.includes(label));
+ for(const label of ['全部待核问题','主页过时或缺测','作品尚未完整','作品最近尝试未取得','作品尚无有效观察','作品覆盖有限'])assert.ok(html.includes(label));
  assert.match(html,/符合筛选 4081 个 · 显示 1–20 个/);
  assert.match(html,/aria-label="待核账号分页"/);assert.match(html,/aria-label="待核账号页码"/);
  assert.match(html,/<option value="205">205<\/option>/);
