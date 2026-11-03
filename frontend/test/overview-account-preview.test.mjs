@@ -13,8 +13,11 @@ const fixture=`import React,{useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {OverviewAccountPreview} from './components/overview-account-preview';
 import {SourceOperations} from './components/source-operations';
-import source from './public/creator-source/index.json';
-import insights from './public/creator-source/insights.json';
+// This UI test must run from a public checkout without private source exports.
+const source={revision:'synthetic-overview',stats:{authors:2,works:1,linkedAuthors:0,reciprocalDuplicates:0}};
+const insights={items:[{firstDate:'2026-09-12',lastDate:'2026-10-12',sevenDayStart:'2026-10-06',
+ counts:{tableWorks:1,datedWorks:1,playsKnown:0,likesKnown:0,cumulativePlays:null,cumulativeLikes:null,
+ authorFollowersKnown:0,datedWorkAuthors:1,activeWorkAuthors:1,sevenDayWorks:0},tracks:[],leaderboards:{all:{authors:[],works:[]}}}]};
 function Fixture(){const [opened,setOpened]=useState(false);const accounts=[
  {id:1,enabled:true,coverage:{version:1,profileObservedAt:'2026-10-23T01:30:00.000Z',works:{status:'complete',attemptedAt:'2026-10-23T01:00:00.000Z',observedAt:'2026-10-23T01:00:00.000Z'}}},
  {id:2,enabled:true,coverage:{version:1,profileObservedAt:'2026-10-23T00:00:00.000Z',works:{status:'limited',attemptedAt:'2026-10-23T00:00:00.000Z',observedAt:'2026-10-23T00:00:00.000Z'}}},
