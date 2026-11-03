@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {MonitorDatabase} from '../lib/database.mjs';
 import {normalizeCollection} from '../lib/providers/normalize.mjs';
 import {normalizeRemoteWorkPage,recordRemoteWorkPage} from '../lib/remote-work-observation.mjs';
+import {collectionProgress} from '../lib/collection-progress.mjs';
+import {readRemoteWorkCoverage} from '../lib/remote-work-coverage.mjs';
 
 const SEC='MS4wLjABAAAARemoteWorkFixture1234567',UID='123456789';
 const START='2026-11-02T15:59:57.000Z',END='2026-11-02T16:00:03.000Z';
@@ -137,4 +139,51 @@ test('explicit original origin is byte-identical to legacy evidence and replays 
  f.save();
  assert.equal(recordRemoteWorkPage(f.db,f.input,{sourceOrigin:'https://demo.douyin.wtf'}).duplicate,true);
  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM account_events').get().n,1);
+});
+
+test('committed standalone HTTP samples count as limited coverage without fabricating a profile run',t=>{
+ const f=fixture(t);f.save();
+ const before=f.db.prepare('SELECT total_changes() n').get().n;
+ const progress=collectionProgress(f.db,{now:END});
+ assert.equal(progress.rolling.worksLimited,1);
+ assert.equal(progress.rolling.worksComplete,0);
+ assert.equal(progress.rolling.profiles,0);
+ assert.equal(progress.rolling.attempted,1);
+ assert.equal(progress.rolling.platforms[0].worksLimited,1);
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM runs').get().n,0);
+ assert.equal(f.db.prepare('SELECT total_changes() n').get().n,before);
+});
+
+test('rolling HTTP coverage requires committed source, anchor, current identity and every stored metric vector',async t=>{
+ const cases=[
+  ['invalid source digest',db=>db.prepare("UPDATE account_events SET source_checksum='wrong' WHERE event_type='remote-work-observation'").run()],
+  ['missing metric',db=>db.prepare('DELETE FROM post_metrics WHERE id=(SELECT MAX(id) FROM post_metrics)').run()],
+  ['changed metric',db=>db.prepare('UPDATE post_metrics SET likes=likes+1').run()],
+  ['changed metric scope',db=>db.prepare('UPDATE post_metrics SET comments=123').run()],
+  ['future commit',db=>db.prepare("UPDATE account_events SET created_at='2026-11-02T16:00:04.000Z' WHERE event_type='remote-work-observation'").run()],
+  ['paused target',db=>db.prepare('UPDATE targets SET enabled=0').run()],
+  ['changed author',db=>db.prepare("UPDATE posts SET author_id='different'").run()],
+  ['changed target locator',db=>db.prepare("UPDATE targets SET locator='MS4wLjABAAAADifferentAuthor12345'").run()],
+  ['changed platform',db=>db.prepare('UPDATE targets SET metadata_json=?').run(JSON.stringify({platform:'bilibili'}))],
+  ['anchor proof changed',db=>db.prepare("UPDATE snapshots SET raw_json='{}'").run()],
+  ['anchor audit rejected',db=>db.prepare("UPDATE audits SET status='rejected'").run()],
+  ['invalid event container',db=>db.prepare("UPDATE account_events SET event_json='null' WHERE event_type='remote-work-observation'").run()],
+ ];
+ for(const [name,mutate]of cases)await t.test(name,st=>{
+  const f=fixture(st);f.save();
+  const window={since:'2026-11-01T16:00:03.000Z',now:END};
+  assert.equal(readRemoteWorkCoverage(f.db,window).length,1);mutate(f.db);
+  assert.deepEqual(readRemoteWorkCoverage(f.db,window),[]);
+ });
+});
+
+test('HTTP coverage is windowed, deduplicates a replay and never upgrades complete evidence',t=>{
+ const f=fixture(t);f.save();f.save();
+ assert.equal(readRemoteWorkCoverage(f.db,{since:'2026-11-01T16:00:03.000Z',now:END}).length,1);
+ assert.deepEqual(readRemoteWorkCoverage(f.db,{since:'2026-11-03T16:00:03.000Z',now:'2026-11-04T16:00:03.000Z'}),[]);
+ const run=f.database.beginRun('scheduled',f.target.id,1);
+ f.database.finishRun(run,{status:'success',processedCount:1,successCount:1,errorCount:0,warningCount:0,
+  details:[{targetId:f.target.id,worksCoverage:'complete'}]});
+ const progress=collectionProgress(f.db,{now:END});
+ assert.equal(progress.rolling.worksComplete,1);assert.equal(progress.rolling.worksLimited,0);
 });
