@@ -25,7 +25,7 @@ jobs:
       - name: Verify publication history and disposable worker lifecycle
         shell: bash
         run: |
-          node --test --test-concurrency=1 test/published-baseline-worker.test.mjs test/phase97-baseline-source-integrity.test.mjs test/phase97-published-baseline.test.mjs test/phase65-publisher-catchup-peer.test.mjs test/public-replica-publisher-20261001.test.mjs test/publisher-runtime-worker.test.mjs test/publisher-runtime.test.mjs test/phase98-committed-topic-publisher.test.mjs test/public-replica-sync-20261001.test.mjs test/committed-streaming.test.mjs test/bilibili-known-works.test.mjs
+          node --test --test-concurrency=1 test/publication-coverage-audit.test.mjs test/publication-scope.test.mjs test/continuous-publishing.test.mjs test/continuous-publishing-metrics.test.mjs test/published-baseline-worker.test.mjs test/phase97-baseline-source-integrity.test.mjs test/phase97-published-baseline.test.mjs test/phase65-publisher-catchup-peer.test.mjs test/public-replica-publisher-20261001.test.mjs test/publisher-runtime-worker.test.mjs test/publisher-runtime.test.mjs test/phase98-committed-topic-publisher.test.mjs test/public-replica-sync-20261001.test.mjs test/committed-streaming.test.mjs test/bilibili-known-works.test.mjs
       - name: Exercise actual components using isolated synthetic HTTP fixtures
         shell: bash
         run: |

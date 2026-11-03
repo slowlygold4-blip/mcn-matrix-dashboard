@@ -17,6 +17,7 @@ import { readCommittedTargetPublication, isCommittedTargetPublication, COMMITTED
 import {readPublicReplicaStaging} from '../lib/public-replica-staging-reader.mjs';
 import {readPublicSourceMarker} from '../lib/public-source-marker.mjs';
 import {inspectPublicDelivery,publicDeliveryFromSyncFailure} from '../lib/public-delivery-health.mjs';
+import {auditPublishedCoverageDirectory} from '../lib/publication-coverage-audit.mjs';
 
 const root=fileURLToPath(new URL('..',import.meta.url));
 const data=resolve(process.env.DATA_DIR||join(root,'data'));
@@ -160,6 +161,21 @@ export async function recordPublisherRuntime(path,state,phase,asOf,at=new Date()
   const next={...state,publisherRuntime:publisherRuntimeSnapshot(state.publisherRuntime,phase,{
     asOf,at,validationContract:PUBLIC_REPLICA_VALIDATION_CONTRACT,exportRevision:PUBLIC_REPLICA_EXPORT_REVISION})};
   await privateWrite(path,next);Object.assign(state,next);
+}
+/** A post-publication bookkeeping receipt is independent of activation.
+ * Audit/storage failure must never rewind an already confirmed generation. */
+export async function recordConfirmedPublicationCoverage(directory,asOf,{
+  inspect=auditPublishedCoverageDirectory,persist=value=>privateWrite(join(home,'coverage-audit.json'),value),expectedManifestSha256,
+}={}){
+  let report;
+  try{
+    report=await inspect(directory);
+    if(report?.asOf!==asOf||!['passed','failed','incomplete'].includes(report.status)
+      ||expectedManifestSha256!==undefined&&report.sourceManifestSha256!==expectedManifestSha256)throw Error('audit-generation-mismatch');
+    report={...report,checkedAt:new Date().toISOString()};
+  }catch{report={version:1,asOf,checkedAt:new Date().toISOString(),status:'unavailable',code:'publication-coverage-audit-unavailable',runtimeAI:false};}
+  try{await persist(report);return report;}
+  catch{return {version:1,asOf,status:'unavailable',code:'publication-coverage-report-write-failed',runtimeAI:false};}
 }
 export function validatedReceipt(run,receipt,now=Date.now()){
   return Number.isSafeInteger(run.id)&&run.id>0&&run.status!=='running'&&iso(run.started_at)&&iso(run.finished_at)
@@ -305,6 +321,7 @@ async function runPublisherCycle(ownerInstance){
       }
       await recordPublisherRuntime(statePath,state,'source-sealed',state.active.asOf);
       const cycleAsOf=state.active.asOf;
+      const cycleManifestHash=state.active.manifestHash;
       await recordPublisherSyncStart(statePath,state,new Date().toISOString());
       const result=await sync.sync(immutableStage.source,{signal:signal.signal,dateIndex:shouldPreparePublicDateIndex(state.active)});
       await recordPublisherRuntime(statePath,state,'sync-finished',cycleAsOf);
@@ -323,6 +340,10 @@ async function runPublisherCycle(ownerInstance){
       state.publisherRuntime=publisherRuntimeSnapshot(state.publisherRuntime,'cycle-finished',{
         asOf:cycleAsOf,at:new Date().toISOString(),validationContract:PUBLIC_REPLICA_VALIDATION_CONTRACT,exportRevision:PUBLIC_REPLICA_EXPORT_REVISION});
       await privateWrite(statePath,state);console.log(JSON.stringify({status:state.status,code:state.code,asOf:state.active?.asOf??state.publishedAsOf,publicAccessStatus:state.publicAccess&&state.publicAccess.asOf===(state.active?.asOf??state.publishedAsOf)?state.publicAccess.status:'not-checked',publicAccessAsOf:state.publicAccess?.asOf??null,runtimeAI:false}));
+      if(result.status==='success'){
+        const report=await recordConfirmedPublicationCoverage(join(data,'public-replica-staging','publisher-'+state.publishedAsOf.replace(/[:.]/g,'-')),state.publishedAsOf,{expectedManifestSha256:cycleManifestHash});
+        console.log(JSON.stringify({publicationCoverage:report.status,asOf:report.asOf,mismatchCount:report.mismatchCount??null,runtimeAI:false}));
+      }
       if(result.status==='success')try{const retention=await prunePublicReplicaStaging({dataDir:data,dryRun:false});console.log(JSON.stringify({cacheRetention:retention.status,removed:retention.removed.length,runtimeAI:false}));}catch(error){console.error('cache-retention-deferred',error.code||error.name);}
     }catch(e){state.status='failed';state.code=['invalid-source','invalid-summary','unsafe-private-file','invalid-staging-directory'].includes(e.code)?e.code:'publisher-check-failed';state.checkedAt=new Date().toISOString();await privateWrite(statePath,state).catch(()=>{});console.log(JSON.stringify({status:'failed',code:state.code,runtimeAI:false}));}
     finally{busy=false;}
