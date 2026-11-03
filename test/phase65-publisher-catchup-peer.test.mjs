@@ -160,7 +160,7 @@ function harness(initial=state(),{initialObserved=observed(),now=T+121*MINUTE,pu
   shouldPreparePublicDateIndex,
   COMMITTED_TARGET_PUBLICATION:'synthetic-no-committed-target-proof',
   readCommittedTargetPublication(){dbOps.push('read-committed-proof');return{runningSnapshotCount:0,marker:null};},
-  async preparePublishedSnapshotBaseline(publication,options){dbOps.push({baseline:options.asOf,exportRevision:options.exportRevision});assert.equal(publication.manifest.asOf,options.asOf);assert.equal(hash(publication.manifest),options.manifestSha256);return{asOf:options.asOf};},
+  async preparePublishedSnapshotBaselineFromDirectory(directory,options){reads.push(directory);assert.ok(publications.has(directory));const publication=publications.get(directory);dbOps.push({baseline:options.asOf,exportRevision:options.exportRevision});assert.equal(options.dataDir,'/in-memory-fixture-only');assert.equal(options.signal,context.signal.signal);assert.equal(publication.manifest.asOf,options.asOf);assert.equal(hash(publication.manifest),options.manifestSha256);return{asOf:options.asOf};},
   attachPublishedSnapshotBaseline(){dbOps.push('attach-baseline');},
   releaseCommittedTargetPublication(){dbOps.push('release-committed-proof');},
   exportPublicReplica(_db,{asOf}){return{manifest:{version:1,asOf,originalObservedAt:'2026-09-12T03:00:00.000Z'},files:[{capturedAt:'2026-09-12T03:00:00.000Z',value:0}]};},

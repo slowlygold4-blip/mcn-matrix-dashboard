@@ -6,14 +6,15 @@ import { prunePublicReplicaStaging } from '../lib/public-replica-retention.mjs';
 import { open, mkdir, readFile, rename, lstat, link, unlink } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { randomUUID, createHash } from 'node:crypto';
-import { resolve, join, dirname } from 'node:path';
+import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { exportPublicReplica, writePublicReplica, PUBLIC_REPLICA_EXPORT_REVISION } from '../lib/public-replica-export.mjs';
 import { createPublicReplicaSync, preparePublicReplicaPublication, sealPublicReplicaSource, PUBLIC_REPLICA_OPERATION_MAX_MS, PUBLIC_REPLICA_VALIDATION_CONTRACT } from '../lib/public-replica-sync.mjs';
 import { readCommittedTargetPublication, isCommittedTargetPublication, COMMITTED_TARGET_PUBLICATION,
-  preparePublishedSnapshotBaseline, attachPublishedSnapshotBaseline, releaseCommittedTargetPublication } from '../lib/committed-target-publication.mjs';
+  preparePublishedSnapshotBaselineFromDirectory, attachPublishedSnapshotBaseline, releaseCommittedTargetPublication } from '../lib/committed-target-publication.mjs';
+import {readPublicReplicaStaging} from '../lib/public-replica-staging-reader.mjs';
 import {readPublicSourceMarker} from '../lib/public-source-marker.mjs';
 import {inspectPublicDelivery,publicDeliveryFromSyncFailure} from '../lib/public-delivery-health.mjs';
 
@@ -202,12 +203,7 @@ export function shouldStagePublicReplica(state, observed, now = Date.now()) {
   return canPreparePublicReplica(state, now);
 }
 async function readPublication(directory){
-  const allowed=join(data,'public-replica-staging')+'/';if(!resolve(directory).startsWith(allowed))fail('invalid-staging-directory');
-  const readPart=async relative=>{for(const part of [dirname(directory),directory,...(relative.includes('/')?[join(directory,dirname(relative))]:[])]){const s=await lstat(part);if(!s.isDirectory()||s.isSymbolicLink())fail('unsafe-staging-path');}
-    const fd=await open(join(directory,relative),constants.O_RDONLY|constants.O_NOFOLLOW);try{const s=await fd.stat();if(!s.isFile())fail('unsafe-staging-path');return await fd.readFile('utf8');}finally{await fd.close();}};
-  const manifest=JSON.parse(await readPart('manifest.json'));
-  const files=[];for(const meta of manifest.files){if(!/^(catalog|topics|summary|publishing)\.json$|^publishing\/\d{6}\.json$|^creator\/(index|authors|insights|works-\d{3})\.json$|^foundation\/(index|authors|works|sources|observations|other-authors|other-works|pending-authors)\.json$|^(daily|works|work-metrics)\/[1-9]\d{0,7}\.json$/.test(meta.path))fail('invalid-partition-path');files.push({...meta,content:await readPart(meta.path)});}
-  return {manifest,files};
+  return readPublicReplicaStaging(directory,{dataDir:data});
 }
 async function observe(db,asOf){
   const now=Date.parse(asOf);let runs,running;
@@ -289,9 +285,8 @@ async function runPublisherCycle(ownerInstance){
           await recordPublisherPreparation(statePath,state,asOf);
           if(state.publishedAsOf){
             if(state.sync?.status!=='success'||state.sync.asOf!==state.publishedAsOf)fail('invalid-published-baseline');
-            let previous=await readPublication(join(data,'public-replica-staging','publisher-'+state.publishedAsOf.replace(/[:.]/g,'-')));
-            const baseline=await preparePublishedSnapshotBaseline(previous,{asOf:state.publishedAsOf,manifestSha256:state.sync.manifestSha256,exportRevision:state.exportRevision});
-            previous=null;
+            const baseline=await preparePublishedSnapshotBaselineFromDirectory(join(data,'public-replica-staging','publisher-'+state.publishedAsOf.replace(/[:.]/g,'-')),
+              {dataDir:data,asOf:state.publishedAsOf,manifestSha256:state.sync.manifestSha256,exportRevision:state.exportRevision,signal:signal.signal});
             attachPublishedSnapshotBaseline(observed.committedPublication,baseline);
             await recordPublisherRuntime(statePath,state,'baseline-validated',asOf);
           }
