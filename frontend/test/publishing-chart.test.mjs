@@ -1,3 +1,4 @@
+import {resolve} from 'node:path';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
@@ -6,7 +7,7 @@ import {build} from 'esbuild';
 
 const site = fileURLToPath(new URL('../', import.meta.url));
 const main = process.env.MCN_MAIN_ROOT || fileURLToPath(new URL('../../douyin-monitor-workbench/', import.meta.url));
-const {chromium} = createRequire(main + 'package.json')('playwright-core');
+const {chromium} = createRequire(resolve(main,'package.json'))('playwright-core');
 const fixture = `
  import React,{useState} from 'react';
  import {createRoot} from 'react-dom/client';
