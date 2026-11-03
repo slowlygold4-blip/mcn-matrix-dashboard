@@ -48,3 +48,12 @@ test('since 9/12 is a rolling window even when an old shared URL contains an end
  const fixed=await loadReplicaView({manifest,readPart,workspace:{board:'all',theme:'all',tag:'all',period:'custom',start:'2026-09-12',end:'2026-10-12'}});
  assert.equal(fixed.dateWindow?.end,'2026-10-12');
 });
+
+test('explicit following preset resolves from a new catalog; frozen since also stays fixed',async()=>{
+ const account={id:1,enabled:true,boardKeys:[],latest:{followers:{value:0,date:'2026-10-24',observedAt:'2026-10-24T02:00:00.000Z'}}};
+ const readPart=path=>Promise.resolve(path==='catalog.json'?{accounts:[account],boards:[]}:path==='topics.json'?{topics:[],items:[]}:index);
+ for(const [period,followLatest,start,end] of [['week',true,'2026-10-17','2026-10-24'],['since',false,'2026-09-12','2026-10-12']]){
+  const result=await loadReplicaView({manifest,readPart,workspace:{board:'all',theme:'all',tag:'all',period,followLatest,start:'2026-09-12',end:'2026-10-12'}});
+  assert.equal(result.summaryLoaded,true);assert.deepEqual([result.dateWindow.start,result.dateWindow.end],[start,end]);
+ }
+});

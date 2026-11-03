@@ -49,7 +49,7 @@ export function workspacePath(pathname, tab, search='') {
 
 /** Global saved-view links are not account identity links. Never repair malformed dates silently. */
 export function workspaceSelection(search){
- const p=new URLSearchParams(search),keys=['board','theme','classification','period','start','end'];
+ const p=new URLSearchParams(search),keys=['board','theme','classification','period','start','end','followLatest'];
  if(p.has('account'))return null;
  workspaceComparisonSelection(search);
  if(!keys.some(k=>p.has(k)))return null;
@@ -59,6 +59,10 @@ export function workspaceSelection(search){
  if((start===null)!==(end===null)||start!==null&&(!validDate(start)||!validDate(end)||start>end)
   ||period==='custom'&&start===null)throw Error('矩阵链接日期不完整或无效，请选择两个有序日期');
  const selection={board:p.get('board')??'all',theme:p.get('theme')??'all',tag:p.get('classification')??'all',period,start,end};
+ if(p.has('followLatest')){
+  if(!['0','1'].includes(p.get('followLatest'))||p.get('followLatest')==='1'&&!['day','week','month','since'].includes(period))throw Error('日期自动更新选项无效');
+  selection.followLatest=p.get('followLatest')==='1';
+ }
  for(const k of ['board','theme','tag'])if(!selection[k]||selection[k].length>200||/[\u0000-\u001f\u007f]/.test(selection[k]))throw Error('矩阵链接筛选无效');
  return selection;
 }
@@ -74,7 +78,8 @@ export function workspaceSelectionScope(selection,accounts,boards){
 export function workspaceSelectionPath(pathname,tab,selection,list,comparison){
  if(!tabs.includes(tab)||!pathname.startsWith('/')||pathname.startsWith('//')||/[?#\r\n]/.test(pathname))throw Error('页面地址无效');
  const p=new URLSearchParams();if(selection){for(const [key,value] of [['board',selection.board],['theme',selection.theme],['classification',selection.tag]])if(value!=='all')p.set(key,value);
- p.set('period',selection.period);if(selection.start!==null){p.set('start',selection.start);p.set('end',selection.end);}}
+ p.set('period',selection.period);if(selection.start!==null){p.set('start',selection.start);p.set('end',selection.end);}
+ if(Object.hasOwn(selection,'followLatest')){if(typeof selection.followLatest!=='boolean')throw Error('日期自动更新选项无效');p.set('followLatest',selection.followLatest?'1':'0');}}
  if(list!==undefined){checkList(list);for(const [key,value] of Object.entries(listDefaults))if(list[key]!==value)p.set(key,list[key]);}
  if(comparison!==undefined){
   if(!comparison||typeof comparison.compare!=='boolean')throw Error('比较状态无效');

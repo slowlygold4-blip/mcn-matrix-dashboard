@@ -5,14 +5,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {createRequire} from 'node:module';
-import {mkdir,writeFile} from 'node:fs/promises';
+import {mkdir,writeFile,readFile} from 'node:fs/promises';
+import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {build} from 'esbuild';
 import {validateDateShard} from '../lib/replica-date-range.mjs';
 
 const site=fileURLToPath(new URL('../',import.meta.url));
 const main=process.env.MCN_MAIN_ROOT||fileURLToPath(new URL('../../douyin-monitor-workbench/',import.meta.url));
-const {chromium}=createRequire(main+'package.json')('playwright-core');
+const {chromium}=createRequire(resolve(main,'package.json'))('playwright-core');
 const asOf='2026-10-01T05:44:51.113Z',revision='roster-lifecycle-fixture';
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const descriptor=(path,body,extra={})=>({path,...extra,bytes:Buffer.byteLength(JSON.stringify(body)),sha256:hash(JSON.stringify(body))});
@@ -37,6 +38,16 @@ const dateIndex=parts['date-summary-index.json']={version:1,asOf,timeZone:'Asia/
 const manifest={...base,files:[...base.files,descriptor('date-summary-index.json',dateIndex,{kind:'summaryDateIndex',count:points.length}),{...shardFile,kind:'summaryDateShard'}]};
 // A browser navigation assertion must not be masked by an invalid date fixture.
 validateDateShard(shard,dateIndex.shards[0],manifest);
+function advancedEdition(){
+ const g='2026-10-02T05:44:51.113Z',next=structuredClone(parts),date='2026-10-01';
+ for(const a of next['catalog.json'].accounts){for(const field of ['followers','likes','posts'])a.latest[field]={...a.latest[field],value:a.latest[field].value+1,date,observedAt:date+'T03:00:00.000Z'};
+  const d=next['daily/'+a.id+'.json'];d.asOf=g;d.items.push({targetId:a.id,date,capturedAt:date+'T03:00:00.000Z',followers:104,followersAt:date+'T03:00:00.000Z',likes:204,likesAt:date+'T03:00:00.000Z',posts:4,postsAt:date+'T03:00:00.000Z'});}
+ const items=next['catalog.json'].accounts.flatMap(a=>next['daily/'+a.id+'.json'].items).sort((a,b)=>a.date.localeCompare(b.date)||a.targetId-b.targetId);
+ const b={asOf:g,timeZone:'Asia/Shanghai',counts:{enabledAccounts:1,daily:items.length},files:[descriptor('catalog.json',next['catalog.json'],{kind:'catalog',count:accounts.length}),descriptor('topics.json',next['topics.json'],{kind:'topics',count:0}),...accounts.map(a=>descriptor('daily/'+a.id+'.json',next['daily/'+a.id+'.json'],{kind:'daily',targetId:a.id,count:dates.length+1}))]};
+ const sh=next['date-summary/000001.json']={version:1,asOf:g,timeZone:'Asia/Shanghai',items},sf=descriptor('date-summary/000001.json',sh,{count:items.length});
+ const index=next['date-summary-index.json']={version:1,asOf:g,timeZone:'Asia/Shanghai',format:'date-shards-v1',sourceManifestSha256:hash(JSON.stringify(b)),sourceDaily:b.files.filter(f=>f.kind==='daily').map(({kind,...f})=>f),count:items.length,firstDate:dates[0],lastDate:date,shards:[{...sf,firstDate:dates[0],lastDate:date}]};
+ const m={...b,files:[...b.files,descriptor('date-summary-index.json',index,{kind:'summaryDateIndex',count:items.length}),{...sf,kind:'summaryDateShard'}]};validateDateShard(sh,index.shards[0],m);return {parts:next,manifest:m};
+}
 const authors=Array.from({length:65},(_,index)=>({row:index+1,name:'合成作者'+String(index+1).padStart(3,'0'),douyinId:'creator-'+index,targetIds:index===31?[1]:index===0?[2]:[],posts:1,plays:index+1,likes:index,slicePosts:1,creationPosts:0,aiPosts:0}));
 const works=authors.map((author,index)=>({row:index+1,contentId:String(7300000000000000000n+BigInt(index)),douyinId:author.douyinId,author:author.name,title:'夹具作品'+String(index+1).padStart(3,'0'),publishDate:'2026-09-23',track:'切片',plays:author.plays,likes:author.likes}));
 const sourceAuthors={revision,items:authors},sourceWorks={revision,items:works};
@@ -68,13 +79,13 @@ const bundle=await build({stdin:{contents:`import React from 'react';import {cre
 const launch=()=>chromium.launch({headless:true,executablePath:process.env.MCN_TEST_CHROME||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',args:['--disable-background-networking']});
 async function openFixture(browser,path,{delayFoundation=false,failSourceAuthors=0}={}){
  const context=await browser.newContext({viewport:{width:1400,height:950},reducedMotion:'reduce'}),page=await context.newPage(),errors=[],requests=[];
- let releaseFoundation;const foundationGate=new Promise(resolve=>{releaseFoundation=resolve;});
+ let currentManifest=manifest,manifestGate=null,releaseFoundation;const foundationGate=new Promise(resolve=>{releaseFoundation=resolve;});
  if(!delayFoundation)releaseFoundation();
  page.setDefaultTimeout(8000);page.on('pageerror',error=>errors.push(error.message));
  await page.route('**/*',async route=>{
   const request=route.request(),url=new URL(request.url());requests.push({method:request.method(),path:url.pathname});
   if(request.method()!=='GET')return route.abort();
-  if(url.pathname==='/api/replica')return route.fulfill({json:{manifest,publishedAt:asOf}});
+  if(url.pathname==='/api/replica'){if(manifestGate)await manifestGate;return route.fulfill({json:{manifest:currentManifest,publishedAt:currentManifest.asOf}});}
   if(url.pathname==='/creator-source/authors.json'&&failSourceAuthors>0){failSourceAuthors--;return route.fulfill({status:503,json:{error:'synthetic author directory unavailable'}});}
   if(url.pathname==='/table-foundation/index.json')await foundationGate;
   if(jsonRoutes[url.pathname])return route.fulfill({json:jsonRoutes[url.pathname]});
@@ -82,7 +93,7 @@ async function openFixture(browser,path,{delayFoundation=false,failSourceAuthors
   return route.abort();
  });
  await page.goto('http://127.0.0.1:49119/'+path);await page.addScriptTag({content:bundle.outputFiles[0].text});
- return {context,page,errors,requests,releaseFoundation};
+ return {context,page,errors,requests,releaseFoundation,holdManifest(){let release;manifestGate=new Promise(resolve=>{release=resolve;});return ()=>{release();manifestGate=null;};},async advanceEdition(){const next=advancedEdition();currentManifest=next.manifest;await page.evaluate(parts=>{window.fixture.parts=parts;},next.parts);}};
 }
 const roster=page=>page.locator('.tuantuan-roster-table');
 const ledger=page=>page.locator('.source-ledger');
@@ -332,5 +343,52 @@ test('missing period endpoints offer a real comparison and apply dates, net chan
   await page.getByRole('button',{name:/粉丝净变化.*\+2/}).waitFor();
   assert.equal(await page.evaluate(()=>document.activeElement?.id),'matrix-growth');
   assert.deepEqual(errors,[]);noMutations(requests);
+ }finally{await context.close();}}finally{await browser.close();}
+});
+
+const followButton=page=>page.getByRole('button',{name:'日期随最新采样更新',exact:true}).first();
+async function overviewStyles(page){
+ const names=['app/replica.css','app/source-operations.css','app/visual-theme.css','app/dashboard-motion.css','app/collection-console.css','app/matrix-pulse.css','app/observatory.css','components/table-scroll-frame.css','components/tuantuan-roster-controls.css'];
+ await page.addStyleTag({content:(await Promise.all(names.map(name=>readFile(site+name,'utf8')))).join('\n')});
+}
+for(const key of ['week','day'])test(`live ${key} advances only after new saved data; keyboard freeze and phone controls remain usable`,{timeout:30000},async()=>{
+ const browser=await launch();
+ try{const f=await openFixture(browser,'?theme=tuantuan&period='+key+'#overview'),{context,page,errors,requests}=f;try{
+  await page.waitForFunction(()=>new URL(location.href).searchParams.get('end')==='2026-09-30');
+  assert.equal(await followButton(page).getAttribute('aria-pressed'),'true');
+  await f.advanceEdition();await page.getByRole('button',{name:'重新读取已保存数据',exact:true}).click();
+  await page.waitForFunction(()=>new URL(location.href).searchParams.get('end')==='2026-10-01');
+  assert.equal(new URL(page.url()).searchParams.get('start'),key==='week'?'2026-09-24':'2026-09-30');
+  await followButton(page).focus();await page.keyboard.press('Space');
+  await page.waitForFunction(()=>new URL(location.href).searchParams.get('followLatest')==='0');
+  assert.equal(await followButton(page).getAttribute('aria-pressed'),'false');
+  await overviewStyles(page);
+  for(const width of [1000,390,320]){await page.setViewportSize({width,height:844});assert.equal(await followButton(page).isVisible(),true);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);}
+  if(process.env.MCN_QA_DIR){await mkdir(process.env.MCN_QA_DIR,{recursive:true});await page.screenshot({path:resolve(process.env.MCN_QA_DIR,`follow-${key}-320.png`),fullPage:true});}
+  assert.deepEqual(errors,[]);noMutations(requests);
+ }finally{await context.close();}}finally{await browser.close();}
+});
+test('a dated legacy link remains fixed through a new generation, until the user enables following',{timeout:30000},async()=>{
+ const browser=await launch();
+ try{const f=await openFixture(browser,'?theme=tuantuan&period=week&start=2026-09-23&end=2026-09-30#overview'),{context,page,errors,requests}=f;try{
+  await followButton(page).waitFor();assert.equal(await followButton(page).getAttribute('aria-pressed'),'false');
+  await f.advanceEdition();const response=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/replica');
+  await page.getByRole('button',{name:'重新读取已保存数据',exact:true}).click();await response;
+  await page.getByRole('button',{name:'重新读取已保存数据',exact:true}).waitFor();
+  assert.equal(new URL(page.url()).searchParams.get('end'),'2026-09-30');
+  await followButton(page).click();await page.waitForFunction(()=>new URL(location.href).searchParams.get('end')==='2026-10-01');
+  assert.equal(new URL(page.url()).searchParams.get('followLatest'),'1');assert.deepEqual(errors,[]);noMutations(requests);
+ }finally{await context.close();}}finally{await browser.close();}
+});
+test('editing dates during a delayed refresh wins over live-period advancement',{timeout:30000},async()=>{
+ const browser=await launch();
+ try{const f=await openFixture(browser,'?theme=tuantuan&period=since#overview'),{context,page,errors,requests}=f;try{
+  await page.waitForFunction(()=>new URL(location.href).searchParams.get('end')==='2026-09-30');
+  await f.advanceEdition();const release=f.holdManifest(),request=page.waitForRequest(r=>new URL(r.url()).pathname==='/api/replica');
+  await page.getByRole('button',{name:'重新读取已保存数据',exact:true}).click();await request;
+  await page.getByLabel('起点',{exact:true}).fill('2026-09-23');release();
+  await page.waitForFunction(()=>{const p=new URL(location.href).searchParams;return p.get('period')==='custom'&&p.get('followLatest')==='0';});
+  assert.equal(new URL(page.url()).searchParams.get('start'),'2026-09-23');assert.equal(new URL(page.url()).searchParams.get('end'),'2026-09-30');
+  assert.equal(await followButton(page).isDisabled(),true);assert.deepEqual(errors,[]);noMutations(requests);
  }finally{await context.close();}}finally{await browser.close();}
 });
