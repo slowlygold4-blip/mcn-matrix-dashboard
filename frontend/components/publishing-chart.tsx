@@ -15,7 +15,7 @@ export function PublishingChart({days,track,onInspect,unified=false,trackLabel}:
  const dateCounts=(day:Day)=>day.dateCounts?.[track]??null;
  const known=days.map(count).filter((value):value is number=>value!==null);
  const maximum=known.length?Math.max(...known):null;
- const scale=Math.max(1,maximum??0),latest=days.findLast(day=>count(day)!==null);
+ const scale=Math.max(1,maximum??0),latest=days.findLast(day=>(count(day)??0)>0);
  function move(index:number){
   const day=days[Math.max(0,Math.min(days.length-1,index))];
   if(!day)return;
@@ -31,7 +31,7 @@ export function PublishingChart({days,track,onInspect,unified=false,trackLabel}:
     {dateCounts(selected)?<span className="meta">明确日期 {number(dateCounts(selected)!.confirmed)} 条 · 日期待核验 {number(dateCounts(selected)!.unverified)} 条</span>:<span className="meta">日期依据尚未分别核验，当前为已收录记录数</span>}
     <Button variant="outline" disabled={count(selected)==null} onClick={()=>onInspect({view:'works',track,startDate:selected.date,endDate:selected.date,mainTableOnly:true})}>查看当天作品 →</Button>
    </div>
-   {count(selected)===null&&latest&&<Button variant="outline" onClick={()=>move(days.indexOf(latest))}>最近有记录：{latest.date}</Button>}
+   {(count(selected)??0)===0&&latest&&<Button variant="outline" onClick={()=>move(days.indexOf(latest))}>最近有记录：{latest.date}</Button>}
    <div className="source-ops-bars" role="group" aria-label="每日作品记录数量；左右方向键选择日期">
     {days.map((day,index)=><button type="button" className="source-ops-bar-column" key={day.date} ref={node=>{if(node)buttons.current.set(day.date,node);else buttons.current.delete(day.date);}} tabIndex={selected.date===day.date?0:-1} aria-label={`${day.date}，${number(count(day))} 条作品`} aria-pressed={selected.date===day.date} title={`${day.date}：${number(count(day))} 条${dateCounts(day)?`；明确日期 ${number(dateCounts(day)!.confirmed)} 条；日期待核验 ${number(dateCounts(day)!.unverified)} 条`:''}`} onClick={()=>setSelection(day.date)} onKeyDown={event=>{
      const next=event.key==='ArrowRight'?index+1:event.key==='ArrowLeft'?index-1:event.key==='Home'?0:event.key==='End'?days.length-1:null;

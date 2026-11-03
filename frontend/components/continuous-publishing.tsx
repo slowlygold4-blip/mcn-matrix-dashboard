@@ -5,7 +5,7 @@ import {Button} from '@/components/ui/button';
 import {PublishingChart} from './publishing-chart';
 import {readReplicaPart} from '@/lib/replica-reader.mjs';
 import {publishingPartValid} from '@/lib/replica-publishing.mjs';
-import {loadPublishingDay,publishingCalendar,publishingTracks,publishingTrackCount,filterPublishingRows,publishingSelection,sortPublicationRows,scopedPublishingIndex,filterPublicationScopeRows} from '@/lib/publishing-view.mjs';
+import {loadPublishingDay,publishingCalendar,publishingTracks,publishingTrackCount,recordedPublishingDays,filterPublishingRows,publishingSelection,sortPublicationRows,scopedPublishingIndex,filterPublicationScopeRows} from '@/lib/publishing-view.mjs';
 type Row=Record<string,any>;
 type DayLoad={generation:string;day:string;items:Row[];busy:boolean;error:string};
 /** A small index first; fetch only the selected day's bounded work partitions. */
@@ -46,7 +46,7 @@ export function ContinuousPublishing({manifest,startDate='',endDate='',board='al
  const days=selection.error?[]:publishingCalendar(scoped.index,manifest.asOf,startDate||'2026-09-12',endDate);
  useEffect(()=>{setDay(value=>value&&((startDate&&value<startDate)||(endDate&&value>endDate))?null:value);},[startDate,endDate]);
  useEffect(()=>{if(current&&!current.busy&&!current.error)setPage(value=>Math.max(1,Math.min(value,Math.ceil(rows.length/20))));},[current,rows.length]);
- const knownDays=days.filter((d:Row)=>d.works!==null),latest=knownDays.at(-1),undated=scoped.index?.days.find((d:Row)=>d.date==='');
+ const knownDays=recordedPublishingDays(days,track),latest=knownDays.at(-1),undated=scoped.index?.days.find((d:Row)=>d.date==='');
  const selected=scoped.index?.days.find((d:Row)=>d.date===day);
  const label=publishingTracks.find((item:Row)=>item.key===track)!.label;
  const total=selection.works;
@@ -68,7 +68,7 @@ export function ContinuousPublishing({manifest,startDate='',endDate='',board='al
     <div><small>未记录发布日期</small><strong>{number(selection.undatedWorks)}</strong><span>{startDate||endDate?'保留在作品库，未计入当前日期区间':'保留在全部作品合计，不放入日期曲线'}</span></div>
    </section>
    <p className="meta">同一作品合并已有来源后逐项采用有效值，不重复相加。以上是这些作品的累计字段，<strong>不是这段日期新增的点赞或播放</strong>；播放字段未经逐条平台核验。缺测、冲突与数值溢出不补零。</p>
-   <div className="period-toolbar" aria-label="发布记录完整情况"><span>有记录 {knownDays.length} 天 · 无记录 {days.length-knownDays.length} 天</span><span>最近有记录 {latest?.date??'—'}</span>{undatedCount!=null&&undatedCount>0&&<Button variant="outline" onClick={()=>chooseDay('')}>查看未记录日期的作品 · {undatedCount.toLocaleString('zh-CN')} 条</Button>}</div>
+   <div className="period-toolbar" aria-label="发布记录完整情况"><span>有记录 {knownDays.length} 天 · 未见记录 {days.length-knownDays.length} 天</span><span>最近有记录 {latest?.date??'—'}</span>{undatedCount!=null&&undatedCount>0&&<Button variant="outline" onClick={()=>chooseDay('')}>查看未记录日期的作品 · {undatedCount.toLocaleString('zh-CN')} 条</Button>}</div>
   </>}
   <div hidden={!index||!!selection.error}><PublishingChart days={days} track={track} trackLabel={label} unified onInspect={focus=>chooseDay(focus.startDate)}/></div>
   {day!==null&&index&&!selection.error&&<div className="panel" role="region" aria-label="所选发布日作品"><h3>{day||'未记录发布日期'} · {selectedCount?.toLocaleString('zh-CN')??'—'} 条已入库 · {label}</h3>

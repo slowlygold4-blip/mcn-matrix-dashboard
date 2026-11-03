@@ -15,7 +15,7 @@ test('actual continuous publication controls preserve selected day/page across i
  await page.getByRole('heading',{name:'已收录发片记录 · 43 条',exact:true}).waitFor();
  const panel=page.locator('[aria-label="所选发布日作品"]');
  await t.test('unrecorded dates stay missing and undated works have a direct verified entry',async()=>{
-  assert.match(await page.locator('[aria-label="发布记录完整情况"]').textContent(),/有记录 2 天 · 无记录 46 天/);
+  assert.match(await page.locator('[aria-label="发布记录完整情况"]').textContent(),/有记录 2 天 · 未见记录 46 天/);
   await page.getByRole('button',{name:'查看未记录日期的作品 · 1 条'}).click();
   await panel.getByRole('link',{name:'A未日期作品'}).waitFor();assert.match(await panel.textContent(),/未记录发布日期/);assert.equal(await panel.locator('tbody tr').count(),1);
  });
@@ -35,6 +35,7 @@ test('actual continuous publication controls preserve selected day/page across i
   const track=page.getByRole('combobox',{name:'每日发片内容分类'}),before=reads.length;
   await track.selectOption('ai-remix');
   await page.getByRole('heading',{name:'即梦二创 · 已收录发片记录 · 1 条',exact:true}).waitFor();
+  assert.match(await page.getByLabel('发布记录完整情况').innerText(),/有记录 1 天.*最近有记录 2026-10-28/s);
   assert.equal(await panel.locator('tbody tr').count(),1);
   assert.equal(await panel.getByRole('link',{name:'C作品1',exact:true}).count(),1);
   assert.match(await panel.textContent(),/切片激励 \/ 即梦二创/);
@@ -48,6 +49,9 @@ test('actual continuous publication controls preserve selected day/page across i
   await page.getByRole('combobox',{name:'选择发布日'}).selectOption('2026-10-29');
   await page.getByRole('button',{name:'查看当天作品 →',exact:true}).click();
   await panel.getByText('当前日期没有符合此分类的已收录作品。',{exact:true}).waitFor();
+  const latest=page.getByRole('button',{name:'最近有记录：2026-10-28',exact:true});await latest.click();
+  assert.equal(await page.getByRole('combobox',{name:'选择发布日'}).inputValue(),'2026-10-28');
+  await page.getByRole('combobox',{name:'选择发布日'}).selectOption('2026-10-29');
   assert.match(await panel.locator('h3').textContent(),/0 条已入库/);
   assert.equal(await panel.locator('tbody tr').count(),0);
   await track.selectOption('all');await panel.getByRole('link',{name:'D今日作品',exact:true}).waitFor();

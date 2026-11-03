@@ -14,6 +14,12 @@ export function publishingTrackCount(day,track='all'){
  validTrack(track);
  return day?.works==null?null:track==='all'?day.works:day.tracks?.[track]??0;
 }
+/** A date containing other categories is not a recorded date for this track.
+ * Zero ledger rows and unobserved days stay distinct in the calendar itself. */
+export function recordedPublishingDays(days,track='all'){
+ validTrack(track);
+ return days.filter(day=>(publishingTrackCount(day,track)??0)>0);
+}
 export function filterPublishingRows(rows,track='all'){
  validTrack(track);
  if(track==='all')return rows;

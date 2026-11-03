@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {createHash}from'node:crypto';
-import {publishingCalendar,loadPublishingDay,publishingTrackCount,filterPublishingRows}from'../lib/publishing-view.mjs';
+import {publishingCalendar,loadPublishingDay,publishingTrackCount,recordedPublishingDays,filterPublishingRows}from'../lib/publishing-view.mjs';
 import {publishingPartitions}from'../lib/replica-publishing.mjs';
 const asOf='2026-10-29T07:00:00.000Z',row=(id,date='')=>({contentId:String(id),date,author:'作者',title:'作品',targetId:1,classifications:['slice'],origin:'platform'});
 test('work-category counts and detail filters agree without adding multi-topic works twice',()=>{
@@ -67,4 +67,13 @@ test('publication cohort selection changes counts and adopted totals together; u
  assert.deepEqual(sortPublicationRows(rows,'likes','desc').map(r=>r.contentId),['3','4','2','1']);
  assert.deepEqual(sortPublicationRows(rows,'likes','asc').map(r=>r.contentId),['1','2','4','3']);
  assert.deepEqual(publishingCalendar(index,asOf,'2026-10-28','2026-10-28').map(d=>d.date),['2026-10-28']);
+});
+
+test('recorded-day summaries follow the selected content category without turning zero or missing days into publication claims',()=>{
+ const days=[{date:'2026-10-28',works:4,tracks:{slice:2,original:2}},{date:'2026-10-29',works:5,tracks:{original:5}},{date:'2026-10-30',works:0,tracks:{}},{date:'2026-10-31',works:null,tracks:{}}];
+ assert.deepEqual(recordedPublishingDays(days,'all').map(d=>d.date),['2026-10-28','2026-10-29']);
+ assert.deepEqual(recordedPublishingDays(days,'slice').map(d=>d.date),['2026-10-28']);
+ assert.deepEqual(recordedPublishingDays(days,'ai-remix'),[]);
+ assert.equal(publishingTrackCount(days[1],'slice'),0);assert.equal(publishingTrackCount(days[3],'slice'),null);
+ assert.equal(days[2].works,0);assert.equal(days[3].works,null);assert.throws(()=>recordedPublishingDays(days,'unknown'),/分类/);
 });
