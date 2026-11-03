@@ -36,8 +36,8 @@ function dailyStatus(){
 }
 const notice=status=>renderToStaticMarkup(React.createElement(CollectionDailyNotice,{status}));
 test('compact notice keeps the Douyin work gap visible despite full profile progress and another platform success',()=>{
- const html=notice(dailyStatus());assert.match(html,/data-state="missing"/);assert.match(html,/2026-10-30 · 抖音尚无作品点赞观测/);
- assert.match(html,/单作品点赞日变化待采样/);assert.doesNotMatch(html,/已保存 3|全部成功|今日/);
+ const html=notice(dailyStatus());assert.match(html,/data-state="partial"/);assert.match(html,/2026-10-30 · 已保存 3 条作品点赞观测/);assert.match(html,/B站 3 条/);assert.match(html,/抖音尚无作品点赞观测/);
+ assert.match(html,/单作品点赞日变化待采样/);assert.doesNotMatch(html,/抖音 3 条|全部成功|今日/);
 });
 test('missing or stale-shaped daily evidence stays unknown, and an empty inventory never proves zero publication',()=>{
  assert.match(notice({rolling:{profiles:999}}),/状态尚未上报/);
@@ -67,4 +67,11 @@ test('visible daily profile notice and details use current daily counts rather t
  delete status.dailyProfiles;
  const legacy=renderToStaticMarkup(React.createElement(CollectionProfileDailyNotice,{status}));
  assert.match(legacy,/当天粉丝与总获赞覆盖尚未上报/);assert.doesNotMatch(legacy,/0\/|10\/10/);
+});
+
+test('Douyin observations remain visible when Bilibili has no work samples',()=>{
+ const status=dailyStatus();status.dailyWorkLikes.platforms[0].observedWorks=4;status.dailyWorkLikes.platforms[0].observedAccounts=1;
+ status.dailyWorkLikes.platforms[1].observedWorks=0;status.dailyWorkLikes.platforms[1].observedAccounts=0;
+ const html=notice(status);assert.match(html,/data-state="partial"/);assert.match(html,/已保存 4 条/);assert.match(html,/抖音 4 条/);
+ assert.match(html,/B站尚无作品点赞观测/);assert.doesNotMatch(html,/B站 4 条|全部成功/);
 });

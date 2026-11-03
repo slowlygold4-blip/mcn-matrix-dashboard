@@ -1,0 +1,40 @@
+name: Collection product interaction QA
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: product-collection-ui-qa
+  cancel-in-progress: false
+jobs:
+  isolated-interface:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: Install locked test dependencies
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm ci --prefix frontend --ignore-scripts --no-audit --no-fund
+          npx playwright-core install --with-deps chromium
+      - name: Exercise actual components using isolated synthetic HTTP fixtures
+        shell: bash
+        run: |
+          export MCN_MAIN_ROOT="$GITHUB_WORKSPACE"
+          export MCN_TEST_CHROME="$(node -e 'process.stdout.write(require("playwright-core").chromium.executablePath())')"
+          export MCN_QA_DIR="$RUNNER_TEMP/mcn-product-qa"
+          mkdir -p "$MCN_QA_DIR"
+          node --test --test-concurrency=1 frontend/test/collection-console.browser.test.mjs frontend/test/collection-client.browser.test.mjs 2>&1 | tee "$MCN_QA_DIR/results.txt"
+      - name: Retain UI evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: collection-product-qa
+          path: ${{ runner.temp }}/mcn-product-qa
+          if-no-files-found: warn
+          retention-days: 3
