@@ -15,6 +15,24 @@ async function cloudBrowser(){
  if(process.env.MCN_TEST_CLOUD_BROWSER==='1'&&process.platform==='linux')return chromium.launch({headless:true});
  throw Error('Run this fixture in cloud Linux with MCN_TEST_CLOUD_BROWSER=1, or supply MCN_TEST_BROWSER_WS; local browser launch is disabled.');
 }
+let compiledProductionStyles;
+function productionStyles(){
+ // globals.css and the vendor file contain Tailwind build directives, not
+ // browser-ready utilities. Use the locked application PostCSS configuration
+ // and its frontend source root; cache the real compiled reset/utilities.
+ return compiledProductionStyles??=(async()=>{
+  const [{default:postcss},{default:config}]=await Promise.all([import('postcss'),import('../postcss.config.mjs')]);
+  const plugins=await Promise.all(Object.entries(config.plugins).map(async([name,options])=>{
+   const {default:plugin}=await import(name);return plugin({...options,base:root});
+  }));
+  const from=resolve(root,'app/globals.css');
+  const globals=await postcss(plugins).process(readFileSync(from,'utf8'),{from,map:false});
+  assert.match(globals.css,/box-sizing:\s*border-box/,'application reset must be compiled');
+  assert.match(globals.css,/\.fixed\s*\{\s*position:\s*fixed/,'dialog positioning utilities must be compiled');
+  const styles=['app/replica.css','app/source-operations.css','app/visual-theme.css','app/dashboard-motion.css','app/collection-console.css','app/matrix-pulse.css','app/observatory.css','components/table-scroll-frame.css','components/tuantuan-roster-controls.css'];
+  return [globals.css,...styles.map(path=>readFileSync(root+path,'utf8'))].join('\n');
+ })();
+}
 const asOf='2026-10-26T08:00:00.000Z';
 const contentId=index=>String(7300000000000000000n+BigInt(index));
 function partition(path,kind,targetId,items){
@@ -56,10 +74,9 @@ async function openFixture(browser,options={}){
   await route.fulfill({contentType:'application/json',body:state.corrupt&&part.startsWith('work-metrics/')?'{}':stored.body,
    headers:{'X-Data-SHA256':stored.meta.sha256,'X-Data-Cutoff':asOf}}).catch(()=>{});
  });
- // Mobile layout uses the checked-in utility stylesheet and the same CSS order as
- // the real app. No test-only width/overflow overrides may conceal a grid defect.
- const styles=options.productionStyles?['vendor/shadcn-tailwind-4.13.0.css','app/replica.css','app/source-operations.css','app/visual-theme.css','app/dashboard-motion.css','app/collection-console.css','app/matrix-pulse.css','app/observatory.css','components/table-scroll-frame.css','components/tuantuan-roster-controls.css']:['app/replica.css'];
- await page.goto('http://127.0.0.1:49138/');await page.addStyleTag({content:styles.map(path=>readFileSync(root+path,'utf8')).join('\n')});await page.addScriptTag({content:f.js});
+ // No test-only width/overflow overrides may conceal a grid defect.
+ const css=options.productionStyles?await productionStyles():readFileSync(root+'app/replica.css','utf8');
+ await page.goto('http://127.0.0.1:49138/');await page.addStyleTag({content:css});await page.addScriptTag({content:f.js});
  await page.getByRole('button',{name:'查看作者作品',exact:true}).click();await page.getByText('共 23 条 · 当前匹配 23 条').waitFor();
  return {page,state,context,release(){state.hold=false;for(const fn of state.releases.splice(0))fn();}};
 }
