@@ -8,6 +8,7 @@ import {checksum} from '../lib/utils.mjs';
 import {mkdtempSync,rmSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
+import {DatabaseSync} from 'node:sqlite';
 import {bilibiliKnownWorkDailyState,knownWorkDailyDueTargetIds,readKnownBilibiliWorks} from '../lib/bilibili-known-works.mjs';
 
 const NOW=Date.parse('2026-11-03T17:00:00.000Z'),mid='525138167';
@@ -25,7 +26,8 @@ function raw(ids,{start='2026-11-03T16:00:01.000Z',finish='2026-11-03T16:00:03.0
  return {capturedAt:finish,profile:{user:{uid:mid,follower_count:2,total_favorited:15,aweme_count:10}},works:{aweme_list:works},
  provenance:{mode:'bilibili-public-card-relation-wbi-view'},
  knownWorksEvidence:{version:1,source:'stored-account-work-ids',used:true,requestedCount:ids.length,attemptedIds:ids},
- workDetailEvidence:{errors:failure?[{contentId:ids[0],errorCode:failure,businessCode,httpStatus}]:[]},
+ workDetailEvidence:{version:1,requestedCount:ids.length,successfulCount:works.length,failedCount:failure?1:0,deferredCount:0,
+  errors:failure?[{contentId:ids[0],errorCode:failure,businessCode,httpStatus}]:[]},
  workObservationTimes:{version:1,transport:'bilibili-official-http',startedAt:start,completedAt:finish,
   observations:works.map(w=>({contentId:w.aweme_id,observedAt:observed,source:'view'}))}};
 }
@@ -38,12 +40,12 @@ function save(f,value){
  return run;
 }
 
-test('day selection settles successful zero likes and attempted failures separately, keeps manual refresh full',t=>{
+test('day selection settles successful zero likes and prioritizes unattempted works before one delayed network retry',t=>{
  const f=fixture(t);save(f,raw([1,2,3,4,5,6].map(id)));
  assert.deepEqual(readKnownBilibiliWorks(f.database,f.target,mid,{dailyOnly:true}),[7,8,9,10].map(id));
  assert.equal(readKnownBilibiliWorks(f.database,f.target,mid).length,6,'manual refresh can reread today');
  save(f,raw([id(7)],{failure:'network_error',start:'2026-11-03T16:10:01.000Z',observed:'2026-11-03T16:10:02.000Z',finish:'2026-11-03T16:10:03.000Z'}));
- assert.deepEqual(bilibiliKnownWorkDailyState(f.database,f.target).pendingIds,[8,9,10].map(id));
+ assert.deepEqual(bilibiliKnownWorkDailyState(f.database,f.target).pendingIds,[8,9,10,7].map(id));
  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM post_metrics WHERE likes=0').get().n,6);
  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM post_metrics m JOIN posts p ON p.id=m.post_id WHERE p.external_id=?').get(id(7)).n,0);
 });
@@ -187,4 +189,117 @@ test('actual provider passes only pending IDs to the unchanged Python transport 
  await manual.collect(f.target);assert.equal(requests[1].length,6);
  assert.deepEqual(preferFlags,[true,false]);
  assert.equal(requests[1].some(value=>[1,2,3,4,5,6].map(id).includes(value)),true);
+});
+
+test('one explicit network failure is eligible only after fifteen minutes and a second failure exhausts the day across connections',t=>{
+ const dir=mkdtempSync(join(tmpdir(),'mcn-known-work-retry-'));
+ t.after(()=>rmSync(dir,{recursive:true,force:true}));
+ const file=join(dir,'fixture.sqlite'),f=fixture(t,1,file);
+ save(f,raw([id(1)],{failure:'network_error'}));
+ const query=asOf=>bilibiliKnownWorkDailyState(f.database,f.target,{asOf}).pendingIds;
+ assert.deepEqual(query('2026-11-03T16:15:02.999Z'),[]);
+ assert.deepEqual(query('2026-11-03T16:15:03.000Z'),[id(1)]);
+ const readonly=new DatabaseSync(file,{readOnly:true});
+ try{
+  assert.deepEqual(bilibiliKnownWorkDailyState(readonly,f.target,{asOf:'2026-11-03T16:15:03.000Z'}).pendingIds,[id(1)]);
+  assert.equal(readonly.prepare('SELECT total_changes() n').get().n,0);
+ }finally{readonly.close();}
+ save(f,raw([id(1)],{failure:'network_error',start:'2026-11-03T16:16:01.000Z',finish:'2026-11-03T16:16:03.000Z'}));
+ assert.deepEqual(query('2026-11-03T17:00:00.000Z'),[]);
+ const restarted=new DatabaseSync(file,{readOnly:true});
+ try{assert.deepEqual(bilibiliKnownWorkDailyState(restarted,f.target,{asOf:'2026-11-03T17:00:00.000Z'}).pendingIds,[]);}
+ finally{restarted.close();}
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM post_metrics').get().n,0,'both failed attempts remain missing, not zero');
+ f.timers.setTime(Date.parse('2026-11-04T16:00:00.000Z'));
+ assert.deepEqual(bilibiliKnownWorkDailyState(f.database,f.target).pendingIds,[id(1)],'a real new Beijing day resets the durable daily budget');
+});
+
+test('unattempted inventory uses the same six slots first, delayed retries cannot increase batch size or cadence',t=>{
+ const f=fixture(t,10);save(f,raw([id(1)],{failure:'network_error'}));
+ assert.deepEqual(bilibiliKnownWorkDailyState(f.database,f.target).pendingIds,[2,3,4,5,6,7].map(id));
+ save(f,raw([2,3,4,5,6,7].map(id),{start:'2026-11-03T16:20:01.000Z',observed:'2026-11-03T16:20:02.000Z',finish:'2026-11-03T16:20:03.000Z'}));
+ assert.deepEqual(bilibiliKnownWorkDailyState(f.database,f.target).pendingIds,[8,9,10,1].map(id));
+ const target={...f.database.getTarget(f.target.id),last_checked_at:new Date(NOW-14*60_000).toISOString()};
+ assert.deepEqual(knownWorkDailyDueTargetIds(f.database,[target]),[]);
+ target.last_checked_at=new Date(NOW-15*60_000).toISOString();
+ assert.deepEqual(knownWorkDailyDueTargetIds(f.database,[target]),[f.target.id]);
+});
+
+test('successful retry settles a true zero without a third automatic request',t=>{
+ const f=fixture(t,1);save(f,raw([id(1)],{failure:'network_error'}));
+ save(f,raw([id(1)],{start:'2026-11-03T16:16:01.000Z',observed:'2026-11-03T16:16:02.000Z',finish:'2026-11-03T16:16:03.000Z'}));
+ assert.deepEqual(bilibiliKnownWorkDailyState(f.database,f.target).pendingIds,[]);
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM post_metrics WHERE likes=0').get().n,1);
+ assert.equal(readKnownBilibiliWorks(f.database,f.target,mid).length,1,'explicit manual refresh retains its prior behavior');
+});
+
+test('only an exact network reason with no business refusal or HTTP 4xx can earn a retry',async t=>{
+ const cases=[
+  ['transport failure',{failure:'network_error'},true],
+  ['upstream 500',{failure:'network_error',httpStatus:500},true],
+  ['upstream 503',{failure:'network_error',httpStatus:503},true],
+  ['403 mislabeled as network',{failure:'network_error',httpStatus:403},false],
+  ['429 mislabeled as network',{failure:'network_error',httpStatus:429},false],
+  ['400 mislabeled as network',{failure:'network_error',httpStatus:400},false],
+  ['business code in network error',{failure:'network_error',businessCode:-101},false],
+  ['identity mismatch',{failure:'identity_mismatch'},false],
+  ['changed upstream',{failure:'upstream_changed'},false],
+  ['unknown failure',{failure:'collector_error'},false],
+  ['unavailable work',{failure:'business_error',businessCode:62002},false],
+  ['explicit refusal',{failure:'blocked',httpStatus:403},false],
+  ['login refusal',{failure:'login_required'},false],
+ ];
+ for(const [name,options,eligible]of cases)await t.test(name,st=>{
+  const f=fixture(st,1);save(f,raw([id(1)],options));
+  assert.deepEqual(bilibiliKnownWorkDailyState(f.database,f.target).pendingIds,eligible?[id(1)]:[]);
+  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM post_metrics').get().n,0);
+ });
+});
+
+test('ambiguous or unbound failure details cannot grant an extra request',async t=>{
+ const cases=[
+  ['missing version',r=>delete r.workDetailEvidence.version],
+  ['unbound item',r=>r.workDetailEvidence.errors[0].contentId=id(2)],
+  ['duplicate errors',r=>{r.workDetailEvidence.errors.push({...r.workDetailEvidence.errors[0]});r.workDetailEvidence.failedCount=2;}],
+  ['inconsistent failures',r=>r.workDetailEvidence.failedCount=0],
+  ['inconsistent requests',r=>r.workDetailEvidence.requestedCount=2],
+  ['missing HTTP diagnostic',r=>delete r.workDetailEvidence.errors[0].httpStatus],
+  ['missing business diagnostic',r=>delete r.workDetailEvidence.errors[0].businessCode],
+ ];
+ for(const [name,change]of cases)await t.test(name,st=>{
+  const f=fixture(st,1),value=raw([id(1)],{failure:'network_error'});change(value);save(f,value);
+  assert.deepEqual(bilibiliKnownWorkDailyState(f.database,f.target).pendingIds,[]);
+ });
+});
+
+test('a later refusal blocks pending retries and one historical non-network attempt cannot turn into a retry',t=>{
+ const f=fixture(t,2);save(f,raw([id(1)],{failure:'network_error'}));
+ save(f,raw([id(2)],{failure:'blocked',httpStatus:403,start:'2026-11-03T16:20:01.000Z',finish:'2026-11-03T16:20:03.000Z'}));
+ assert.equal(bilibiliKnownWorkDailyState(f.database,f.target).blocked,true);
+ assert.deepEqual(bilibiliKnownWorkDailyState(f.database,f.target).pendingIds,[]);
+ f.db.exec('DELETE FROM snapshots');
+ save(f,raw([id(1)],{failure:'identity_mismatch'}));
+ save(f,raw([id(1)],{failure:'network_error',start:'2026-11-03T16:20:01.000Z',finish:'2026-11-03T16:20:03.000Z'}));
+ assert.deepEqual(bilibiliKnownWorkDailyState(f.database,f.target).pendingIds,[id(2)]);
+});
+
+test('real six-request shape keeps four successful metrics and two network failures eligible after untouched works',t=>{
+ const f=fixture(t,10),value=raw([3,4,5,6].map(id));
+ value.knownWorksEvidence.attemptedIds=[1,2,3,4,5,6].map(id);value.knownWorksEvidence.requestedCount=6;
+ value.workDetailEvidence={version:1,requestedCount:6,successfulCount:4,failedCount:2,deferredCount:0,
+  errors:[1,2].map(n=>({contentId:id(n),errorCode:'network_error',businessCode:null,httpStatus:null}))};
+ save(f,value);
+ assert.deepEqual(bilibiliKnownWorkDailyState(f.database,f.target).pendingIds,[7,8,9,10,1,2].map(id));
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM post_metrics WHERE likes=0').get().n,4);
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM post_metrics m JOIN posts p ON p.id=m.post_id WHERE p.external_id IN (?,?)').get(id(1),id(2)).n,0);
+});
+
+test('explicit HTTP authorization or rate refusal blocks the entire daily lane even if mislabeled as network',async t=>{
+ for(const httpStatus of [401,403,429])await t.test(String(httpStatus),st=>{
+  const f=fixture(st,2);save(f,raw([id(1)],{failure:'network_error',httpStatus}));
+  const state=bilibiliKnownWorkDailyState(f.database,f.target);
+  assert.equal(state.blocked,true);assert.deepEqual(state.pendingIds,[]);
+  assert.deepEqual(knownWorkDailyDueTargetIds(f.database,[f.database.getTarget(f.target.id)]),[]);
+  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM post_metrics').get().n,0);
+ });
 });

@@ -11,7 +11,7 @@ import {MetricLedger} from '@/components/metric-ledger';
 import {EndpointSources} from '@/components/endpoint-sources';
 import {readReplicaPart} from '@/lib/replica-reader.mjs';
 import {personalPoints,personalWindow,accountShareQuery} from '@/lib/replica-account.mjs';
-import {rowsFor,csv,validDate} from '@/lib/replica-model.mjs';
+import {rowsFor,aggregate,csv,validDate} from '@/lib/replica-model.mjs';
 import {AccountCoverage} from '@/components/coverage-panel';
 import {historyExport} from '@/lib/replica-export.mjs';
 type Row=Record<string,any>;
@@ -48,7 +48,7 @@ export function AccountPanel({account,manifest,boards,request,onReturn,returnLab
  <p className="scope">{actualStart||'暂无采样日'} → {actualEnd||'暂无采样日'} · 北京时间 · {records.length} 个已保存日（不是全部同日原始采样次数）</p>
  <div role="status" aria-live="polite">{status}</div>{share&&<Input readOnly aria-label="账号分享地址" value={share} onFocus={e=>e.currentTarget.select()}/>}
  {!comparisonValid&&<p className="error" role="status">比较日期尚未完整且有序，不能保存或分享；请补齐两个比较日期。</p>}
- {!valid?<p className="error">请选择完整且有序的两个日期；没有保存记录时不补零。</p>:row&&<><MetricLedger metrics={row.metrics} count={1} start={actualStart} end={actualEnd}/><EndpointSources metrics={row.metrics} start={actualStart} end={actualEnd}/><GrowthPanel key={account.id} accounts={[account]} points={points} manifest={manifest} start={actualStart} end={actualEnd} comparison={comparison} onComparison={setComparison} offset={curveOffset} onOffset={setCurveOffset} ready={comparisonValid} pendingError={comparisonValid?'':'请选择完整且有序的比较日期，尚未保存到地址。'}/></>}
+ {!valid?<p className="error">请选择完整且有序的两个日期；没有保存记录时不补零。</p>:row&&<><MetricLedger metrics={aggregate([row])} count={1} start={actualStart} end={actualEnd}/><EndpointSources metrics={row.metrics} start={actualStart} end={actualEnd}/><GrowthPanel key={account.id} accounts={[account]} points={points} manifest={manifest} start={actualStart} end={actualEnd} comparison={comparison} onComparison={setComparison} offset={curveOffset} onOffset={setCurveOffset} ready={comparisonValid} pendingError={comparisonValid?'':'请选择完整且有序的比较日期，尚未保存到地址。'}/></>}
  <section className="panel"><div className="panel-head"><h2>已保存每日统计</h2><Button variant="outline" disabled={!valid||!visible.length} onClick={exportHistory}>导出所选区间与来源</Button></div><p className="meta account-help">下表按个人所选日期过滤；全部历史另行打开，不把缺测写为零。来源指纹与真实指标采样时间随导出保留。</p><div className="pager"><span>{visible.length} 个保存日 · 第 {page}/{Math.max(1,Math.ceil(visible.length/20))} 页</span><Button variant="outline" disabled={page<=1} onClick={()=>setPage(x=>x-1)}>上一页</Button><Button variant="outline" disabled={page*20>=visible.length} onClick={()=>setPage(x=>x+1)}>下一页</Button></div><Table><TableHeader><TableRow><TableHead>观察日 / 来源</TableHead><TableHead>粉丝</TableHead><TableHead>点赞</TableHead><TableHead>作品存量</TableHead></TableRow></TableHeader><TableBody>{visible.slice((page-1)*20,page*20).map(x=><TableRow key={x.id}><TableCell><details><summary>{x.date}</summary><small>{time(x.capturedAt)}</small><small className="source-hash">SHA256 {x.sourceChecksum}</small></details></TableCell>{['followers','likes','posts'].map(k=><TableCell key={k}>{fmt(x[k])}<small>相邻日变化 {delta(x[k+'Delta'])}</small></TableCell>)}</TableRow>)}</TableBody></Table>{!visible.length&&<p className="empty">所选区间没有这个账号的保存记录。</p>}</section></>}
  </section>;
 }
