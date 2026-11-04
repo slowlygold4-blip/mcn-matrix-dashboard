@@ -27,6 +27,8 @@ def request(o,url):
  if '/navnum?' in url:return {'data':{'video':0 if options.get('empty') else 100}}
  calls.append(url);bvid=c.urllib.parse.parse_qs(c.urllib.parse.urlparse(url).query)['bvid'][0]
  if options.get('detailRefusal'):raise c.BilibiliRequestError('blocked',http_status=403)
+ if bvid==ids[0] and options.get('firstFailure'):
+  failure=options['firstFailure'];raise c.BilibiliRequestError(failure['errorCode'],business_code=failure.get('businessCode'),http_status=failure.get('httpStatus'))
  return {'data':{'bvid':bvid,'title':'public work','pubdate':1789250000,'owner':{'mid':'99999' if options.get('foreign') else '525138167'},'stat':{'like':0 if bvid==ids[0] else 11,'view':100}}}
 c.bili_json=request
 try:print(json.dumps({'raw':c.collect_bilibili_account('525138167',30,options.get('ids',ids),options.get('prefer',False)),'calls':calls}))
@@ -93,6 +95,31 @@ test('a detail refusal stops further known details and never turns local referen
  assert.equal(x.raw.workDetailEvidence.deferredCount,1);assert.deepEqual(x.raw.works.aweme_list,[]);
  assert.deepEqual(x.raw.workObservationTimes.observations,[]);assert.equal(x.raw.worksErrorCode,'blocked');
  assert.deepEqual(x.raw.knownWorksEvidence.attemptedIds,[ids[0]],'deferred IDs are not claimed as attempted');
+});
+test('known unavailable detail is isolated while its next bounded work is actually requested',t=>{
+ for(const businessCode of [-404,62002,62012]){
+  const x=rawFixture({firstFailure:{errorCode:'business_error',businessCode}});
+  assert.equal(x.calls.length,2);assert.equal(x.raw.workDetailEvidence.failedCount,1);
+  assert.equal(x.raw.workDetailEvidence.successfulCount,1);assert.equal(x.raw.workDetailEvidence.deferredCount,0);
+  assert.deepEqual(x.raw.knownWorksEvidence.attemptedIds,ids);
+  assert.deepEqual(x.raw.works.aweme_list.map(w=>w.aweme_id),[ids[1]]);
+  assert.deepEqual(x.raw.workObservationTimes.observations.map(w=>w.contentId),[ids[1]]);
+  const normalized=normalizeCollection({type:'account',provider:'public-web',locator:mid,metadata:{platform:'bilibili'}},x.raw);
+  assert.deepEqual(normalized.posts.map(p=>p.likes),[11],'unavailable item must not become an invented zero metric');
+ }
+});
+test('unknown business errors and explicit account refusals still stop subsequent detail requests',()=>{
+ for(const firstFailure of [
+  {errorCode:'business_error',businessCode:-999},{errorCode:'business_error'},
+  {errorCode:'business_error',businessCode:'62002'},
+  {errorCode:'business_error',businessCode:62002,httpStatus:403},
+  {errorCode:'login_required',businessCode:-101},{errorCode:'blocked',httpStatus:403},
+  {errorCode:'rate_limited',httpStatus:429},
+ ]){
+  const x=rawFixture({firstFailure});assert.equal(x.calls.length,1,JSON.stringify(firstFailure));
+  assert.equal(x.raw.workDetailEvidence.deferredCount,1);assert.deepEqual(x.raw.knownWorksEvidence.attemptedIds,[ids[0]]);
+  assert.deepEqual(x.raw.works.aweme_list,[]);assert.deepEqual(x.raw.workObservationTimes.observations,[]);
+ }
 });
 test('known works cannot authorize another owner, replace a valid window or override confirmed zero inventory',()=>{
  assert.deepEqual(rawFixture({foreign:true}).raw.works.aweme_list,[]);

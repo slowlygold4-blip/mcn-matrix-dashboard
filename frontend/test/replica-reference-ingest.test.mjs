@@ -4,10 +4,10 @@ const bundle=await build({entryPoints:[root+'app/api/replica/route.ts'],bundle:t
 fixture.env.BUCKET.get=async key=>{const text=fixture.objects.get(key);return text===undefined?null:{size:Buffer.byteLength(text),text:async()=>text,body:new Response(text).body};};
 const{POST,GET}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 const A='2026-10-29T01:00:00.000Z',B='2026-10-29T02:00:00.000Z',C='2026-10-29T03:00:00.000Z';
-const post=(body,auth=true)=>POST(new Request('https://fixture.test/api/replica',{method:'POST',headers:{'Content-Type':'application/json',...(auth?{Authorization:'Bearer '+producer}:{})},body:JSON.stringify(body)}));
-const upload=(p,reuse=true,auth=true)=>post({action:'upload',asOf:p.asOf,reuseUnchanged:reuse,files:p.files.map(({path,sha256,data})=>({path,sha256,data}))},auth);
-const compactUpload=(p,previous,edit=x=>x,auth=true)=>post(edit({action:'upload',asOf:p.asOf,reuseUnchanged:true,referenceGeneration:previous.asOf,
- files:p.files.map(f=>{const before=previous.files.find(x=>x.path===f.path);if(before){const old=JSON.stringify({...JSON.parse(f.data),asOf:previous.asOf})+'\n';if(createHash('sha256').update(old).digest('hex')===before.sha256)return{path:f.path,sha256:f.sha256,bytes:Buffer.byteLength(f.data)};}return{path:f.path,sha256:f.sha256,data:f.data};})}),auth);
+const post=(body,auth=true,signal)=>POST(new Request('https://fixture.test/api/replica',{method:'POST',headers:{'Content-Type':'application/json',...(auth?{Authorization:'Bearer '+producer}:{})},body:JSON.stringify(body),signal}));
+const upload=(p,reuse=true,auth=true,signal)=>post({action:'upload',asOf:p.asOf,reuseUnchanged:reuse,files:p.files.map(({path,sha256,data})=>({path,sha256,data}))},auth,signal);
+const compactUpload=(p,previous,edit=x=>x,auth=true,signal)=>post(edit({action:'upload',asOf:p.asOf,reuseUnchanged:true,referenceGeneration:previous.asOf,
+ files:p.files.map(f=>{const before=previous.files.find(x=>x.path===f.path);if(before){const old=JSON.stringify({...JSON.parse(f.data),asOf:previous.asOf})+'\n';if(createHash('sha256').update(old).digest('hex')===before.sha256)return{path:f.path,sha256:f.sha256,bytes:Buffer.byteLength(f.data)};}return{path:f.path,sha256:f.sha256,data:f.data};})}),auth,signal);
 const activate=p=>post({action:'activate',asOf:p.asOf,manifest:p.manifest});
 async function publish(p,reuse=false){assert.equal((await upload(p,reuse)).status,200);const r=await activate(p);assert.equal(r.status,200,await r.text());}
 async function exact(p){for(const f of p.files){const r=await GET(new Request('https://fixture.test/api/replica?'+new URLSearchParams({generation:p.asOf,part:f.path})));assert.equal(r.status,200,f.path);const text=await r.text();assert.equal(text,f.data);assert.equal(createHash('sha256').update(text).digest('hex'),f.sha256);assert.equal(r.headers.get('X-Data-SHA256'),f.sha256);}}
@@ -59,10 +59,74 @@ test('compact source readers drain on failure and cancellation without partial m
    const body={action:'upload',asOf:B,reuseUnchanged:true,referenceGeneration:A,
     files:b.files.filter(f=>f.path!=='foundation/index.json').map(f=>({path:f.path,sha256:f.sha256,bytes:Buffer.byteLength(f.data)}))};
    const response=await POST(new Request('https://fixture.test/api/replica',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+producer},body:JSON.stringify(body),signal:controller.signal}));
-   assert.equal(response.status,409);assert.equal(active,0);assert.ok(peak<=6);assert.ok(peak>1);
+   assert.equal(response.status,abort?503:409);assert.equal(active,0);assert.ok(peak<=6);assert.ok(peak>1);
    assert.equal(fixture.metrics.puts,puts);assert.equal(fixture.sqlite.prepare('SELECT count(*) n FROM replica_files WHERE generation=?').get(B).n,0);
   }finally{fixture.env.BUCKET.get=get;}
  }
+});
+test('compact and full uploads cancelled during hash validation do not enter storage or metadata writes',async()=>{
+ for(const compact of [false,true]){
+  fixture.reset();const a=foundationPublication(A),b=foundationPublication(B);await publish(a);
+  const digest=crypto.subtle.digest,get=fixture.env.BUCKET.get,controller=new AbortController();
+  const puts=fixture.metrics.puts,batches=fixture.metrics.batches;let hashes=0,reads=0;
+  fixture.env.BUCKET.get=async key=>{reads++;return get(key);};
+  crypto.subtle.digest=function(...args){hashes++;controller.abort(Error('SYNTHETIC_PRIVATE_FAILURE'));return digest.apply(this,args);};
+  try{
+   // Compact-only files ensure this abort happens after source restoration,
+   // not while validating the changed full-body foundation index.
+   const response=compact?await compactUpload(b,a,x=>({...x,files:x.files.filter(f=>f.data===undefined)}),true,controller.signal)
+    :await upload(b,false,true,controller.signal);
+   assert.equal(response.status,503);assert.equal(hashes,1);assert.equal(reads>0,compact);
+   assert.deepEqual(await response.json(),{error:'同步请求已取消，已完成写入保留，可安全重试'});
+   assert.equal(fixture.metrics.puts,puts);assert.equal(fixture.metrics.batches,batches);
+   assert.equal(fixture.sqlite.prepare('SELECT count(*) n FROM replica_files WHERE generation=?').get(B).n,0);
+   assert.equal(fixture.sqlite.prepare('SELECT count(*) n FROM replica_file_references WHERE generation=?').get(B).n,0);
+  }finally{crypto.subtle.digest=digest;fixture.env.BUCKET.get=get;}
+  await exact(a);
+ }
+});
+test('cancellation during HEAD drains readers without starting repair writes or committing metadata',async()=>{
+ const a=foundationPublication(A),b=foundationPublication(B);await publish(a);
+ const head=fixture.env.BUCKET.head,controller=new AbortController(),puts=fixture.metrics.puts;
+ let active=0,started=0;
+ fixture.env.BUCKET.head=async()=>{active++;started++;try{
+  await new Promise(r=>setImmediate(r));controller.abort();return null;
+ }finally{active--;}};
+ try{
+  const response=await upload(b,true,true,controller.signal);
+  assert.equal(response.status,503);assert.equal(active,0);assert.equal(started,6);
+  assert.equal(fixture.metrics.puts,puts);
+  assert.equal(fixture.sqlite.prepare('SELECT count(*) n FROM replica_files WHERE generation=?').get(B).n,0);
+ }finally{fixture.env.BUCKET.head=head;}
+ await exact(a);
+});
+test('cancellation drains dispatched PUTs, stops subsequent writes, and permits exact replay',async()=>{
+ const a=foundationPublication(A),b=foundationPublication(B);await publish(a);
+ const put=fixture.env.BUCKET.put,controller=new AbortController(),puts=fixture.metrics.puts;
+ let active=0,started=0;
+ fixture.env.BUCKET.put=async(...args)=>{active++;started++;try{
+  await new Promise(r=>setImmediate(r));controller.abort();return await put(...args);
+ }finally{active--;}};
+ try{
+  const response=await upload(b,false,true,controller.signal);
+  assert.equal(response.status,503);assert.equal(active,0);assert.equal(started,2);
+  assert.equal(fixture.metrics.puts-puts,2,'already dispatched immutable writes may finish');
+  assert.equal(fixture.sqlite.prepare('SELECT count(*) n FROM replica_files WHERE generation=?').get(B).n,0);
+ }finally{fixture.env.BUCKET.put=put;}
+ await publish(b);await exact(a);await exact(b);
+});
+test('cancellation after D1 commits withholds acknowledgement without deleting replayable metadata',async()=>{
+ const a=foundationPublication(A),b=foundationPublication(B);await publish(a);
+ const batch=fixture.env.DB.batch,controller=new AbortController();
+ fixture.env.DB.batch=async statements=>{const result=await batch(statements);controller.abort();return result;};
+ try{
+  const response=await compactUpload(b,a,x=>x,true,controller.signal);
+  assert.equal(response.status,503);assert.deepEqual(await response.json(),{error:'同步请求已取消，已完成写入保留，可安全重试'});
+  assert.equal(fixture.sqlite.prepare('SELECT count(*) n FROM replica_files WHERE generation=?').get(B).n,b.files.length);
+  assert.equal(fixture.sqlite.prepare('SELECT count(*) n FROM replica_file_references WHERE generation=?').get(B).n,b.files.length-1);
+  assert.equal(fixture.sqlite.prepare('SELECT count(*) n FROM replica_generations WHERE generation=?').get(B).n,0);
+ }finally{fixture.env.DB.batch=batch;}
+ assert.equal((await compactUpload(b,a)).status,200);assert.equal((await activate(b)).status,200);await exact(a);await exact(b);
 });
 test('loss after compact acknowledgement still prevents activation until exact full repair',async()=>{
  const a=foundationPublication(A),b=foundationPublication(B);await publish(a);assert.equal((await compactUpload(b,a)).status,200);

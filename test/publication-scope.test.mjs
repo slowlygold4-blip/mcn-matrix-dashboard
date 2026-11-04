@@ -78,3 +78,35 @@ test('repeated reference IDs stay one work, and conflicting or absent board evid
  assert.equal(c.scopes[first.scopeId].theme,'unassigned');assert.deepEqual(c.scopes[first.scopeId].boardKeys,['A','B']);
  assert.deepEqual(c.scopes[c.rows.find(r=>r.contentId==='100').scopeId],{theme:'unassigned',boardKeys:[],labels:[]});
 });
+test('dated catalog preserves explicit, inferred and conflicting saved date authority and exact counts',async()=>{
+ const bases=['source-explicit-date','source-inferred-date','source-date-conflict','unverified-date','creator-source-date-only','missing','platform-timestamp'];
+ const partitions=[{kind:'works',targetId:1,items:bases.map((basis,index)=>work(index+1,{
+  source:'creator-source',publishedAt:basis==='platform-timestamp'?'2026-10-28T17:00:00.000Z':null,
+  publishedOn:['missing','platform-timestamp'].includes(basis)?null:'2026-10-29',publicationDateBasis:basis,
+ }))}];
+ const before=structuredClone(partitions),catalog=buildPublicationCatalog({sourceWorks:[],accounts:[account(1,'tuantuan',['slice'])],partitions,asOf,withDates:true});
+ assert.deepEqual(catalog.rows.map(row=>row.dateBasis),bases.map(basis=>basis==='creator-source-date-only'?'unverified-date':basis));
+ assert.deepEqual(catalog.rows.map(row=>row.date),bases.map(basis=>basis==='missing'?'':'2026-10-29'));
+ assert.deepEqual(partitions,before,'date projection cannot change saved work/owner/metric evidence');
+ assert.ok(catalog.rows.every(row=>row.targetId===1&&row.metrics.likes.value===5&&row.origin==='source'));
+ const parts=publishingPartitions(catalog.rows,{withMetrics:true,scopes:catalog.scopes,withDates:true}).map(({path,kind,count,items,...rest})=>({
+  meta:{path,kind,count:items?.length??count},body:{version:1,asOf,timeZone:'Asia/Shanghai',...rest,...(items?{items}:{count})}}));
+ assert.deepEqual(parts[0].body.dateCounts.all,{confirmed:2,unverified:4,missing:1});
+ await auditPublishing({manifest:{asOf,files:parts.map(part=>part.meta)},readPart:async path=>parts.find(part=>part.meta.path===path).body});
+});
+test('dated catalog rejects nonstandard timestamps and inconsistent date authority instead of inventing dates',()=>{
+ const build=extra=>buildPublicationCatalog({sourceWorks:[],accounts:[account(1,'tuantuan',[])],
+  partitions:[{kind:'works',targetId:1,items:[work(1,extra)]}],asOf,withDates:true});
+ for(const extra of [
+  {publishedAt:'2026-10-29'}, {publishedAt:'2026-10-29 01:00:00'},
+  {publishedAt:'2026-02-30T00:00:00.000Z'}, {publishedAt:'2026-10-31T00:00:00.000Z'},
+  {publishedAt:null,publishedOn:'2026-02-30',publicationDateBasis:'source-explicit-date'},
+  {publishedAt:'2026-10-29T00:00:00.000Z',publishedOn:'2026-10-29',publicationDateBasis:'source-explicit-date'},
+  {publishedAt:null,publishedOn:'2026-10-29',publicationDateBasis:'platform-timestamp'},
+  {publishedAt:null,publishedOn:'2026-10-29',publicationDateBasis:'unknown'},
+ ])assert.throws(()=>build(extra),/invalid-publication-work-date/);
+ const timestamp=build({publishedAt:'2026-10-28T17:00:00.000Z'}).rows[0];
+ assert.equal(timestamp.date,'2026-10-29');assert.equal(timestamp.dateBasis,'platform-timestamp');
+ const legacy=build({publishedAt:null,publishedOn:'2026-10-29'}).rows[0];
+ assert.equal(legacy.date,'2026-10-29');assert.equal(legacy.dateBasis,'unverified-date');
+});

@@ -69,19 +69,24 @@ export async function POST(request: Request) {
   let activationPhase:string|null=null,activationStartedAt:number|null=null;
   try {
     const text=await readReplicaRequest(request,{maxBytes:REPLICA_UPLOAD_MAX_BYTES});
+    request.signal.throwIfAborted();
     const input=JSON.parse(text); const {db,bucket}=runtime();
     if(input.action==="upload"&&Array.isArray(input.files)&&new TextEncoder().encode(text).length>replicaBatchByteLimit(input.files))return json({error:"批次过大"},413);
     if(!validGeneration(input.asOf)||Date.parse(input.asOf)>Date.now())return json({error:"无效采样截止时间"},400);
     if(input.action==="upload") {
       if(!Array.isArray(input.files)||input.files.length<1||input.files.length>50)return json({error:"无效分区批次"},400);
       const activated=await db.prepare("SELECT manifest FROM replica_generations WHERE generation=?").bind(input.asOf).first<{manifest:string}>();
+      request.signal.throwIfAborted();
       const sealed=activated?new Map(JSON.parse(activated.manifest).files.map((f:{path:string;sha256:string})=>[f.path,f.sha256])):null;
       const prepared:{path:string;sha256:string;data:string;bytes:number}[]=[],paths=new Set<string>(),compactPaths=new Set<string>();
       if(input.referenceGeneration!==undefined&&(!validGeneration(input.referenceGeneration)||input.referenceGeneration>=input.asOf||input.reuseUnchanged!==true))return json({error:"无效引用来源"},400);
       const validatePart=async(f:{path:string;sha256:string;data:string})=>{
+        request.signal.throwIfAborted();
         if(new TextEncoder().encode(f.data).length>replicaPartitionByteLimit(f.path))return json({error:"无效分区"},400);
         const parsed=JSON.parse(f.data);
-        if(parsed.asOf!==input.asOf || privateKey(parsed) || await bytesHash(f.data)!==f.sha256)return json({error:"分区审查或校验失败"},400);
+        if(parsed.asOf!==input.asOf || privateKey(parsed))return json({error:"分区审查或校验失败"},400);
+        const checksum=await bytesHash(f.data);request.signal.throwIfAborted();
+        if(checksum!==f.sha256)return json({error:"分区审查或校验失败"},400);
         if(f.path.startsWith('work-metrics/')&&!storedWorkMetricPartValid(parsed,input.asOf,Number(f.path.slice('work-metrics/'.length,-5))))return json({error:'作品指标身份、时间或计数无效'},400);
         if(creatorFile(f)&&!creatorPartValid(parsed,{path:f.path,kind:creatorKind(f.path),count:f.path==='creator/index.json'?parsed.stats?.works:parsed.items?.length},input.asOf))return json({error:'作者作品分区字段或版本无效'},400);
         if(foundationFile(f)&&!foundationPartValid(parsed,{path:f.path,kind:foundationKind(f.path),count:f.path==='foundation/index.json'?(Array.isArray(parsed.files)?parsed.files.reduce((sum:number,p:{count:number})=>sum+p.count,0):undefined):parsed.items?.length},input.asOf))return json({error:'补充来源分区字段或版本无效'},400);
@@ -112,6 +117,7 @@ export async function POST(request: Request) {
       const readMetadata=()=>db.prepare(query).bind(input.asOf,...prepared.map(f=>f.path)).all<{path:string;checksum:string}>();
       const expected=new Map(prepared.map(f=>[f.path,f.sha256]));
       const existing=await readMetadata();
+      request.signal.throwIfAborted();
       if(existing.results.some(f=>expected.get(f.path)!==f.checksum))return json({error:"已保存分区不可改写"},409);
       const reuse=input.reuseUnchanged===true,references=new Map<string,any>(),previousByPath=new Map<string,any>();
       let previousGeneration:string|null=null;
@@ -119,39 +125,48 @@ export async function POST(request: Request) {
         const previous=await (input.referenceGeneration!==undefined
           ?db.prepare("SELECT generation FROM replica_generations WHERE generation=?").bind(input.referenceGeneration)
           :db.prepare("SELECT generation FROM replica_generations WHERE generation<? ORDER BY generation DESC LIMIT 1").bind(input.asOf)).first<{generation:string}>();
+        request.signal.throwIfAborted();
         previousGeneration=previous?.generation??null;
-        if(previousGeneration){const rows=await db.prepare("SELECT f.path,f.checksum,f.bytes,r.source_generation,r.source_checksum,r.source_bytes,r.trailing_newline FROM replica_files f LEFT JOIN replica_file_references r ON r.generation=f.generation AND r.path=f.path WHERE f.generation=? AND f.path IN ("+prepared.map(()=>'?').join(',')+")").bind(previousGeneration,...prepared.map(f=>f.path)).all<any>();for(const row of rows.results)previousByPath.set(row.path,row);}
+        if(previousGeneration){const rows=await db.prepare("SELECT f.path,f.checksum,f.bytes,r.source_generation,r.source_checksum,r.source_bytes,r.trailing_newline FROM replica_files f LEFT JOIN replica_file_references r ON r.generation=f.generation AND r.path=f.path WHERE f.generation=? AND f.path IN ("+prepared.map(()=>'?').join(',')+")").bind(previousGeneration,...prepared.map(f=>f.path)).all<any>();request.signal.throwIfAborted();for(const row of rows.results)previousByPath.set(row.path,row);}
       }
       // Read and hash compact sources before any write. Six bounded readers
       // drain even on failure; corrupt/missing sources request a full replay.
       let restoreIndex=0,restoreFailed=false;const compactFiles=prepared.filter(f=>compactPaths.has(f.path));
-      const restore=async()=>{while(!restoreFailed&&restoreIndex<compactFiles.length){const f=compactFiles[restoreIndex++];try{
+      const restore=async()=>{while(!restoreFailed&&!request.signal.aborted&&restoreIndex<compactFiles.length){const f=compactFiles[restoreIndex++];try{
         f.data=await restoreReplicaUploadReference(bucket,f,previousByPath.get(f.path),previousGeneration,input.asOf,{signal:request.signal});
       }catch{restoreFailed=true;}}};
       await Promise.allSettled(Array.from({length:Math.min(6,compactFiles.length)},restore));
+      request.signal.throwIfAborted();
       if(restoreFailed)return json({error:"引用来源不可用，需完整上传"},409);
       for(const f of compactFiles){const invalid=await validatePart(f);if(invalid)return invalid;}
       let next=0,failed=false,stored=0;
-      const store=async()=>{while(!failed&&next<prepared.length){const f=prepared[next++];try{
+      const store=async()=>{while(!failed&&!request.signal.aborted&&next<prepared.length){const f=prepared[next++];try{
         const ref=reuse?referenceCandidate(f,previousByPath.get(f.path),previousGeneration,input.asOf):null;
         if(ref){
           const key=`${ref.source_generation}/${ref.source_checksum}`,head=compactPaths.has(f.path)?null:await bucket.head(key);
+          request.signal.throwIfAborted();
           // Restore only bytes proven against the already sealed source SHA.
           if(!compactPaths.has(f.path)&&!referenceHeadMatches(head,ref)){await bucket.put(key,ref.data,{httpMetadata:{contentType:"application/json"}});stored++;}
           references.set(f.path,ref);
         }else {await bucket.put(`${input.asOf}/${f.sha256}`,f.data,{httpMetadata:{contentType:"application/json"}});stored++;}
       }catch{failed=true;}}};
       await Promise.allSettled(Array.from({length:Math.min(reuse?6:2,prepared.length)},store));
+      request.signal.throwIfAborted();
       if(failed)return json({error:"分区保存未完成，尚未确认本批次"},503);
       const statements=[...prepared.map(f=>db.prepare("INSERT INTO replica_files(generation,path,checksum,bytes) VALUES(?,?,?,?) ON CONFLICT(generation,path) DO NOTHING").bind(input.asOf,f.path,f.sha256,f.bytes)),...prepared.map(f=>{
         const ref=references.get(f.path);
         return ref?db.prepare("INSERT INTO replica_file_references(generation,path,source_generation,source_checksum,source_bytes,trailing_newline) SELECT ?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM replica_files WHERE generation=? AND path=? AND checksum=?) ON CONFLICT(generation,path) DO UPDATE SET source_generation=excluded.source_generation,source_checksum=excluded.source_checksum,source_bytes=excluded.source_bytes,trailing_newline=excluded.trailing_newline").bind(input.asOf,f.path,ref.source_generation,ref.source_checksum,ref.source_bytes,ref.trailing_newline,input.asOf,f.path,f.sha256):db.prepare("DELETE FROM replica_file_references WHERE generation=? AND path=? AND EXISTS(SELECT 1 FROM replica_files WHERE generation=? AND path=? AND checksum=?)").bind(input.asOf,f.path,input.asOf,f.path,f.sha256);
       })];
+      // Cancellation stops new writes, but cannot undo an already dispatched
+      // R2 put or D1 transaction. Drain them and leave immutable bytes replayable.
+      request.signal.throwIfAborted();
       const writes=await db.batch(statements);
+      request.signal.throwIfAborted();
       if(writes.length!==statements.length||writes.some(result=>!result.success))return json({error:"批次索引保存未完成，尚未确认本批次"},503);
       // A competing immutable upload can win between the initial read and the
       // batch. Acknowledge only the exact hashes now bound in D1.
       const committed=await readMetadata();
+      request.signal.throwIfAborted();
       if(committed.results.length!==prepared.length||committed.results.some(f=>expected.get(f.path)!==f.checksum))return json({error:"已保存分区不可改写"},409);
       const response=json({accepted:input.files.length,asOf:input.asOf});
       if(reuse){response.headers.set('X-Replica-Reused',String(references.size));response.headers.set('X-Replica-Stored',String(stored));}return response;
@@ -209,6 +224,7 @@ export async function POST(request: Request) {
     if(committed?.manifest!==manifest)return json({error:"并发发布清单冲突，未确认本次发布"},409);
     return json({published:true,asOf:input.asOf,parts:files.length});
   } catch(error) {
+    if(request.signal.aborted)return json({error:'同步请求已取消，已完成写入保留，可安全重试'},503);
     const bodyCode=error&&typeof error==='object'&&'code'in error?error.code:null;
     if(bodyCode==='date-audit-input')return json({error:'日期审查批次无效'},400);
     if(bodyCode==='date-audit-incomplete')return json({error:'日期来源尚未全部审查，未发布'},409);

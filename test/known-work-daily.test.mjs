@@ -20,12 +20,12 @@ function fixture(t,count=10,file=':memory:'){
   .run(target.id,id(i),mid,'2026-11-01T00:00:00.000Z','2026-11-01T00:00:00.000Z');
  return {database,target,db:database.db,timers:t.mock.timers};
 }
-function raw(ids,{start='2026-11-03T16:00:01.000Z',finish='2026-11-03T16:00:03.000Z',observed='2026-11-03T16:00:02.000Z',failure=null}={}){
+function raw(ids,{start='2026-11-03T16:00:01.000Z',finish='2026-11-03T16:00:03.000Z',observed='2026-11-03T16:00:02.000Z',failure=null,businessCode=null,httpStatus=null}={}){
  const works=failure?[]:ids.map(aweme_id=>({aweme_id,author:{uid:mid},create_time:1789250000,statistics:{digg_count:0}}));
  return {capturedAt:finish,profile:{user:{uid:mid,follower_count:2,total_favorited:15,aweme_count:10}},works:{aweme_list:works},
  provenance:{mode:'bilibili-public-card-relation-wbi-view'},
  knownWorksEvidence:{version:1,source:'stored-account-work-ids',used:true,requestedCount:ids.length,attemptedIds:ids},
- workDetailEvidence:{errors:failure?[{contentId:ids[0],errorCode:failure}]:[]},
+ workDetailEvidence:{errors:failure?[{contentId:ids[0],errorCode:failure,businessCode,httpStatus}]:[]},
  workObservationTimes:{version:1,transport:'bilibili-official-http',startedAt:start,completedAt:finish,
   observations:works.map(w=>({contentId:w.aweme_id,observedAt:observed,source:'view'}))}};
 }
@@ -46,6 +46,52 @@ test('day selection settles successful zero likes and attempted failures separat
  assert.deepEqual(bilibiliKnownWorkDailyState(f.database,f.target).pendingIds,[8,9,10].map(id));
  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM post_metrics WHERE likes=0').get().n,6);
  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM post_metrics m JOIN posts p ON p.id=m.post_id WHERE p.external_id=?').get(id(7)).n,0);
+});
+
+// Live failure shape: three individual unavailable works starved 47 + 64 +
+// 111 otherwise eligible stored works. The fixture exercises that exact 222
+// pending-work scope without production IDs, network calls or data writes.
+for(const [businessCode,unattempted] of [[62002,47],[-404,64],[62012,111]]){
+ test(`item failure ${businessCode} leaves ${unattempted} other works due and does not retry its missing metric today`,t=>{
+  const f=fixture(t,unattempted+1);
+  save(f,raw([id(1)],{failure:'business_error',businessCode}));
+  let state=bilibiliKnownWorkDailyState(f.database,f.target);
+  assert.equal(state.blocked,false);assert.deepEqual(state.pendingIds,[2,3,4,5,6,7].map(id));
+  assert.deepEqual(knownWorkDailyDueTargetIds(f.database,[f.database.getTarget(f.target.id)]),[f.target.id]);
+  let collected=0;
+  while(state.pendingIds.length){
+   assert.ok(!state.pendingIds.includes(id(1)));assert.ok(state.pendingIds.length<=6);
+   const at=Date.parse('2026-11-03T16:10:00.000Z')+collected*1000;
+   collected+=state.pendingIds.length;save(f,raw(state.pendingIds,{
+    start:new Date(at).toISOString(),observed:new Date(at+1000).toISOString(),finish:new Date(at+2000).toISOString(),
+   }));
+   state=bilibiliKnownWorkDailyState(f.database,f.target);
+  }
+  assert.equal(collected,unattempted);assert.equal(state.blocked,false);
+  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM post_metrics m JOIN posts p ON p.id=m.post_id WHERE p.external_id=?').get(id(1)).n,0);
+  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM post_metrics WHERE likes=0').get().n,unattempted);
+  t.mock.timers.setTime(Date.parse('2026-11-04T16:00:00.000Z'));
+  assert.ok(bilibiliKnownWorkDailyState(f.database,f.target).pendingIds.includes(id(1)),'only the next real day can make the failed work due again');
+ });
+}
+
+test('unknown business errors and explicit HTTP or account refusals still stop the daily lane',t=>{
+ const f=fixture(t);
+ for(const options of [
+  {failure:'business_error',businessCode:-999},{failure:'business_error'},
+  {failure:'business_error',businessCode:'62002'},
+  {failure:'business_error',businessCode:62002,httpStatus:403},
+  {failure:'login_required',businessCode:-101},{failure:'rate_limited',httpStatus:429},
+  {failure:'blocked',httpStatus:403},
+ ]){
+  f.db.exec('DELETE FROM snapshots');save(f,raw([id(1)],options));
+  assert.equal(bilibiliKnownWorkDailyState(f.database,f.target).blocked,true,JSON.stringify(options));
+  assert.deepEqual(bilibiliKnownWorkDailyState(f.database,f.target).pendingIds,[]);
+ }
+ f.db.exec('DELETE FROM snapshots');const unbound=raw([id(1)],{failure:'business_error',businessCode:62002});
+ unbound.workDetailEvidence.errors[0].contentId=id(2);save(f,unbound);
+ assert.equal(bilibiliKnownWorkDailyState(f.database,f.target).blocked,true,'unbound error cannot gain item-scoped exception');
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM post_metrics').get().n,0);
 });
 
 test('independent work clocks cross Beijing midnight without falsely settling yesterday observations today',t=>{

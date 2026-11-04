@@ -1348,7 +1348,15 @@ def collect_bilibili_account(locator, limit, known_work_ids=None, prefer_known_w
             failure = bili_failure(exc)
             details["failedCount"] += 1
             details["errors"].append({"contentId": bvid, **failure})
-            detail_refused = failure["errorCode"] in {"login_required", "blocked", "rate_limited", "business_error"}
+            # These /view business codes describe only this unavailable item,
+            # not an account-wide refusal. Keep the failed ID attempted today
+            # and continue other IDs; never retry it or invent missing metrics.
+            # https://minisheeep.github.io/bilibili-API-collect/docs/video/info.html
+            item_unavailable = (failure["errorCode"] == "business_error"
+                                and failure["httpStatus"] is None
+                                and failure["businessCode"] in {-404, 62002, 62012})
+            detail_refused = (failure["errorCode"] in {"login_required", "blocked", "rate_limited", "business_error"}
+                              and not item_unavailable)
             warnings.append("B站作品 %s 详情暂未读取；已保留投稿列表中的标题、时间和播放/评论字段（%s）" %
                             (bvid, failure["errorCode"]))
             retain_list_reference(video, bvid)
