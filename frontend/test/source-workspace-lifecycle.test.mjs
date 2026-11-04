@@ -181,7 +181,7 @@ test('account day/week/month controls still load exact ranges; source navigation
   await page.locator('.sidebar').getByRole('button',{name:'来源核对',exact:true}).click();
   await sourceLedger(page).locator('tbody tr').first().waitFor();
   const before=await savedReadCount(page);
-  await page.evaluate(()=>{const url=new URL(location.href);url.searchParams.set('period','custom');url.searchParams.set('start','2026-09-12');url.searchParams.set('end','2026-09-23');history.pushState(null,'',url);dispatchEvent(new PopStateEvent('popstate'));});
+  await page.evaluate(()=>{const url=new URL(location.href);url.searchParams.set('period','custom');url.searchParams.set('followLatest','0');url.searchParams.set('start','2026-09-12');url.searchParams.set('end','2026-09-23');history.pushState(null,'',url);dispatchEvent(new PopStateEvent('popstate'));});
   await page.waitForFunction(()=>document.querySelector('h1')?.textContent==='来源核对');
   // Settle effects and microtasks without starting collection or touching real data.
   await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));

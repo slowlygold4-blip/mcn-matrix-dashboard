@@ -34,7 +34,7 @@ const shells={
 const bundle=await build({stdin:{contents:`import React from 'react';import {createRoot} from 'react-dom/client';import Home from './app/page';window.fixture={data:${JSON.stringify(loaded)}};createRoot(document.getElementById('root')).render(<Home/>);`,resolveDir:site,sourcefile:'overview-read-failure-fixture.tsx',loader:'tsx'},absWorkingDir:site,bundle:true,write:false,format:'iife',platform:'browser',jsx:'automatic',tsconfig:site+'tsconfig.json',define:{'process.env.NODE_ENV':'"test"'},plugins:[{name:'unrelated-source-shells',setup(build){
  build.onLoad({filter:/components\/[^/]+\.tsx$/},args=>{const name=args.path.split('/').at(-1).replace(/\.tsx$/,'');return shells[name]?{contents:shells[name],loader:'tsx',resolveDir:site}:null;});
  build.onLoad({filter:/lib\/replica-view\.mjs$/},()=>({contents:'export async function loadReplicaView(){return structuredClone(window.fixture.data)}',loader:'js'}));
- build.onLoad({filter:/lib\/source-part-reader\.mjs$/},()=>({contents:'export async function readSourcePart(){throw Error("fixture source unavailable")};export async function readSourceIndex(){throw Error("fixture source unavailable")};export function sourcePartsIdentity(){return "fixture"}',loader:'js'}));
+ build.onLoad({filter:/lib\/source-part-reader\.mjs$/},()=>({contents:'export async function readSourcePart(){throw Error("fixture source unavailable")};export async function readSourceParts(){throw Error("fixture source unavailable")};export async function readSourceIndex(){throw Error("fixture source unavailable")};export function sourcePartsIdentity(){return "fixture"}',loader:'js'}));
  build.onLoad({filter:/\.css$/},()=>({contents:'',loader:'empty'}));
 }}]});
 
