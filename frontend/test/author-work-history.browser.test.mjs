@@ -42,12 +42,12 @@ async function fixture({mismatch=false,withoutHistory=false}={}){
  return {works,metrics,manifest,js:bundle.outputFiles.find(file=>file.path.endsWith('.js')).text};
 }
 async function openFixture(browser,options={}){
- const f=await fixture(options),context=await browser.newContext({viewport:{width:1180,height:800},acceptDownloads:true}),page=await context.newPage();
+ const f=await fixture(options),context=await browser.newContext({viewport:options.viewport??{width:1180,height:800},acceptDownloads:true}),page=await context.newPage();
  const state={requests:[],failed:[],errors:[],hold:false,corrupt:false,releases:[]};
  page.on('pageerror',error=>state.errors.push(error.message));
  page.on('requestfailed',request=>{if(request.url().includes('work-metrics'))state.failed.push(request.url());});
  await page.route('**/*',async route=>{
-  const url=new URL(route.request().url());if(url.pathname==='/')return route.fulfill({contentType:'text/html',body:'<html lang="zh-CN"><div id="root"></div></html>'});
+  const url=new URL(route.request().url());if(url.pathname==='/')return route.fulfill({contentType:'text/html',body:'<!doctype html><html lang="zh-CN"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><div id="root"></div></body></html>'});
   if(url.pathname!=='/api/replica')return route.abort();
   const part=url.searchParams.get('part'),stored=[f.works,f.metrics].find(value=>value.meta.path===part);
   state.requests.push({part,generation:url.searchParams.get('generation')});
@@ -56,7 +56,10 @@ async function openFixture(browser,options={}){
   await route.fulfill({contentType:'application/json',body:state.corrupt&&part.startsWith('work-metrics/')?'{}':stored.body,
    headers:{'X-Data-SHA256':stored.meta.sha256,'X-Data-Cutoff':asOf}}).catch(()=>{});
  });
- await page.goto('http://127.0.0.1:49138/');await page.addStyleTag({content:readFileSync(root+'app/replica.css','utf8')});await page.addScriptTag({content:f.js});
+ // Mobile layout uses the checked-in utility stylesheet and the same CSS order as
+ // the real app. No test-only width/overflow overrides may conceal a grid defect.
+ const styles=options.productionStyles?['vendor/shadcn-tailwind-4.13.0.css','app/replica.css','app/source-operations.css','app/visual-theme.css','app/dashboard-motion.css','app/collection-console.css','app/matrix-pulse.css','app/observatory.css','components/table-scroll-frame.css','components/tuantuan-roster-controls.css']:['app/replica.css'];
+ await page.goto('http://127.0.0.1:49138/');await page.addStyleTag({content:styles.map(path=>readFileSync(root+path,'utf8')).join('\n')});await page.addScriptTag({content:f.js});
  await page.getByRole('button',{name:'查看作者作品',exact:true}).click();await page.getByText('共 23 条 · 当前匹配 23 条').waitFor();
  return {page,state,context,release(){state.hold=false;for(const fn of state.releases.splice(0))fn();}};
 }
@@ -102,5 +105,44 @@ test('validly hashed history with a different public work identity is rejected; 
  const browser=await cloudBrowser();let f;
  try{f=await openFixture(browser,{mismatch:true});await f.page.getByLabel('搜索此作者的全部作品').fill('作品21');await buttonFor(f.page,121).click();await f.page.getByRole('alert').filter({hasText:'作品历史与所选作品身份不一致'}).waitFor();assert.equal(await historyRegion(f.page).getByRole('heading',{name:'单作品每日点赞变化'}).count(),0);await f.context.close();
   f=await openFixture(browser,{withoutHistory:true});await f.page.getByLabel('搜索此作者的全部作品').fill('作品21');await buttonFor(f.page,121).click();await historyRegion(f.page).getByText('这条作品尚无点赞采样，不能计算增长。').waitFor();assert.equal(f.state.requests.some(q=>q.part.startsWith('work-metrics/')),false);assert.deepEqual(f.state.errors,[]);
+ }finally{f?.release();await f?.context.close();await browser.close();}
+});
+
+for(const width of [320,390])test(`author work history at ${width}px keeps the dialog/title/controls bounded and scrolls only the table`,{timeout:30000},async()=>{
+ const browser=await cloudBrowser();let f;
+ try{
+  f=await openFixture(browser,{viewport:{width,height:844},productionStyles:true});const {page,state}=f;
+  await page.getByLabel('搜索此作者的全部作品').fill('作品21');await buttonFor(page,121).click();
+  await historyRegion(page).getByRole('heading',{name:'单作品每日点赞变化'}).waitFor();
+  const dialog=page.getByRole('dialog'),table=historyRegion(page).locator('[data-slot="table-container"]');
+  async function bounded(view){
+   // ResizeObserver/table controls and fixed dialog placement must settle before
+   // measuring. Body width alone cannot detect an internally overflowing dialog.
+   await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+   const layout=await dialog.evaluate(el=>{
+    const box=el.getBoundingClientRect(),visible=node=>node.getClientRects().length>0;
+    const controls=[...el.querySelectorAll('button,input,select,summary')].filter(node=>visible(node)&&!node.closest('table'));
+    const labels=[...el.querySelectorAll('[data-slot="dialog-title"],[data-slot="dialog-description"],h3,p')].filter(visible);
+    return {left:box.left,right:box.right,clientWidth:el.clientWidth,scrollWidth:el.scrollWidth,scrollLeft:el.scrollLeft,
+     titleCount:el.querySelectorAll('[data-slot="dialog-title"]').length,controlCount:controls.length,
+     elements:[...labels,...controls].map(node=>{const r=node.getBoundingClientRect();return {text:(node.textContent||node.getAttribute('aria-label')||node.tagName).trim().slice(0,80),left:r.left,right:r.right};})};
+   });
+   assert.ok(layout.clientWidth>200,`${width}px ${view}: measure a real mobile dialog`);
+   assert.ok(layout.left>=-1&&layout.right<=width+1,`${width}px ${view}: dialog stays in viewport: ${JSON.stringify(layout)}`);
+   assert.ok(layout.scrollWidth<=layout.clientWidth+1,`${width}px ${view}: outer dialog must not scroll horizontally (${layout.scrollWidth}/${layout.clientWidth})`);
+   assert.equal(layout.scrollLeft,0,`${width}px ${view}: table navigation must not move the dialog`);
+   assert.equal(layout.titleCount,1);assert.ok(layout.controlCount>=6,'real title and history controls are measured');
+   for(const item of layout.elements)assert.ok(item.left>=layout.left-1&&item.right<=layout.right+1,`${width}px ${view}: title/description/control outside dialog: ${JSON.stringify(item)}`);
+   const surface=await table.evaluate(el=>{const r=el.getBoundingClientRect();return {left:r.left,right:r.right,clientWidth:el.clientWidth,scrollWidth:el.scrollWidth,overflowX:getComputedStyle(el).overflowX};});
+   assert.ok(surface.left>=layout.left-1&&surface.right<=layout.right+1,`${width}px ${view}: table scroll surface is inside dialog`);
+   assert.ok(surface.scrollWidth>surface.clientWidth+1,`${width}px ${view}: preserve wide table instead of shrinking/hiding its columns`);
+   assert.ok(['auto','scroll'].includes(surface.overflowX),`${width}px ${view}: table owns horizontal scrolling`);
+  }
+  await bounded('daily');
+  const region=historyRegion(page).locator('.table-scroll-region');await region.focus();await page.keyboard.press('End');
+  await until(()=>table.evaluate(el=>el.scrollLeft>1),'keyboard End scrolls the inner table');await bounded('daily table scrolled');
+  await page.getByRole('button',{name:'原始采样',exact:true}).click();await bounded('raw');
+  await table.evaluate(el=>{el.scrollLeft=el.scrollWidth;});assert.ok(await table.evaluate(el=>el.scrollLeft>1),'raw samples remain horizontally reachable');await bounded('raw table scrolled');
+  assert.deepEqual(state.errors,[]);
  }finally{f?.release();await f?.context.close();await browser.close();}
 });
