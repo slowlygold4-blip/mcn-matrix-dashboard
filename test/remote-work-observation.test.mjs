@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {MonitorDatabase} from '../lib/database.mjs';
 import {normalizeCollection} from '../lib/providers/normalize.mjs';
-import {normalizeRemoteWorkPage,recordRemoteWorkPage} from '../lib/remote-work-observation.mjs';
+import {normalizeRemoteWorkPage,recordRemoteWorkPage,readRemoteListEvidence} from '../lib/remote-work-observation.mjs';
+import {checksum} from '../lib/utils.mjs';
 import {collectionProgress} from '../lib/collection-progress.mjs';
 import {readRemoteWorkCoverage} from '../lib/remote-work-coverage.mjs';
 
@@ -65,6 +66,84 @@ test('rejects wrong source, identity, unavailable stats, cached or invalid clock
   assert.equal(f.db.prepare('SELECT COUNT(*) n FROM account_events').get().n,0);
   assert.equal(protectedRows(f.db),before);
  });
+});
+
+test('guest fallback and opaque response cursor survive admission without claiming complete inventory',async t=>{
+ for(const guest of [true,false,null,'absent'])await t.test(String(guest),st=>{
+  const f=fixture(st),r=f.input.receipt;
+  if(guest!=='absent')r.meta.guest_fallback=guest;
+  r.meta.headers={Authorization:'NOT_RETAINED'};r.meta.identity_cookie='NOT_RETAINED';
+  r.data.has_more=true;r.data.cursor='opaque/page+token==';
+  const expected={version:1,guestFallback:guest==='absent'?null:guest,cursorPresent:true,cursor:'opaque/page+token=='};
+  assert.deepEqual(readRemoteListEvidence(r),expected);
+  assert.deepEqual(normalizeRemoteWorkPage(r,f.anchor).evidence.listEvidence,expected);
+  f.save();assert.equal(f.save().duplicate,true);
+  const row=f.db.prepare("SELECT * FROM account_events WHERE event_type='remote-work-observation'").get();
+  const raw=JSON.parse(row.raw_json),event=JSON.parse(row.event_json);
+  assert.deepEqual(raw.listEvidence,expected);assert.deepEqual(event.listEvidence,expected);
+  assert.equal(checksum(raw),row.source_checksum);assert.equal(row.raw_json.includes('NOT_RETAINED'),false);
+  assert.equal(raw.coverage,'limited');assert.equal(raw.dailyPublicationCountConfirmed,false);
+  assert.equal(readRemoteWorkCoverage(f.db,{since:'2026-11-01T16:00:03.000Z',now:END}).length,1);
+  const progress=collectionProgress(f.db,{now:END});
+  assert.equal(progress.rolling.worksLimited,1);assert.equal(progress.rolling.worksComplete,0);
+ });
+});
+
+test('absent cursor is unknown and a terminal cursor cannot certify complete publications',t=>{
+ const f=fixture(t),r=f.input.receipt;
+ assert.deepEqual(readRemoteListEvidence(r),{version:1,guestFallback:null,cursorPresent:true,cursor:null});
+ delete r.data.cursor;
+ assert.deepEqual(readRemoteListEvidence(r),{version:1,guestFallback:null,cursorPresent:false,cursor:null});
+ r.meta.guest_fallback=false;
+ const normalized=normalizeRemoteWorkPage(r,f.anchor);
+ assert.equal(normalized.evidence.coverage,'limited');assert.equal(normalized.evidence.dailyPublicationCountConfirmed,false);
+ r.data.items=[];assert.throws(()=>normalizeRemoteWorkPage(r,f.anchor),{code:'REMOTE_WORK_OBSERVATION_INVALID'});
+});
+
+test('malformed guest or cursor diagnostics still reject the whole page',async t=>{
+ const cases=[
+  ['string guest',r=>r.meta.guest_fallback='false'],['number guest',r=>r.meta.guest_fallback=0],
+  ['object guest',r=>r.meta.guest_fallback={}],['undefined guest',r=>r.meta.guest_fallback=undefined],
+  ['number cursor',r=>r.data.cursor=123],['object cursor',r=>r.data.cursor={}],
+  ['empty cursor',r=>r.data.cursor=''],['control cursor',r=>r.data.cursor='next\npage'],
+  ['oversized cursor',r=>r.data.cursor='x'.repeat(513)],['undefined cursor',r=>r.data.cursor=undefined],
+ ];
+ for(const [name,mutate] of cases)await t.test(name,st=>{
+  const f=fixture(st);mutate(f.input.receipt);const before=protectedRows(f.db);
+  assert.throws(f.save,{code:'REMOTE_WORK_OBSERVATION_INVALID'});
+  assert.equal(protectedRows(f.db),before);
+  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM post_metrics').get().n,0);
+  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM account_events').get().n,0);
+ });
+});
+
+test('legacy v1 replay preserves original hashes and rows; new diagnostic facts are immutable',t=>{
+ const f=fixture(t);f.save();
+ const row=f.db.prepare("SELECT * FROM account_events WHERE event_type='remote-work-observation'").get();
+ const raw=JSON.parse(row.raw_json),event=JSON.parse(row.event_json);
+ delete raw.listEvidence;delete event.listEvidence;
+ f.db.prepare('UPDATE account_events SET raw_json=?,event_json=?,source_checksum=? WHERE id=?')
+  .run(JSON.stringify(raw),JSON.stringify(event),checksum(raw),row.id);
+ const before=f.db.prepare('SELECT * FROM account_events').all();
+ const count=f.db.prepare('SELECT COUNT(*) n FROM post_metrics').get().n;
+ assert.equal(f.save().duplicate,true);
+ assert.deepEqual(f.db.prepare('SELECT * FROM account_events').all(),before);
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM post_metrics').get().n,count);
+ assert.equal(readRemoteWorkCoverage(f.db,{since:'2026-11-01T16:00:03.000Z',now:END}).length,1);
+ f.input.receipt.data.items[0].stats.digg_count=99;
+ assert.throws(f.save,{code:'REMOTE_WORK_OBSERVATION_INVALID'});
+ f.input.receipt.data.items[0].stats.digg_count=0;
+ assert.deepEqual(f.db.prepare('SELECT * FROM account_events').all(),before);
+ f.input.receipt.meta.request_id='new-evidence';f.input.receipt.meta.guest_fallback=true;
+ assert.equal(f.save().duplicate,false);
+ const after=f.db.prepare('SELECT * FROM account_events ORDER BY id').all();
+ f.input.receipt.meta.guest_fallback=false;
+ assert.throws(f.save,{code:'REMOTE_WORK_OBSERVATION_INVALID'});
+ assert.deepEqual(f.db.prepare('SELECT * FROM account_events ORDER BY id').all(),after);
+ f.input.receipt.meta.guest_fallback=true;f.input.receipt.data.cursor='changed-cursor';
+ assert.throws(f.save,{code:'REMOTE_WORK_OBSERVATION_INVALID'});
+ assert.deepEqual(f.db.prepare('SELECT * FROM account_events ORDER BY id').all(),after);
+ assert.equal(f.db.prepare('SELECT COUNT(*) n FROM post_metrics').get().n,count);
 });
 
 test('credentials and media fields are excluded; missing publication time is not replaced by fetch time',t=>{

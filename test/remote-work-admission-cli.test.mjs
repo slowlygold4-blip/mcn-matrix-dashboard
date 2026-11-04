@@ -25,7 +25,7 @@ test('real CLI keeps custom-source preview read-only, requires separate approval
  const origin='https://reviewed-service.example';
  writeFileSync(receiptPath,JSON.stringify({targetId:target.id,sourceOrigin:origin,receipt:{source:origin,httpStatus:200,
   requestStartedAt:new Date(now-2_000).toISOString(),requestFinishedAt:new Date(now-1_000).toISOString(),
-  meta:{endpoint:'douyin.author_posts',cached:false,request_id:'cli-fixture'},data:{has_more:false,items:[{
+  meta:{endpoint:'douyin.author_posts',cached:false,request_id:'cli-fixture',guest_fallback:true},data:{has_more:true,cursor:'opaque-next',items:[{
    platform:'douyin',content_id:'7300000000000000001',created_at:null,fetched_at:new Date(now-1_500).toISOString(),
    author:{sec_uid:sec,uid:sec},is_deleted:false,is_private:false,stats:{digg_count:0}}]}}}));
  const script=fileURLToPath(new URL('../scripts/admit-remote-work-page.mjs',import.meta.url));
@@ -36,7 +36,7 @@ test('real CLI keeps custom-source preview read-only, requires separate approval
   profiles:db.prepare('SELECT COUNT(*) n FROM snapshots').get().n};}finally{db.close();}};
  assert.equal(run().status,1,'receipt sourceOrigin is not operator approval');
  const preview=run('--source-origin',origin);assert.equal(preview.status,0,preview.stderr);
- assert.deepEqual(JSON.parse(preview.stdout),{dryRun:true,postCount:1,coverage:'limited',databaseWrites:0,runtimeAI:false,automaticCollectionEnabled:false});
+ assert.deepEqual(JSON.parse(preview.stdout),{dryRun:true,postCount:1,listEvidence:{version:1,guestFallback:true,cursorPresent:true,cursor:'opaque-next'},coverage:'limited',databaseWrites:0,runtimeAI:false,automaticCollectionEnabled:false});
  assert.deepEqual(stored(),{metrics:[],events:0,profiles:1});
  const commit=run('--source-origin',origin,'--commit');assert.equal(commit.status,0,commit.stderr);
  assert.equal(JSON.parse(commit.stdout).duplicate,false);

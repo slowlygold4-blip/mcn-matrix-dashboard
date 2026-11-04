@@ -4,12 +4,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {createRequire} from 'node:module';
+import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {build} from 'esbuild';
 
 const site=fileURLToPath(new URL('../',import.meta.url));
 const main=process.env.MCN_MAIN_ROOT||fileURLToPath(new URL('../../douyin-monitor-workbench/',import.meta.url));
-const {chromium}=createRequire(main+'package.json')('playwright-core');
+const {chromium}=createRequire(resolve(main,'package.json'))('playwright-core');
 const asOf='2026-10-01T05:44:51.113Z',revision='lifecycle-fixture';
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const descriptor=(path,body,extra={})=>({path,...extra,bytes:Buffer.byteLength(JSON.stringify(body)),sha256:hash(JSON.stringify(body))});

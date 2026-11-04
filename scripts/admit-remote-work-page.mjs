@@ -23,9 +23,13 @@ if(args.length<4||args[0]!=='--receipt'||args[2]!=='--database'
   const input=JSON.parse(readFileSync(receiptPath,'utf8'));
   db=new DatabaseSync(databasePath,{readOnly:!commit});
   if(commit)db.exec('PRAGMA foreign_keys=ON;PRAGMA busy_timeout=3000');
-  const result=commit?recordRemoteWorkPage(db,input,options):{
-   dryRun:true,postCount:normalizeRemoteWorkPage(input.receipt,readWorksOnlyAnchor(db,input.targetId),options).posts.length,
-   coverage:'limited',databaseWrites:0};
+  let result;
+  if(commit)result=recordRemoteWorkPage(db,input,options);
+  else{
+   const normalized=normalizeRemoteWorkPage(input.receipt,readWorksOnlyAnchor(db,input.targetId),options);
+   result={dryRun:true,postCount:normalized.posts.length,listEvidence:normalized.evidence.listEvidence,
+    coverage:'limited',databaseWrites:0};
+  }
   console.log(JSON.stringify({...result,runtimeAI:false,automaticCollectionEnabled:false}));
  }catch(error){
   console.error(JSON.stringify({status:'not-admitted',code:['REMOTE_WORK_OBSERVATION_INVALID','WORKS_OBSERVATION_INVALID',

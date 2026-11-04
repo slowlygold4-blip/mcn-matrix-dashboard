@@ -3,12 +3,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
+import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {build} from 'esbuild';
 
 const site=fileURLToPath(new URL('../',import.meta.url));
 const main=process.env.MCN_MAIN_ROOT||fileURLToPath(new URL('../../douyin-monitor-workbench/',import.meta.url));
-const {chromium}=createRequire(main+'package.json')('playwright-core');
+const {chromium}=createRequire(resolve(main,'package.json'))('playwright-core');
 const asOf='2026-10-23T05:00:00.000Z';
 const observedAt='2026-10-23T03:00:00.000Z';
 const latest=Object.fromEntries(['followers','likes','posts'].map((field,index)=>[field,{

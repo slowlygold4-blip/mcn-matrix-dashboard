@@ -62,7 +62,7 @@ async function openFixture(browser,options={}){
 }
 const historyRegion=page=>page.getByLabel('所选作品点赞历史');
 const buttonFor=(page,id)=>page.locator('[data-author-work-history="'+id+'"]');
-async function until(predicate,message){const deadline=Date.now()+5000;while(!predicate()&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,10));assert.ok(predicate(),message);}
+async function until(predicate,message){const deadline=Date.now()+5000;while(!await predicate()&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,10));assert.ok(await predicate(),message);}
 
 test('author to exact work daily likes keeps list state, negative/missing semantics and keyboard focus; exports reuse exact catalog identity',{timeout:30000},async()=>{
  const browser=await cloudBrowser();let f;
@@ -82,7 +82,7 @@ test('author to exact work daily likes keeps list state, negative/missing semant
   await page.getByLabel('搜索此作者的全部作品').fill('作品18');await buttonFor(page,118).click();await historyRegion(page).getByText('缺前日点赞',{exact:false}).first().waitFor();assert.doesNotMatch(await historyRegion(page).innerText(),/\+4/);
   await page.getByRole('button',{name:'返回作者作品列表'}).click();assert.equal(await page.getByLabel('搜索此作者的全部作品').inputValue(),'作品18');
   await page.getByLabel('搜索此作者的全部作品').fill('作品22');await buttonFor(page,122).click();await historyRegion(page).getByText('这条作品尚无点赞采样，不能计算增长。').waitFor();assert.equal(await page.getByRole('button',{name:'导出全部每日变化'}).isDisabled(),true);
-  await page.keyboard.press('Escape');await page.getByRole('button',{name:'查看作者作品',exact:true}).waitFor();assert.equal(await page.getByRole('dialog').count(),0);assert.equal(await page.getByRole('button',{name:'查看作者作品',exact:true}).evaluate(el=>el===document.activeElement),true);assert.deepEqual(state.errors,[]);
+  await page.keyboard.press('Escape');await page.getByRole('button',{name:'查看作者作品',exact:true}).waitFor();assert.equal(await page.getByRole('dialog').count(),0);await until(()=>page.getByRole('button',{name:'查看作者作品',exact:true}).evaluate(el=>el===document.activeElement),'dialog closing restores the real opener focus');assert.deepEqual(state.errors,[]);
  }finally{f?.release();await f?.context.close();await browser.close();}
 });
 
