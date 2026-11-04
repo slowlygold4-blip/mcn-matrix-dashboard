@@ -32,11 +32,12 @@ jobs:
       - name: Exercise actual components using isolated synthetic HTTP fixtures
         shell: bash
         run: |
+          export MCN_TEST_CLOUD_BROWSER=1
           export MCN_MAIN_ROOT="$GITHUB_WORKSPACE"
           export MCN_TEST_CHROME="$(node -e 'process.stdout.write(require("playwright-core").chromium.executablePath())')"
           export MCN_QA_DIR="$RUNNER_TEMP/mcn-product-qa"
           mkdir -p "$MCN_QA_DIR"
-          node --test --test-concurrency=1 frontend/test/replica-reference-ingest.test.mjs frontend/test/replica-reference.test.mjs frontend/test/replica-storage-read.test.mjs frontend/test/coverage-panel-status.test.mjs frontend/test/replica-daily-coverage.test.mjs frontend/test/coverage-gap-view.test.mjs frontend/test/overview-account-preview.test.mjs frontend/test/collection-console.browser.test.mjs frontend/test/collection-client.browser.test.mjs frontend/test/continuous-publishing.browser.test.mjs frontend/test/publishing-chart.test.mjs frontend/test/roster-workspace-lifecycle.test.mjs 2>&1 | tee "$MCN_QA_DIR/results.txt"
+          node --test --test-concurrency=1 frontend/test/replica-reference-ingest.test.mjs frontend/test/replica-reference.test.mjs frontend/test/replica-storage-read.test.mjs frontend/test/coverage-panel-status.test.mjs frontend/test/replica-daily-coverage.test.mjs frontend/test/coverage-gap-view.test.mjs frontend/test/overview-account-preview.test.mjs frontend/test/collection-console.browser.test.mjs frontend/test/collection-client.browser.test.mjs frontend/test/continuous-publishing.browser.test.mjs frontend/test/publishing-chart.test.mjs frontend/test/roster-workspace-lifecycle.test.mjs frontend/test/source-workspace-lifecycle.test.mjs frontend/test/overview-read-failure.test.mjs frontend/test/author-work-history.browser.test.mjs 2>&1 | tee "$MCN_QA_DIR/results.txt"
       - name: Retain UI evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

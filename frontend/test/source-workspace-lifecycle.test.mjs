@@ -104,7 +104,7 @@ test('source workspace survives delayed catalog, tab changes, and account roundt
   await page.locator('.sidebar').getByRole('button',{name:'话题数据',exact:true}).click();
   await page.getByRole('heading',{name:'话题数据',exact:true}).waitFor();
   assert.equal(await ledger.count(),1);assert.equal(await ledger.isVisible(),false);
-  await page.locator('.sidebar').getByRole('button',{name:'作者与作品',exact:true}).click();
+  await page.locator('.sidebar').getByRole('button',{name:'来源核对',exact:true}).click();
   await ledger.waitFor({state:'visible'});
   assert.equal(await page.evaluate(()=>window.ledgerBefore===document.querySelector('.source-ledger')),true);
   assert.equal(await search.inputValue(),'合成作者');
@@ -135,8 +135,8 @@ test('source workspace survives delayed catalog, tab changes, and account roundt
   await page.goForward();await page.getByTestId('account-detail').waitFor();
   // Leaving detail through the sidebar must keep the prior source namespace,
   // not leave stale on-screen filters behind an address that refreshes to defaults.
-  await page.locator('.sidebar').getByRole('button',{name:'矩阵账号',exact:true}).click();await waitLoaded(page);
-  await page.locator('.sidebar').getByRole('button',{name:'作者与作品',exact:true}).click();
+  await page.locator('.sidebar').getByRole('button',{name:'账号与作品',exact:true}).click();await waitLoaded(page);
+  await page.locator('.sidebar').getByRole('button',{name:'来源核对',exact:true}).click();
   await ledger.waitFor({state:'visible'});
   assert.deepEqual([...new URL(page.url()).searchParams].filter(([key])=>key.startsWith('source')),rememberedSource,'detail sidebar navigation must preserve the exact source filter address');
   assert.equal(await search.inputValue(),'合成作者');
@@ -156,7 +156,7 @@ test('directory-only source startup loads topics on first visit without requesti
   await page.getByRole('heading',{name:'话题数据',exact:true}).waitFor();await waitLoaded(page);
   assert.equal(await page.evaluate(()=>window.fixture.reads.filter(part=>part==='topics.json').length),1,'topics must be loaded despite an existing source catalog');
   assert.equal(await savedReadCount(page),0);
-  await page.locator('.sidebar').getByRole('button',{name:'作者与作品',exact:true}).click();
+  await page.locator('.sidebar').getByRole('button',{name:'来源核对',exact:true}).click();
   await sourceLedger(page).waitFor({state:'visible'});
   await page.locator('.sidebar').getByRole('button',{name:'话题数据',exact:true}).click();
   await page.getByRole('heading',{name:'话题数据',exact:true}).waitFor();await waitLoaded(page);
@@ -177,11 +177,11 @@ test('account day/week/month controls still load exact ranges; source navigation
    assert.ok((await savedReadCount(page))>0);
    assert.match(await page.locator('.period-state').textContent(),new RegExp(start+' → '+end));
   }
-  await page.locator('.sidebar').getByRole('button',{name:'作者与作品',exact:true}).click();
+  await page.locator('.sidebar').getByRole('button',{name:'来源核对',exact:true}).click();
   await sourceLedger(page).locator('tbody tr').first().waitFor();
   const before=await savedReadCount(page);
   await page.evaluate(()=>{const url=new URL(location.href);url.searchParams.set('period','custom');url.searchParams.set('start','2026-09-12');url.searchParams.set('end','2026-09-23');history.pushState(null,'',url);dispatchEvent(new PopStateEvent('popstate'));});
-  await page.waitForFunction(()=>document.querySelector('h1')?.textContent==='作者与作品');
+  await page.waitForFunction(()=>document.querySelector('h1')?.textContent==='来源核对');
   // Settle effects and microtasks without starting collection or touching real data.
   await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   assert.equal(await savedReadCount(page),before,'source route must suspend account-range fetching even if workspace date parameters change');

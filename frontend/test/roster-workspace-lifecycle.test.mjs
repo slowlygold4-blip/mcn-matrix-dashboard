@@ -133,16 +133,16 @@ test('main navigation marks the actual account route while author directory subt
   await loaded(page);
   await page.getByRole('heading',{name:/^全部作者明细/}).waitFor();
   assert.equal(new URL(page.url()).hash,'#accounts');
-  await assertSidebar(page,'矩阵账号');
+  await assertSidebar(page,'账号与作品');
   assert.equal(await page.getByRole('button',{name:/^全部矩阵作者/}).getAttribute('aria-pressed'),'true');
-  await sidebar(page).getByRole('button',{name:'作者与作品',exact:true}).click();
+  await sidebar(page).getByRole('button',{name:'来源核对',exact:true}).click();
   await ledger(page).waitFor({state:'visible'});
   assert.equal(new URL(page.url()).hash,'#source');
-  await assertSidebar(page,'作者与作品');
+  await assertSidebar(page,'来源核对');
   await page.goBack();
   await roster(page).waitFor({state:'visible'});
   assert.equal(new URL(page.url()).hash,'#accounts');
-  await assertSidebar(page,'矩阵账号');
+  await assertSidebar(page,'账号与作品');
   assert.equal(await page.getByRole('button',{name:/^全部矩阵作者/}).getAttribute('aria-pressed'),'true');
   assert.deepEqual(errors,[]);noMutations(requests);
  }finally{await context.close();}}finally{await browser.close();}
@@ -152,7 +152,7 @@ test('roster search, order and second page survive source-work and refreshed-acc
  const browser=await launch();
  try{const {context,page,errors,requests}=await openFixture(browser,'?theme=tuantuan&rosterPanel=authors#accounts');try{
   await secondPage(page);const expected=rosterParams(page),before=await roster(page).locator('tbody').textContent();
-  await assertSidebar(page,'矩阵账号');
+  await assertSidebar(page,'账号与作品');
   await roster(page).getByRole('button',{name:'查看作品 →',exact:true}).first().click();
   const worksDialog=page.getByRole('dialog');await worksDialog.waitFor();
   await worksDialog.getByText('夹具作品031',{exact:true}).waitFor();
@@ -161,12 +161,12 @@ test('roster search, order and second page survive source-work and refreshed-acc
   await assertSecondPage(page,expected);assert.equal(await roster(page).locator('tbody').textContent(),before);
   await roster(page).getByRole('button',{name:'监控账号甲 · 查看账号变化',exact:true}).click();
   await page.getByTestId('account-detail').waitFor();
-  await assertSidebar(page,'矩阵账号');
+  await assertSidebar(page,'账号与作品');
   await page.getByRole('button',{name:'重新读取已保存数据',exact:true}).click();
   await page.getByRole('button',{name:'重新读取已保存数据',exact:true}).waitFor();
   await page.getByRole('button',{name:'返回原核对页',exact:true}).click();
   await assertSecondPage(page,expected);assert.equal(await roster(page).locator('tbody').textContent(),before);
-  await assertSidebar(page,'矩阵账号');
+  await assertSidebar(page,'账号与作品');
   assert.deepEqual(errors,[]);noMutations(requests);
  }finally{await context.close();}}finally{await browser.close();}
 });
@@ -178,12 +178,12 @@ test('sidebar returns to all authors; explicit change task and browser history p
   await secondPage(page);const expected=rosterParams(page),authorUrl=page.url();
   const unrelated=()=>[...new URL(page.url()).searchParams].filter(([key])=>!key.startsWith('roster')).sort(([a],[b])=>a.localeCompare(b));
   const preserved=unrelated(),authorHistory=await historyLength(page);
-  await sidebar(page).getByRole('button',{name:'矩阵账号',exact:true}).click();await settleFrame(page);
+  await sidebar(page).getByRole('button',{name:'账号与作品',exact:true}).click();await settleFrame(page);
   assert.equal(await historyLength(page),authorHistory,'reselecting the author directory adds no history');
   assert.equal(page.url(),authorUrl);
   await page.getByRole('button',{name:'只看已采集账号变化',exact:true}).click();
   await page.getByRole('heading',{name:'账号变化',exact:true}).waitFor();
-  assert.equal(await roster(page).isVisible(),false);await assertSidebar(page,'矩阵账号');
+  assert.equal(await roster(page).isVisible(),false);await assertSidebar(page,'账号与作品');
   assert.equal(new URL(page.url()).searchParams.get('rosterPanel'),'changes');
   assert.deepEqual(rosterParams(page).filter(([k])=>k!=='rosterPanel'),expected.filter(([k])=>k!=='rosterPanel'));
   assert.deepEqual(unrelated(),preserved);
@@ -195,8 +195,8 @@ test('sidebar returns to all authors; explicit change task and browser history p
   await page.goForward();await page.getByRole('heading',{name:'账号变化',exact:true}).waitFor();assert.equal(page.url(),changesUrl);
   await sidebar(page).getByRole('button',{name:'话题数据',exact:true}).click();await assertSidebar(page,'话题数据');
   const topicUrl=page.url();
-  await sidebar(page).getByRole('button',{name:'矩阵账号',exact:true}).click();await assertSecondPage(page,expected);
-  await assertSidebar(page,'矩阵账号');
+  await sidebar(page).getByRole('button',{name:'账号与作品',exact:true}).click();await assertSecondPage(page,expected);
+  await assertSidebar(page,'账号与作品');
   await page.goBack();await assertSidebar(page,'话题数据');assert.equal(page.url(),topicUrl);
   await page.goBack();await page.getByRole('heading',{name:'账号变化',exact:true}).waitFor();
   await page.goBack();await assertSecondPage(page,expected);
@@ -212,13 +212,13 @@ test('overview account action moves to the page heading while in-page task chang
   await action.scrollIntoViewIfNeeded();assert.ok(await page.evaluate(()=>window.scrollY)>0,'the real Home handler must be exercised from a scrolled overview');
   await action.click();await page.getByRole('heading',{name:'账号变化',exact:true}).waitFor();
   await page.waitForFunction(()=>window.scrollY===0&&document.activeElement===document.querySelector('h1'));
-  assert.equal(new URL(page.url()).hash,'#accounts');await assertSidebar(page,'矩阵账号');
+  assert.equal(new URL(page.url()).hash,'#accounts');await assertSidebar(page,'账号与作品');
   await page.getByRole('button',{name:/^全部矩阵作者/}).click();await loaded(page);await settleFrame(page);
   assert.equal(await page.getByRole('button',{name:/^全部矩阵作者/}).evaluate(element=>document.activeElement===element),true,'changing tasks within the account page must not steal focus');
-  await assertSidebar(page,'矩阵账号');
+  await assertSidebar(page,'账号与作品');
   await page.getByRole('button',{name:'只看已采集账号变化',exact:true}).click();await page.getByRole('heading',{name:'账号变化',exact:true}).waitFor();await settleFrame(page);
   assert.equal(await page.getByRole('button',{name:'只看已采集账号变化',exact:true}).evaluate(element=>document.activeElement===element),true);
-  await assertSidebar(page,'矩阵账号');assert.deepEqual(errors,[]);noMutations(requests);
+  await assertSidebar(page,'账号与作品');assert.deepEqual(errors,[]);noMutations(requests);
  }finally{await context.close();}}finally{await browser.close();}
 });
 
@@ -284,14 +284,14 @@ test('invalid roster parameters show a recoverable error without silently changi
  try{const {context,page,errors,requests}=await openFixture(browser,'?theme=tuantuan&classification=slice&rosterPanel=authors&rosterPage=0#accounts');try{
   const table=roster(page);await table.getByRole('alert').filter({hasText:'页码无效'}).waitFor();
   assert.equal(new URL(page.url()).searchParams.get('rosterPage'),'0');
-  await assertSidebar(page,'矩阵账号');const invalidUrl=page.url();
+  await assertSidebar(page,'账号与作品');const invalidUrl=page.url();
   await page.getByRole('button',{name:'只看已采集账号变化',exact:true}).click();
-  await page.getByRole('heading',{name:'账号变化',exact:true}).waitFor();await assertSidebar(page,'矩阵账号');
+  await page.getByRole('heading',{name:'账号变化',exact:true}).waitFor();await assertSidebar(page,'账号与作品');
   assert.equal(await table.isVisible(),false,'an invalid author page must not block the separate account-change task');
   assert.equal(new URL(page.url()).searchParams.get('rosterPage'),'0','changing task must not silently reset the invalid author selection');
   assert.equal(new URL(page.url()).searchParams.get('rosterPanel'),'changes');
   await page.goBack();await table.getByRole('alert').filter({hasText:'页码无效'}).waitFor();
-  assert.equal(page.url(),invalidUrl);await assertSidebar(page,'矩阵账号');
+  assert.equal(page.url(),invalidUrl);await assertSidebar(page,'账号与作品');
   await table.getByRole('button',{name:'重置名册筛选',exact:true}).click();
   await table.locator('tbody tr').first().waitFor();
   assert.equal(new URL(page.url()).searchParams.get('theme'),'tuantuan');

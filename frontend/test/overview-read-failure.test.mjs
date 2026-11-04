@@ -69,7 +69,7 @@ test('overview discloses initial read failure, retry, and failed refresh without
    await page.getByText(/公开数据截至/).waitFor();
    assert.match(await page.locator('.topbar').innerText(),/公开数据截至/);
    assert.equal(await page.getByRole('alert').filter({hasText:'本次读取已保存数据失败'}).count(),0);
-   await page.locator('.sidebar').getByRole('button',{name:'矩阵账号',exact:true}).click();
+   await page.locator('.sidebar').getByRole('button',{name:'账号与作品',exact:true}).click();
    await page.getByRole('button',{name:'只看已采集账号变化',exact:true}).click();
    await page.getByText('粉丝总数',{exact:true}).waitFor();
    assert.match(await page.locator('.metric-ledger').innerText(),/110/);
@@ -88,7 +88,7 @@ test('overview discloses initial read failure, retry, and failed refresh without
    await failure.waitFor();
    assert.match(await failure.innerText(),/仍显示上次成功读取的.*版本，不能视为最新数据/);
    assert.match(await page.locator('.topbar').innerText(),/公开数据截至/);
-   await page.locator('.sidebar').getByRole('button',{name:'矩阵账号',exact:true}).click();
+   await page.locator('.sidebar').getByRole('button',{name:'账号与作品',exact:true}).click();
    await page.getByRole('button',{name:'只看已采集账号变化',exact:true}).click();
    assert.match(await page.locator('.metric-ledger').innerText(),/110/,'a failed read must retain, not zero-fill, the last verified snapshot');
    assert.equal(requests.filter(request=>request.path==='/api/replica').length,4,'a verified edition gets one immediate background publication check');
