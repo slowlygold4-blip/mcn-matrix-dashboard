@@ -62,6 +62,12 @@ test('24-hour issues preserve snapshot, search/page and exact account dialog; la
   assert.equal(await list.getByRole('button',{name:'查看合成作者21的账号详情',exact:true}).count(),1);
   await list.getByRole('button',{name:'载入最新问题名单',exact:true}).click();assert.equal(await list.getByRole('searchbox').inputValue(),'合成作者21');assert.equal(await list.getByRole('listitem').count(),0);
   await list.getByRole('searchbox').fill('合成话题');assert.equal(await list.getByRole('listitem').count(),1);assert.match(await list.innerText(),/话题独立统计/);assert.equal(await list.getByRole('button',{name:/的账号详情/}).count(),0);
+  await list.getByRole('searchbox').fill('');await list.getByLabel('问题类型').selectOption('reason:blocked');assert.equal(await list.getByRole('listitem').count(),20);
+  state.payload.status.rolling.issues.workIssueGroups=[{code:'unknown',targetIds:[...Array.from({length:25},(_,i)=>i+1),999]}];
+  await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await list.getByText('已有新的问题名单上报，当前名单未自动替换。',{exact:true}).waitFor();
+  await list.getByRole('button',{name:'载入最新问题名单',exact:true}).click();assert.equal(await list.getByLabel('问题类型').inputValue(),'reason:blocked');
+  assert.match(await list.getByLabel('问题类型').locator('option:checked').innerText(),/本次 0 个/);assert.equal(await list.getByRole('listitem').count(),0);
+  await list.getByLabel('问题类型').selectOption('missing');assert.equal(await list.getByRole('listitem').count(),20);assert.equal(await list.getByRole('button',{name:'查看合成作者1的账号详情',exact:true}).count(),1);
   await list.getByRole('searchbox').fill('999');await list.getByLabel('问题类型').selectOption('works');assert.match(await list.innerText(),/尚未发布账号详情/);assert.equal(await list.getByRole('button',{name:/的账号详情/}).count(),0);
   await list.getByRole('searchbox').fill('');
   for(const width of [390,320]){await page.setViewportSize({width,height:844});await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));

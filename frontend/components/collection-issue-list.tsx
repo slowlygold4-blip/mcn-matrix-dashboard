@@ -13,6 +13,8 @@ export function CollectionIssueList({snapshot,initialFilter,changed,online,accou
  const heading=useRef<HTMLHeadingElement>(null);
  useEffect(()=>{heading.current?.focus({preventScroll:true});},[]);
  const view=collectionIssueView(snapshot,{filter,query,page});
+ const selectedReason=filter.startsWith('reason:')?filter.slice(7):null;
+ const reasonCodes=snapshot.state==='ready'?[...snapshot.codes,...(selectedReason&&!snapshot.codes.includes(selectedReason)?[selectedReason]:[])]:[];
  const byId=new Map(accounts.map(account=>[account.id,account]));
  return <section id="collection-issue-list" className="coverage-gaps" role="region" aria-label="近24小时采集问题名单"
   onKeyDown={event=>{if(event.key==='Escape'&&!event.defaultPrevented){event.preventDefault();event.stopPropagation();onClose();}}}>
@@ -27,7 +29,7 @@ export function CollectionIssueList({snapshot,initialFilter,changed,online,accou
    <div className="coverage-gap-filters"><label>查找问题目标<input type="search" maxLength={200} value={query} placeholder="名称或目标编号" onChange={event=>{setQuery(event.target.value);setPage(1);}}/></label>
     <label>问题类型<select value={filter} onChange={event=>{setFilter(event.target.value);setPage(1);}}>
      <option value="missing">尚未更新目标</option><option value="works">作品采样问题</option><option value="all">全部问题目标</option>
-     {snapshot.codes.map((code:string)=><option key={code} value={'reason:'+code}>{collectionIssueNames[code as keyof typeof collectionIssueNames]}</option>)}
+     {reasonCodes.map((code:string)=><option key={code} value={'reason:'+code}>{collectionIssueNames[code as keyof typeof collectionIssueNames]}{!snapshot.codes.includes(code)?'（本次 0 个）':''}</option>)}
     </select></label>
     {query&&<Button variant="outline" onClick={()=>{setQuery('');setPage(1);}}>清除目标搜索</Button>}
    </div>
