@@ -1,4 +1,5 @@
 import {projectCollectionPlatforms} from './collection-platform-view.mjs';
+import {safeRollingIssues,safeWorkIssueCode} from './collection-issues.mjs';
 const COOKIE='__Host-mcn-collection';
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const HASH=/^[a-f0-9]{64}$/;
@@ -11,8 +12,9 @@ export function safeProgress(x){
  const text=v=>typeof v==='string'?v.slice(0,120):null;
  if(!x||x.runtimeAI!==false||!time(x.observedAt))throw Error('invalid telemetry');
  const platforms=projectCollectionPlatforms(x);
+ const issues=safeRollingIssues(x);
  return {version:1,observedAt:x.observedAt,runtimeAI:false,scope:'all',accounts:n(x.accounts),topics:n(x.topics),
- rolling:x.rolling?{since:time(x.rolling.since),total:n(x.rolling.total),attempted:n(x.rolling.attempted),profileTotal:n(x.rolling.profileTotal),profiles:n(x.rolling.profiles),topics:n(x.rolling.topics),updated:n(x.rolling.updated),notUpdated:n(x.rolling.notUpdated),worksComplete:n(x.rolling.worksComplete),worksLimited:n(x.rolling.worksLimited),workIssues:n(x.rolling.workIssues),reasons:Array.isArray(x.rolling.reasons)?x.rolling.reasons.slice(0,5).map(r=>({code:text(r.code),count:n(r.count)})):[],platforms:platforms.rolling}:null,
+ rolling:x.rolling?{since:time(x.rolling.since),total:n(x.rolling.total),attempted:n(x.rolling.attempted),profileTotal:n(x.rolling.profileTotal),profiles:n(x.rolling.profiles),topics:n(x.rolling.topics),updated:n(x.rolling.updated),notUpdated:n(x.rolling.notUpdated),worksComplete:n(x.rolling.worksComplete),worksLimited:n(x.rolling.worksLimited),workIssues:n(x.rolling.workIssues),reasons:Array.isArray(x.rolling.reasons)?x.rolling.reasons.slice(0,5).map(r=>({code:safeWorkIssueCode(r?.code),count:n(r?.count)})):[],platforms:platforms.rolling,...(issues?{issues}:{})}:null,
  dailyWorkLikes:platforms.daily,
  dailyProfiles:platforms.dailyProfiles,
  queue:{pending:n(x.queue?.pending),resolved:n(x.queue?.resolved),rejected:n(x.queue?.rejected)},
@@ -29,10 +31,18 @@ export async function initializeControl(db){
  db.prepare('CREATE TABLE IF NOT EXISTS collection_commands (id TEXT PRIMARY KEY, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, status TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1, receipt TEXT)'),
  db.prepare('CREATE UNIQUE INDEX IF NOT EXISTS collection_one_active ON collection_commands(active) WHERE active=1')]);
 }
-async function readInput(request){
+const COMMAND_MAX_BYTES=16000,HEARTBEAT_MAX_BYTES=256*1024;
+async function readInput(request,{producer=false}={}){
  const reader=request.body?.getReader();if(!reader)return {};
- let size=0,parts=[];try{for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>16000)throw Error('large');parts.push(value);}}finally{await reader.cancel().catch(()=>{});}
- const bytes=new Uint8Array(size);let offset=0;for(const p of parts){bytes.set(p,offset);offset+=p.length;}return JSON.parse(new TextDecoder().decode(bytes));
+ // The multiplexed producer route reveals action only after JSON parsing.
+ // Only an already-authenticated producer may use the larger bounded reader;
+ // every non-heartbeat action still fails above the original 16,000 bytes.
+ const maxBytes=producer?HEARTBEAT_MAX_BYTES:COMMAND_MAX_BYTES;
+ let size=0,parts=[];try{for(;;){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>maxBytes)throw Error('large');parts.push(value);}}finally{await reader.cancel().catch(()=>{});}
+ const bytes=new Uint8Array(size);let offset=0;for(const p of parts){bytes.set(p,offset);offset+=p.length;}
+ const input=JSON.parse(new TextDecoder().decode(bytes));
+ if(size>COMMAND_MAX_BYTES&&(!producer||input?.action!=='heartbeat'))throw Error('large');
+ return input;
 }
 export async function handleCollection(request,{db,secret,now=Date.now()}){
  if(!db)return reply({error:'采集控制存储暂不可用'},503);
@@ -51,7 +61,7 @@ export async function handleCollection(request,{db,secret,now=Date.now()}){
    command:command?{id:command.id,createdAt:new Date(command.created_at).toISOString(),status:command.status==='queued'&&command.expires_at<now?'expired':command.status,receipt:command.receipt?JSON.parse(command.receipt):null}:null});
  }
  if(request.method!=='POST')return reply({error:'不支持的方法'},405);
- let input;try{input=await readInput(request);}catch{return reply({error:'请求格式无效'},400);}
+ let input;try{input=await readInput(request,{producer});}catch{return reply({error:'请求格式无效'},400);}
  if(!input||typeof input!=='object')return reply({error:'请求格式无效'},400);
  if(producer){
   if(input.action==='grant'){

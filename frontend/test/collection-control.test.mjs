@@ -33,3 +33,48 @@ test('stale producer telemetry rejected and terminal receipts cannot regress',as
  for(const status of ['completed','running'])await f.req({action:'heartbeat',status:f.progress(),ack:{id,jobId,status}},{producer:true});
  assert.equal((await (await f.req(null,{method:'GET'})).json()).command.status,'completed');
 });
+
+function largeIssues(progress){
+ const since=new Date(Date.parse(progress.observedAt)-86400000).toISOString();
+ return {...progress,rolling:{since,total:4096,profileTotal:4096,profiles:4080,topics:0,updated:4080,
+  notUpdated:16,workIssues:4096,issues:{version:1,since,asOf:progress.observedAt,
+   missingProfileTargetIds:Array.from({length:16},(_,i)=>i+1),missingTopicTargetIds:[],
+   workIssueGroups:[{code:'blocked',targetIds:Array.from({length:4096},(_,i)=>i+1)}]}}};
+}
+test('authenticated heartbeat carries the full 4k issue list above the old 16KB limit',async t=>{
+ const f=fixture(t),status=largeIssues(f.progress()),payload={action:'heartbeat',status};
+ assert.ok(new TextEncoder().encode(JSON.stringify(payload)).length>16000);
+ assert.equal((await f.req(payload,{producer:true})).status,200);
+ const stored=await(await f.req(null,{method:'GET',session:false})).json();
+ assert.deepEqual(stored.status.rolling.issues,status.rolling.issues);
+ assert.equal(stored.status.rolling.workIssues,4096);
+ assert.equal(stored.status.rolling.issues.workIssueGroups[0].targetIds.length,4096);
+});
+test('oversize or inconsistent issue heartbeats cannot replace the last accepted status',async t=>{
+ const f=fixture(t),status=largeIssues(f.progress());
+ assert.equal((await f.req({action:'heartbeat',status},{producer:true})).status,200);
+ const before=await(await f.req(null,{method:'GET'})).json();
+ const bad=structuredClone(status);bad.rolling.issues.workIssueGroups[0].targetIds.pop();
+ assert.equal((await f.req({action:'heartbeat',status:bad},{producer:true})).status,400);
+ assert.equal((await f.req({action:'heartbeat',status,padding:'PRIVATE_SENTINEL'.repeat(20_000)},{producer:true})).status,400);
+ const after=await(await f.req(null,{method:'GET'})).json();
+ assert.deepEqual(after.status,before.status);
+ assert.equal(JSON.stringify(after).includes('PRIVATE_SENTINEL'),false);
+});
+test('larger reader never expands public/session commands or producer grant limits',async t=>{
+ const f=fixture(t),padding='x'.repeat(16_001);
+ assert.equal((await f.req({action:'grant',hash:'c'.repeat(64),padding},{producer:true})).status,400);
+ assert.equal((await f.req({action:'heartbeat',status:largeIssues(f.progress())})).status,400);
+ await f.pair();
+ assert.equal((await f.req({action:'trigger',id:crypto.randomUUID(),padding})).status,400);
+ assert.equal((await f.req({action:'logout',padding})).status,400);
+ assert.equal((await(await f.req(null,{method:'GET'})).json()).canControl,true);
+ const count=await f.db.prepare('SELECT COUNT(*) n FROM collection_commands').first();assert.equal(count.n,0);
+});
+test('same-origin intent is checked before public body reads or storage initialization',async()=>{
+ let initialized=0,reads=0;
+ const request={method:'POST',url:origin+'/api/collection',headers:new Headers(),body:{getReader(){reads++;throw Error('must not read');}}};
+ const db={batch(){initialized++;throw Error('must not initialize');},prepare(){initialized++;throw Error('must not prepare');}};
+ assert.equal((await handleCollection(request,{db,secret})).status,403);
+ assert.equal(reads,0);assert.equal(initialized,0);
+});
