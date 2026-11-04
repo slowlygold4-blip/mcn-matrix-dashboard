@@ -7,6 +7,7 @@ import {MonitorDatabase} from '../lib/database.mjs';
 import {normalizeCollection} from '../lib/providers/normalize.mjs';
 import {createRemoteWorkTask,readRemoteWorkTaskConfig} from '../lib/remote-work-task.mjs';
 import {readRemoteWorkCoverage} from '../lib/remote-work-coverage.mjs';
+import {recordRemoteWorkPage} from '../lib/remote-work-observation.mjs';
 import {MonitorScheduler} from '../lib/scheduler.mjs';
 import {validationCountsMatch} from '../lib/backup-manager.mjs';
 
@@ -49,6 +50,8 @@ test('finite task commits actual work vectors and a versioned execution atomical
  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM runs').get().n,0);
  const window={since:'2026-11-03T16:00:00.000Z',now:new Date().toISOString()};
  assert.equal(readRemoteWorkCoverage(f.db,window).length,1);
+ assert.equal(recordRemoteWorkPage(f.db,{targetId:f.target.id,receipt:f.receipt},{attemptId:row.id,requestCount:4}).duplicate,true);
+ assert.throws(()=>recordRemoteWorkPage(f.db,{targetId:f.target.id,receipt:f.receipt},{attemptId:row.id,requestCount:1}),{code:'REMOTE_WORK_OBSERVATION_INVALID'});
  f.db.prepare("UPDATE remote_work_attempts SET status='failed',error_code='bad',post_count=0,event_key=NULL WHERE id=?").run(row.id);
  assert.deepEqual(readRemoteWorkCoverage(f.db,window),[]);
 });
