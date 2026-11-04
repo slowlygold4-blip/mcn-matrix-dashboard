@@ -38,3 +38,13 @@ test('missing run schema fails closed', t => {
   const db = new DatabaseSync(':memory:'); t.after(() => db.close());
   assert.throws(() => readServiceTransitionGate(db, NOW), /缺少 runs 表/);
 });
+
+test('service transition waits for bounded remote HTTP tasks, not only traditional runs',t=>{
+ const db=fixture(t);
+ db.exec('CREATE TABLE remote_work_attempts(status TEXT,started_at TEXT)');
+ db.prepare('INSERT INTO remote_work_attempts VALUES(?,?)').run('running','2026-10-12T14:59:30.000Z');
+ assert.equal(readServiceTransitionGate(db,NOW).safe,false);
+ assert.equal(readServiceTransitionGate(db,NOW).activeRemoteWorkAttempts,1);
+ db.prepare("UPDATE remote_work_attempts SET started_at='2026-10-12T14:00:00.000Z'").run();
+ assert.equal(readServiceTransitionGate(db,NOW).safe,true);
+});

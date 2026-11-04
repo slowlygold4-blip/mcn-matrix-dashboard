@@ -16,6 +16,7 @@ import { gzipSync } from "node:zlib";
 import { performance } from "node:perf_hooks";
 import { MonitorDatabase, normalizeBoardKey, normalizeBoardName } from "./lib/database.mjs";
 import { MonitorScheduler } from "./lib/scheduler.mjs";
+import {createRemoteWorkTask,readRemoteWorkTaskConfig} from './lib/remote-work-task.mjs';
 import { RefreshCollection } from "./lib/refresh-collection.mjs";
 import { SQLiteBackupManager } from "./lib/backup-manager.mjs";
 import {reconcileCreatorProfileIdentityLinks} from './lib/reconcile-creator-profile-links.mjs';
@@ -269,7 +270,13 @@ const backupManager = new SQLiteBackupManager({
 // immediately; only redundant full-database automatic copies are coalesced.
 const scheduledBackup = createScheduledBackupThrottle(backupManager, { minIntervalMs: 6 * 60 * 60_000 });
 const systemAuditReader = new SystemAuditReader({ databasePath: database.filePath, backupDir: backupManager.backupDir });
+let remoteWorkTask = null;
+try {
+  remoteWorkTask = createRemoteWorkTask(database.db,readRemoteWorkTaskConfig(join(dataDir,'remote-work-evaluation.json')),
+    {signal:shutdownController.signal,onCommitted:()=>consoleReader.invalidate()});
+} catch { console.error('有限 HTTP 作品评估配置无效；该通道未启用，其他采集继续。'); }
 const scheduler = new MonitorScheduler(database, {
+  remoteWorkTask,
   asyncPlanning: true,
   shouldYieldScheduledCollection: () => authorQueueTurnRequested || authorQueueRunning || authorDetailProbeRunning,
   scheduleIntervalHours: 8,

@@ -1,8 +1,8 @@
 # MCN 矩阵数据台
 
-**最新源码整理：2026-10-30（北京时间）。包含后台与公开前端源码，部署核验见开发记录。**
+**源码与运行边界审查：2026-11-04。包含后台与公开前端源码；源码、测试通过和生产采集覆盖分别验收。**
 
-[打开线上工作台](https://mcn-matrix-observatory.slowlygold4.chatgpt.site) · [开发交接说明](docs/DEVELOPER_HANDOFF.md)
+[打开线上工作台](https://mcn-matrix-observatory.slowlygold4.chatgpt.site) · [开发交接说明](docs/DEVELOPER_HANDOFF.md) · [采集链路当前状态](docs/COLLECTION_TRANSPORT_STATUS.md)
 
 本仓库包含当前本地采集服务完整应用源码，以及线上工作台前端源码。源码仓库不是运行中的数据服务；他人打开仓库不会取得管理权限。
 
@@ -18,7 +18,9 @@
 
 ## 启动本地服务
 
-需要 Node.js **24+**（使用 `node:sqlite`）和 Python 3。[本机抖音浏览器采集及旧连接命令已停用](docs/BROWSER_COLLECTION_RETIREMENT.md)；HTTP 采集与来源表同步不需要打开抖音网页。前端浏览器测试另需本机 Chrome，仅用于模拟数据或本控制台验收。当前无浏览器采集的[候选源码核验与官方搜索试验](docs/COLLECTION_METHODS_BROWSERLESS_ROUND9_20261030.md)已整理；`node scripts/probe-douyin-open-api.mjs --author-list`检查绑定作者近期作品列表配置，`--miniapp`检查作品指标配置，`--search`检查官方视频搜索配置，均默认不发平台请求。需要对应真实获批应用和合法授权材料后才能显式运行隔离接口；搜索不是完整作者列表或话题总量。
+需要 Node.js **24+**（使用 `node:sqlite`）和 Python 3。[本机抖音浏览器采集及旧连接命令已停用](docs/BROWSER_COLLECTION_RETIREMENT.md)；现有 HTTP 采集与来源表同步不需要打开抖音网页，但不代表作品接口已恢复或全部作者已覆盖。前端交互验收优先使用下文的 GitHub 云端工作流，不要求打开本机 Chrome 或 Safari。
+
+当前无浏览器采集的[候选源码核验与官方搜索试验](docs/COLLECTION_METHODS_BROWSERLESS_ROUND9_20261030.md)已整理；`node scripts/probe-douyin-open-api.mjs --author-list`检查绑定作者近期作品列表配置，`--miniapp`检查作品指标配置，`--search`检查官方视频搜索配置，均默认不发平台请求。需要对应真实获批应用和合法授权材料后才能显式运行隔离接口；搜索不是完整作者列表或话题总量。
 
 ```sh
 npm ci
@@ -63,16 +65,15 @@ cd frontend
 node --test test/observatory-field.test.mjs test/matrix-scope.test.mjs test/replica-navigation.test.mjs
 ```
 
-根目录的 `npm test` 是完整后端测试，部分用例需要额外环境。前端日常开发使用 `cd frontend && npm test`。确需浏览器交互验收时，在根目录和 frontend 安装依赖后显式执行：
+根目录的 `npm test` 是完整后端测试，部分用例需要额外环境。前端日常开发使用 `cd frontend && npm test`。
 
-```sh
-cd frontend
-npm run test:browser
-```
+交互验收优先运行 [GitHub 云端 QA](https://github.com/slowlygold4-blip/mcn-matrix-dashboard/actions/workflows/product-collection-ui-qa.yml)（[工作流源码](.github/workflows/product-collection-ui-qa.yml)）：选择待验收分支，通过 **Run workflow** 启动。工作流在 GitHub Linux 安装锁定依赖和 Chromium，串行运行选定后端测试及真实组件的合成 HTTP 场景；测试证据保存为 `collection-product-qa`，保留 3 天。它不启动本机浏览器、不采集真实抖音账号，也不自动发布。通过这些测试不能替代真实采样和发布后回读验收。
 
-浏览器验收需本机 Chrome，部分历史用例还需要指定验收资料；它不属于默认普通回归，本轮未运行。`MCN_TEST_CHROME` 可指定 Chrome 路径；`MCN_MAIN_ROOT` 默认自动定位仓库根目录，手工覆盖时保留末尾 `/`。不要同时启动多套浏览器验收。
+`frontend` 的 `npm run test:browser` 仍是历史与新用例的混合集合，不是上述云端验收的同义命令。部分历史用例硬编码 macOS Chrome，部分还依赖指定的私有验收资料；仅部分支持 `MCN_TEST_CHROME`。不要在缺少对应环境时将整套结果报为通过，也不要为了运行历史用例恢复本机抖音浏览器采集。新增作者作品历史与监控作者入口用例限制为云端 Linux 或显式远程浏览器连接。
 
-本次验证：[每日发片体验](docs/DAILY_PUBLICATION_UX_20261029.md)、[HTTP 采集方案审查](docs/HTTP_COLLECTION_REVIEW_20261029.md)。欢迎通过 Issue / Pull Request 提交改进。
+`MCN_MAIN_ROOT` 的尾斜杠要求按入口区分：当前云端工作流使用 `$GITHUB_WORKSPACE`（不带尾斜杠），所选用例通过 `resolve(..., 'package.json')` 定位依赖；部分未迁移历史用例仍拼接 `main + 'package.json'`，手工运行这些用例时必须保留末尾 `/`。前端默认测试启动器自动提供带尾斜杠的仓库根目录。
+
+历史验证：[每日发片体验](docs/DAILY_PUBLICATION_UX_20261029.md)、[HTTP 采集方案审查](docs/HTTP_COLLECTION_REVIEW_20261029.md)。当前采集限制及后续验收见[采集链路状态](docs/COLLECTION_TRANSPORT_STATUS.md)。欢迎通过 Issue / Pull Request 提交改进。
 
 ## 数据与采集边界
 
